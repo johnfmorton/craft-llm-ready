@@ -78,7 +78,9 @@ class LlmsTxtService extends Component
 
             foreach ($entries as $entry) {
                 $url = $entry->getUrl();
-                if ($url) {
+                // Skip entries with no URL or homepage entries (uri is empty/null)
+                // because the .md route cannot resolve "/.md"
+                if ($url && $entry->uri) {
                     $lines[] = "- [{$entry->title}]({$url}.md)";
                 }
             }

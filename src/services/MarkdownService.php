@@ -85,7 +85,7 @@ class MarkdownService extends Component
 
         foreach ($entries as $entry) {
             $url = $entry->getUrl();
-            if ($url) {
+            if ($url && $entry->uri) {
                 $lines[] = "- [{$entry->title}]({$url}.md)";
             }
         }
