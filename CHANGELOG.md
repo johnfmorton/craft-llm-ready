@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Entry descriptions in `/llms.txt` and listing pages — each link now includes a brief description following the llms.txt spec format
 - New "Description Field" setting to specify a field handle for entry descriptions (e.g., `summary`, `excerpt`)
 - Auto-extract fallback that pulls a description from the first text field when no description field is configured
+- Config file support — copy `src/config.php` to `config/llm-ready.php` to manage settings in code instead of the control panel
 
 ## [1.0.1] - 2026-03-21
 
