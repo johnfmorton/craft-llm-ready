@@ -20,12 +20,18 @@ class Install extends Migration
 
         Craft::$app->db->schema->refresh();
 
+        // Rebuild DB table from project config (e.g., when installing on a new environment)
+        $this->rebuildFromProjectConfig();
+
         return true;
     }
 
     public function safeDown(): bool
     {
         $this->dropTableIfExists(SectionSettingRecord::tableName());
+
+        // Clean up project config
+        Craft::$app->getProjectConfig()->remove(\johnfmorton\llmready\LlmReady::PROJECT_CONFIG_PATH);
 
         return true;
     }
@@ -72,5 +78,39 @@ class Install extends Migration
             ['id'],
             'CASCADE',
         );
+    }
+
+    /**
+     * Rebuild the DB table from project config data
+     */
+    private function rebuildFromProjectConfig(): void
+    {
+        $configPath = \johnfmorton\llmready\LlmReady::PROJECT_CONFIG_PATH;
+        $sectionSettings = Craft::$app->getProjectConfig()->get($configPath) ?? [];
+
+        $sectionsService = Craft::$app->getEntries();
+        $sitesService = Craft::$app->getSites();
+
+        foreach ($sectionSettings as $sectionUid => $siteConfigs) {
+            $section = $sectionsService->getSectionByUid($sectionUid);
+            if ($section === null) {
+                continue;
+            }
+
+            foreach ($siteConfigs as $siteUid => $values) {
+                /** @var \craft\models\Site|null $site */
+                $site = $sitesService->getSiteByUid($siteUid);
+                if ($site === null) {
+                    continue;
+                }
+
+                $record = new SectionSettingRecord();
+                $record->sectionId = $section->id;
+                $record->siteId = $site->id;
+                $record->enabled = $values['enabled'] ?? true;
+                $record->llmTemplate = $values['llmTemplate'] ?? null;
+                $record->save();
+            }
+        }
     }
 }

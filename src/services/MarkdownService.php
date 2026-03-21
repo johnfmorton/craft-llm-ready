@@ -9,7 +9,6 @@ use craft\elements\Entry;
 use craft\models\Section;
 use craft\models\Site;
 use johnfmorton\llmready\LlmReady;
-use johnfmorton\llmready\records\SectionSettingRecord;
 use League\HTMLToMarkdown\HtmlConverter;
 use yii\base\Component;
 
@@ -37,8 +36,8 @@ class MarkdownService extends Component
         }
 
         // Check for dedicated LLM template
-        $sectionSetting = $this->getSectionSetting($entry->sectionId, $site->id);
-        $llmTemplate = $sectionSetting?->llmTemplate;
+        $sectionConfig = $this->getSectionConfig($entry->sectionId, $site->id);
+        $llmTemplate = $sectionConfig['llmTemplate'] ?? null;
 
         if ($llmTemplate) {
             $markdown = $this->renderLlmTemplate($entry, $llmTemplate);
@@ -354,17 +353,22 @@ class MarkdownService extends Component
     }
 
     /**
-     * Get the section setting record for a section/site combination
+     * Get section setting from project config for a section/site combination
+     *
+     * @return array{enabled: bool, llmTemplate: string|null}|null
      */
-    public function getSectionSetting(int $sectionId, int $siteId): ?SectionSettingRecord
+    public function getSectionConfig(int $sectionId, int $siteId): ?array
     {
-        /** @var SectionSettingRecord|null */
-        return SectionSettingRecord::find()
-            ->where([
-                'sectionId' => $sectionId,
-                'siteId' => $siteId,
-            ])
-            ->one();
+        $section = Craft::$app->getEntries()->getSectionById($sectionId);
+        $site = Craft::$app->getSites()->getSiteById($siteId);
+
+        if ($section === null || $site === null) {
+            return null;
+        }
+
+        $configPath = LlmReady::PROJECT_CONFIG_PATH . ".{$section->uid}.{$site->uid}";
+
+        return Craft::$app->getProjectConfig()->get($configPath);
     }
 
     /**
@@ -372,14 +376,14 @@ class MarkdownService extends Component
      */
     public function isSectionEnabled(int $sectionId, int $siteId): bool
     {
-        $record = $this->getSectionSetting($sectionId, $siteId);
+        $config = $this->getSectionConfig($sectionId, $siteId);
 
-        // If no record exists, the section is enabled by default
-        if ($record === null) {
+        // If no config exists, the section is enabled by default
+        if ($config === null) {
             return true;
         }
 
-        return (bool) $record->enabled;
+        return (bool) $config['enabled'];
     }
 
     /**

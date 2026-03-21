@@ -9,12 +9,14 @@ use craft\base\Element;
 use craft\base\Model;
 use craft\base\Plugin;
 use craft\elements\Entry;
+use craft\events\ConfigEvent;
 use craft\events\ModelEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\TemplateEvent;
 use craft\web\UrlManager;
 use craft\web\View;
 use johnfmorton\llmready\models\Settings;
+use johnfmorton\llmready\records\SectionSettingRecord;
 use johnfmorton\llmready\services\DetectionService;
 use johnfmorton\llmready\services\LlmsTxtService;
 use johnfmorton\llmready\services\MarkdownService;
@@ -34,7 +36,9 @@ use yii\base\Event;
  */
 class LlmReady extends Plugin
 {
-    public string $schemaVersion = '1.0.0';
+    public const PROJECT_CONFIG_PATH = 'llm-ready.sectionSettings';
+
+    public string $schemaVersion = '1.1.0';
     public bool $hasCpSettings = true;
     public bool $hasCpSection = false;
 
@@ -61,6 +65,7 @@ class LlmReady extends Plugin
         }
 
         $this->registerCacheInvalidation();
+        $this->registerProjectConfigListeners();
     }
 
     protected function createSettingsModel(): ?Model
@@ -73,6 +78,7 @@ class LlmReady extends Plugin
         // Get all sections with their site settings for the template
         $sections = Craft::$app->getEntries()->getAllSections();
         $sites = Craft::$app->getSites()->getAllSites();
+        $projectConfig = Craft::$app->getProjectConfig();
 
         $sectionData = [];
         foreach ($sections as $section) {
@@ -89,13 +95,14 @@ class LlmReady extends Plugin
                     continue;
                 }
 
-                // Get plugin's per-section setting
-                $record = $this->markdownService->getSectionSetting($section->id, $site->id);
+                // Read from project config using UIDs
+                $configPath = self::PROJECT_CONFIG_PATH . ".{$section->uid}.{$site->uid}";
+                $config = $projectConfig->get($configPath);
 
                 $sectionSites[] = [
                     'site' => $site,
-                    'enabled' => $record ? (bool) $record->enabled : true,
-                    'llmTemplate' => $record?->llmTemplate ?? '',
+                    'enabled' => $config['enabled'] ?? true,
+                    'llmTemplate' => $config['llmTemplate'] ?? '',
                 ];
             }
 
@@ -120,42 +127,38 @@ class LlmReady extends Plugin
     {
         parent::afterSaveSettings();
 
-        // Save per-section settings from the POST data
-        // Craft namespaces all settings form fields under 'settings', so
-        // sectionSettings is nested inside the settings array.
+        // Save per-section settings to project config
         $request = Craft::$app->getRequest();
         $allSettings = $request->getBodyParam('settings');
         $sectionSettings = $allSettings['sectionSettings'] ?? null;
 
         if (is_array($sectionSettings)) {
-            foreach ($sectionSettings as $sectionId => $sites) {
-                foreach ($sites as $siteId => $values) {
-                    /** @var \johnfmorton\llmready\records\SectionSettingRecord|null $record */
-                    $record = \johnfmorton\llmready\records\SectionSettingRecord::find()
-                        ->where([
-                            'sectionId' => $sectionId,
-                            'siteId' => $siteId,
-                        ])
-                        ->one();
+            $projectConfig = Craft::$app->getProjectConfig();
+            $sectionsService = Craft::$app->getEntries();
+            $sitesService = Craft::$app->getSites();
 
-                    if ($record === null) {
-                        $record = new \johnfmorton\llmready\records\SectionSettingRecord();
-                        $record->sectionId = (int) $sectionId;
-                        $record->siteId = (int) $siteId;
+            foreach ($sectionSettings as $sectionId => $sites) {
+                $section = $sectionsService->getSectionById((int) $sectionId);
+                if ($section === null) {
+                    continue;
+                }
+
+                foreach ($sites as $siteId => $values) {
+                    $site = $sitesService->getSiteById((int) $siteId);
+                    if ($site === null) {
+                        continue;
                     }
 
-                    $record->enabled = !empty($values['enabled']);
-                    $record->llmTemplate = !empty($values['llmTemplate']) ? $values['llmTemplate'] : null;
-                    $record->save();
+                    $configPath = self::PROJECT_CONFIG_PATH . ".{$section->uid}.{$site->uid}";
+                    $projectConfig->set($configPath, [
+                        'enabled' => !empty($values['enabled']),
+                        'llmTemplate' => !empty($values['llmTemplate']) ? $values['llmTemplate'] : null,
+                    ]);
                 }
             }
         }
 
         // Clear the data cache so template/setting changes take effect immediately.
-        // Per-entry cache keys include the entry's dateUpdated timestamp, making them
-        // impossible to selectively target without querying every entry. Since saving
-        // plugin settings is an infrequent admin action, flushing the data cache is
-        // the simplest way to ensure the developer sees their changes right away.
         Craft::$app->getCache()->flush();
     }
 
@@ -300,6 +303,77 @@ class LlmReady extends Plugin
                 $event->output = str_replace('</head>', $linkTag . "\n</head>", $event->output);
             },
         );
+    }
+
+    /**
+     * Register project config event listeners to sync DB from project config
+     */
+    private function registerProjectConfigListeners(): void
+    {
+        $projectConfig = Craft::$app->getProjectConfig();
+
+        // Listen for add/update on individual section+site settings
+        $projectConfig->onAdd(self::PROJECT_CONFIG_PATH . '.{uid}.{uid}', [$this, 'handleChangedSectionSetting']);
+        $projectConfig->onUpdate(self::PROJECT_CONFIG_PATH . '.{uid}.{uid}', [$this, 'handleChangedSectionSetting']);
+        $projectConfig->onRemove(self::PROJECT_CONFIG_PATH . '.{uid}.{uid}', [$this, 'handleRemovedSectionSetting']);
+    }
+
+    /**
+     * Handle a section setting being added or updated in project config
+     */
+    public function handleChangedSectionSetting(ConfigEvent $event): void
+    {
+        // Path is llm-ready.sectionSettings.{sectionUid}.{siteUid}
+        $sectionUid = $event->tokenMatches[0];
+        $siteUid = $event->tokenMatches[1];
+
+        $section = Craft::$app->getEntries()->getSectionByUid($sectionUid);
+        /** @var \craft\models\Site|null $site */
+        $site = Craft::$app->getSites()->getSiteByUid($siteUid);
+
+        if ($section === null || $site === null) {
+            return;
+        }
+
+        /** @var SectionSettingRecord|null $record */
+        $record = SectionSettingRecord::find()
+            ->where([
+                'sectionId' => $section->id,
+                'siteId' => $site->id,
+            ])
+            ->one();
+
+        if ($record === null) {
+            $record = new SectionSettingRecord();
+            $record->sectionId = $section->id;
+            $record->siteId = $site->id;
+        }
+
+        $record->enabled = $event->newValue['enabled'] ?? true;
+        $record->llmTemplate = $event->newValue['llmTemplate'] ?? null;
+        $record->save();
+    }
+
+    /**
+     * Handle a section setting being removed from project config
+     */
+    public function handleRemovedSectionSetting(ConfigEvent $event): void
+    {
+        $sectionUid = $event->tokenMatches[0];
+        $siteUid = $event->tokenMatches[1];
+
+        $section = Craft::$app->getEntries()->getSectionByUid($sectionUid);
+        /** @var \craft\models\Site|null $site */
+        $site = Craft::$app->getSites()->getSiteByUid($siteUid);
+
+        if ($section === null || $site === null) {
+            return;
+        }
+
+        SectionSettingRecord::deleteAll([
+            'sectionId' => $section->id,
+            'siteId' => $site->id,
+        ]);
     }
 
     /**

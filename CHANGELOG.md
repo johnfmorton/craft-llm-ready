@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Section settings (enabled toggle and LLM template path) are now stored in Craft's project config instead of only the database, enabling version control and multi-environment sync
+- Settings UI reads from project config using section/site UIDs instead of database IDs
+- Plugin install migration rebuilds the database table from project config, so new environments are populated automatically
+
 ### Security
 
 - Added `canView()` permission check on all Markdown endpoints — logged-in users without view permission now receive a 403 instead of entry content
