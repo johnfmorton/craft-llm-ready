@@ -105,6 +105,13 @@ class MarkdownService extends Component
      */
     private function renderLlmTemplate(Entry $entry, string $template): string
     {
+        // Sanitize template path to prevent directory traversal
+        if (str_contains($template, '..') || str_starts_with($template, '/')) {
+            Craft::warning("LLM Ready: Rejected unsafe template path '{$template}'", __METHOD__);
+
+            return $this->buildBasicMarkdown($entry);
+        }
+
         $view = Craft::$app->getView();
 
         return $view->renderTemplate($template, [
@@ -220,32 +227,59 @@ class MarkdownService extends Component
     {
         $selector = trim($selector);
 
-        // ID selector: #id or tag#id
+        // ID selector: #id or tag#id — IDs are restricted to word chars and hyphens
         if (preg_match('/^(\w+)?#([\w-]+)$/', $selector, $matches)) {
             $tag = $matches[1] ?: '*';
+            $id = $this->xpathEscapeString($matches[2]);
 
-            return "//{$tag}[@id='{$matches[2]}']";
+            return "//{$tag}[@id={$id}]";
         }
 
-        // Class selector: .class or tag.class
+        // Class selector: .class or tag.class — classes are restricted to word chars and hyphens
         if (preg_match('/^(\w+)?\.([\w-]+)$/', $selector, $matches)) {
             $tag = $matches[1] ?: '*';
+            $class = $this->xpathEscapeString(' ' . $matches[2] . ' ');
 
-            return "//{$tag}[contains(concat(' ', normalize-space(@class), ' '), ' {$matches[2]} ')]";
+            return "//{$tag}[contains(concat(' ', normalize-space(@class), ' '), {$class})]";
         }
 
-        // Attribute selector: [role="main"]
-        if (preg_match('/^\[(\w+)=["\']([^"\']+)["\']\]$/', $selector, $matches)) {
-            return "//*[@{$matches[1]}='{$matches[2]}']";
+        // Attribute selector: [role="main"] — restrict attr values to safe characters
+        if (preg_match('/^\[([\w-]+)=["\']([^"\']+)["\']\]$/', $selector, $matches)) {
+            $attr = preg_replace('/[^\w-]/', '', $matches[1]);
+            $val = $this->xpathEscapeString($matches[2]);
+
+            return "//*[@{$attr}={$val}]";
         }
 
-        // Tag selector: main, article, etc.
+        // Tag selector: main, article, etc. — must be a single word
         if (preg_match('/^\w+$/', $selector)) {
             return "//{$selector}";
         }
 
-        // Fallback
-        return "//{$selector}";
+        // Fallback: reject unknown selectors to prevent injection
+        Craft::warning("LLM Ready: Skipping unrecognized CSS selector '{$selector}'", __METHOD__);
+
+        return "//___llmready_no_match___";
+    }
+
+    /**
+     * Safely escape a string for use in an XPath expression
+     */
+    private function xpathEscapeString(string $value): string
+    {
+        if (!str_contains($value, "'")) {
+            return "'{$value}'";
+        }
+
+        if (!str_contains($value, '"')) {
+            return "\"{$value}\"";
+        }
+
+        // Value contains both quote types — use concat()
+        $parts = explode("'", $value);
+        $escaped = implode("', \"'\", '", $parts);
+
+        return "concat('{$escaped}')";
     }
 
     /**

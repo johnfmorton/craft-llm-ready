@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Added `canView()` permission check on all Markdown endpoints — logged-in users without view permission now receive a 403 instead of entry content
+- LLM template paths containing `..` or starting with `/` are now rejected to prevent directory traversal
+- CSS selector values are now properly escaped in XPath expressions to prevent injection; unrecognized selectors are rejected instead of passed through
+
 ### Fixed
 
 - Per-section settings (enabled toggle and LLM template path) were not saved to the database when clicking Save in the plugin settings page

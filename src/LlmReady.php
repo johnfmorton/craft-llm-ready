@@ -228,6 +228,12 @@ class LlmReady extends Plugin
                             return;
                         }
 
+                        // Respect entry view permissions for logged-in users
+                        $currentUser = Craft::$app->getUser()->getIdentity();
+                        if ($currentUser !== null && !$element->canView($currentUser)) {
+                            return;
+                        }
+
                         $content = $this->markdownService->renderMarkdown($element, $site);
 
                         $response = Craft::$app->getResponse();
