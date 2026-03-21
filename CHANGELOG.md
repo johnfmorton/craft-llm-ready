@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Per-section settings (enabled toggle and LLM template path) were not saved to the database when clicking Save in the plugin settings page
+- Data cache is now flushed when plugin settings are saved, so template and configuration changes take effect immediately without manual cache clearing
 
 ## [1.0.0] - 2026-03-21
 

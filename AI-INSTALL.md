@@ -243,7 +243,7 @@ Create a Twig template in the `templates/_llm/` directory (or another directory 
 - Use the `entry` variable which is passed automatically
 - Include only the content that's useful for LLMs
 
-Example template at `templates/_llm/blog.twig`:
+**Example template for a Plain Text body field** at `templates/_llm/blog.twig`:
 
 ```twig
 # {{ entry.title }}
@@ -257,16 +257,42 @@ Example template at `templates/_llm/blog.twig`:
 
 {% endif %}
 {% if entry.body is defined and entry.body %}
-{{ entry.body|striptags('<p><a><strong><em><ul><ol><li><h2><h3><h4><h5><h6><blockquote><code><pre><img>')|raw }}
+{{ entry.body }}
+{% endif %}
+```
+
+**Example template for a CKEditor field** (e.g., `articleContent`) at `templates/_llm/blog.twig`:
+
+```twig
+# {{ entry.title }}
+
+*{{ entry.postDate|date('F j, Y') }}*{% if entry.author %} by {{ entry.author.fullName }}{% endif %}
+
+{% if entry.articleContent|length %}
+{% for chunk in entry.articleContent %}
+{% if chunk.type == 'markup' %}
+{{ chunk.getMarkdown()|raw }}
+{% elseif chunk.type == 'entry' %}
+{% set block = craft.app.entries.getEntryById(chunk.entryId) %}
+{% if block %}
+{% if block.type == 'markdown' %}
+{{ block.markdown }}
+{% elseif block.type == 'youtubeVideo' %}
+[YouTube Video]({{ block.youtubeUrl }})
+{% endif %}
+{% endif %}
+{% endif %}
+{% endfor %}
 {% endif %}
 ```
 
 **Important notes for template creation:**
 - The template receives a single variable: `entry` (a `craft\elements\Entry` object).
 - The template output is served directly as the Markdown response — do not wrap it in HTML layout tags.
-- Use `|striptags` with allowed tags if you want to preserve some HTML structure for the Markdown converter. Or output plain text fields directly.
-- For CKEditor/Redactor fields, the field value is HTML. You can either output it raw (and let it pass through) or strip tags for cleaner Markdown.
 - YAML front matter is prepended automatically by the plugin — do not add your own front matter block.
+- **CKEditor fields:** CKEditor content is stored as typed chunks. Markup chunks are `craft\ckeditor\data\Markup` objects. Use `{{ chunk.getMarkdown()|raw }}` to output properly formatted Markdown. Do **not** use `{{ chunk }}`, `{{ chunk|striptags }}`, or `{{ chunk|raw }}` — these all produce plain text with no paragraph breaks, headings, or formatting. The `getMarkdown()` method (available since CKEditor plugin 4.8.0) converts the HTML into clean Markdown.
+- For plain text fields, output the value directly with `{{ entry.fieldHandle }}`.
+- For Redactor fields, the field value is HTML. Use `{{ entry.fieldHandle|striptags|raw }}` or let the automatic converter handle it.
 
 ### 10d. Configure the template in plugin settings
 

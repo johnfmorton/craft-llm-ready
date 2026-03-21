@@ -68,6 +68,38 @@ The template receives the `entry` variable, just like a normal entry template:
 {% endif %}
 ```
 
+### Working with CKEditor fields
+
+CKEditor fields in Craft CMS 5 store content as a collection of typed chunks. When building dedicated LLM templates, you need to handle these chunks correctly to preserve formatting.
+
+**Markup chunks** (`craft\ckeditor\data\Markup`) contain HTML content. To convert this HTML into properly formatted Markdown, use the `getMarkdown()` method:
+
+```twig
+{% for chunk in entry.myCkeditorField %}
+  {% if chunk.type == 'markup' %}
+    {{ chunk.getMarkdown()|raw }}
+  {% elseif chunk.type == 'entry' %}
+    {# Handle nested entry blocks (images, videos, etc.) #}
+    {% set block = craft.app.entries.getEntryById(chunk.entryId) %}
+    {# ... render block based on type ... #}
+  {% endif %}
+{% endfor %}
+```
+
+**Do not use** `{{ chunk }}`, `{{ chunk|striptags }}`, or `{{ chunk|raw }}` for markup chunks. These all produce plain text with no paragraph breaks, headings, links, or other formatting — resulting in a single wall of unreadable text.
+
+The `getMarkdown()` method is available since CKEditor plugin version 4.8.0. It converts the chunk's HTML into Markdown using `league/html-to-markdown`, preserving:
+
+- Paragraph breaks
+- Headings
+- Links
+- Lists (ordered and unordered)
+- Images (with alt text)
+- Bold, italic, and other inline formatting
+- Code blocks
+
+You can optionally pass an array of `HtmlConverter` configuration options: `{{ chunk.getMarkdown({hard_break: true})|raw }}`.
+
 ## YAML front matter
 
 All Markdown responses include YAML front matter with entry metadata:

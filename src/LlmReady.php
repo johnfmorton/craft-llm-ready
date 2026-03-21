@@ -150,6 +150,13 @@ class LlmReady extends Plugin
                 }
             }
         }
+
+        // Clear the data cache so template/setting changes take effect immediately.
+        // Per-entry cache keys include the entry's dateUpdated timestamp, making them
+        // impossible to selectively target without querying every entry. Since saving
+        // plugin settings is an infrequent admin action, flushing the data cache is
+        // the simplest way to ensure the developer sees their changes right away.
+        Craft::$app->getCache()->flush();
     }
 
     /**
