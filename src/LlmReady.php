@@ -121,8 +121,11 @@ class LlmReady extends Plugin
         parent::afterSaveSettings();
 
         // Save per-section settings from the POST data
+        // Craft namespaces all settings form fields under 'settings', so
+        // sectionSettings is nested inside the settings array.
         $request = Craft::$app->getRequest();
-        $sectionSettings = $request->getBodyParam('sectionSettings');
+        $allSettings = $request->getBodyParam('settings');
+        $sectionSettings = $allSettings['sectionSettings'] ?? null;
 
         if (is_array($sectionSettings)) {
             foreach ($sectionSettings as $sectionId => $sites) {
@@ -168,7 +171,6 @@ class LlmReady extends Plugin
                     'route' => 'llm-ready/markdown/serve',
                     'suffix' => '.md',
                 ];
-
             },
         );
     }

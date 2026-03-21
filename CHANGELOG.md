@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Per-section settings (enabled toggle and LLM template path) were not saved to the database when clicking Save in the plugin settings page
+
 ## [1.0.0] - 2026-03-21
 
 ### Added
