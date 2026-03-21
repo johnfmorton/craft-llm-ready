@@ -196,7 +196,11 @@ Summarize the test results. Example:
 > - `/llms.txt`: Working — site index lists X entries across Y sections
 > - Discovery tag: Working/Not working — `<link rel="alternate">` tag is/is not present in HTML pages
 >
-> The plugin is using automatic HTML-to-Markdown conversion for all sections. Would you like me to help create dedicated Markdown templates for any sections, or is the default conversion acceptable?"
+> The plugin is using automatic HTML-to-Markdown conversion for all sections. Would you like me to help create dedicated Markdown templates for any sections, or is the default conversion acceptable?
+>
+> **Recommended next step:** Go to **Settings > Plugins > LLM Ready** and set the **Site Description** field. This appears as a blockquote in `/llms.txt` and helps LLMs understand what your site is about. For example: '[Site Name] is a [type of site] by [author/org] covering [topics].'
+>
+> If you have a field that stores entry summaries (e.g., `summary`, `excerpt`), also set the **Description Field** to that handle so each entry in `/llms.txt` includes a brief description."
 
 ---
 
@@ -329,9 +333,16 @@ If the developer wants to customize the plugin beyond defaults, here are the ava
 | Auto-inject Discovery Tag | On | Add `<link rel="alternate">` to HTML pages |
 | Cache TTL | 3600 seconds | How long to cache Markdown output (0 = no cache) |
 | Site Description | (empty) | Intro text for the `/llms.txt` blockquote |
+| Description Field | (empty) | Field handle for entry descriptions in `/llms.txt` links (auto-extracts if blank) |
 | Additional Bot User-Agents | (empty) | Custom user-agent strings to detect |
 
 Per-section settings (enable/disable and LLM template) are configured in the table at the bottom of the settings page.
+
+**Important:** After installation, prompt the developer to configure the **Site Description** setting. This text appears as a blockquote in `/llms.txt` and helps LLMs understand what the site is about. Suggest something like:
+
+> "[Site Name] is a [type of site] by [author/org] covering [topics]."
+
+If the site has a field that stores entry summaries or descriptions (e.g., `summary`, `excerpt`, `description`), also recommend setting the **Description Field** to that handle so `/llms.txt` entries include brief descriptions.
 
 ---
 

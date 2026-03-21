@@ -106,6 +106,16 @@
     rows: 4,
 }) }}
 
+{{ forms.textField({
+    label: 'Description Field',
+    instructions: 'Field handle to use for entry descriptions in <code>/llms.txt</code> and listing pages (e.g., <code>summary</code>, <code>excerpt</code>). Leave blank to auto-extract from the first text field.',
+    id: 'descriptionField',
+    name: 'descriptionField',
+    value: settings.descriptionField,
+    placeholder: 'e.g., summary',
+    size: 30,
+}) }}
+
 <hr>
 
 <h2>Section Settings</h2>

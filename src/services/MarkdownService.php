@@ -6,6 +6,7 @@ namespace johnfmorton\llmready\services;
 
 use Craft;
 use craft\elements\Entry;
+use craft\fields\PlainText;
 use craft\models\Section;
 use craft\models\Site;
 use johnfmorton\llmready\LlmReady;
@@ -84,9 +85,9 @@ class MarkdownService extends Component
         $lines = ["# {$section->name} — {$siteName}", ''];
 
         foreach ($entries as $entry) {
-            $url = $entry->getUrl();
-            if ($url && $entry->uri !== '__home__') {
-                $lines[] = "- [{$entry->title}]({$url}.md)";
+            $line = $this->formatEntryLink($entry);
+            if ($line !== null) {
+                $lines[] = $line;
             }
         }
 
@@ -394,6 +395,122 @@ class MarkdownService extends Component
         $dateUpdated = $entry->dateUpdated ? $entry->dateUpdated->getTimestamp() : '0';
 
         return "llmready:{$site->id}:{$entry->id}:{$dateUpdated}";
+    }
+
+    /**
+     * Format an entry as a Markdown list item link with optional description
+     */
+    public function formatEntryLink(Entry $entry): ?string
+    {
+        $url = $entry->getUrl();
+        if (!$url || $entry->uri === '__home__') {
+            return null;
+        }
+
+        $description = $this->getEntryDescription($entry);
+        if ($description) {
+            return "- [{$entry->title}]({$url}.md): {$description}";
+        }
+
+        return "- [{$entry->title}]({$url}.md)";
+    }
+
+    /**
+     * Get a brief description for an entry, for use in llms.txt and listing pages
+     */
+    public function getEntryDescription(Entry $entry, int $maxLength = 160): ?string
+    {
+        $settings = LlmReady::getInstance()->getSettings();
+        $text = null;
+
+        // Try configured description field first
+        if ($settings->descriptionField !== '') {
+            $text = $this->getFieldText($entry, $settings->descriptionField);
+        }
+
+        // Auto-extract fallback: find the first text field with usable content
+        if ($text === null) {
+            $fieldLayout = $entry->getFieldLayout();
+            if ($fieldLayout !== null) {
+                foreach ($fieldLayout->getCustomFields() as $field) {
+                    $fieldClass = get_class($field);
+                    if ($field instanceof PlainText
+                        || $fieldClass === 'craft\\ckeditor\\Field'
+                        || $fieldClass === 'craft\\redactor\\Field'
+                    ) {
+                        $candidate = $this->getFieldText($entry, $field->handle);
+                        if ($candidate !== null && mb_strlen($candidate) >= 20) {
+                            $text = $candidate;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if ($text === null) {
+            return null;
+        }
+
+        $text = $this->truncateText($text, $maxLength);
+
+        return mb_strlen($text) >= 10 ? $text : null;
+    }
+
+    /**
+     * Get plain text from a field value, stripping HTML if needed
+     */
+    private function getFieldText(Entry $entry, string $handle): ?string
+    {
+        try {
+            $value = $entry->getFieldValue($handle);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_object($value) && method_exists($value, '__toString')) {
+            $value = (string) $value;
+        }
+
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $text = strip_tags($value);
+        $text = html_entity_decode($text, ENT_QUOTES, 'UTF-8');
+        $text = (string) preg_replace('/\s+/', ' ', $text);
+        $text = trim($text);
+
+        return $text !== '' ? $text : null;
+    }
+
+    /**
+     * Truncate text at a sentence or word boundary
+     */
+    private function truncateText(string $text, int $maxLength): string
+    {
+        if (mb_strlen($text) <= $maxLength) {
+            return $text;
+        }
+
+        // Try to end at a sentence boundary within the first $maxLength chars
+        $substring = mb_substr($text, 0, $maxLength);
+        $lastSentence = mb_strrpos($substring, '. ');
+        if ($lastSentence !== false && $lastSentence >= (int) ($maxLength * 0.6)) {
+            return mb_substr($text, 0, $lastSentence + 1);
+        }
+
+        // Otherwise truncate at the last word boundary
+        $lastSpace = mb_strrpos($substring, ' ');
+        if ($lastSpace !== false) {
+            return mb_substr($text, 0, $lastSpace) . '...';
+        }
+
+        return $substring . '...';
     }
 
     /**

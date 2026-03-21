@@ -35,6 +35,9 @@ class Settings extends Model
     /** @var string Site description for llms.txt header blockquote */
     public string $llmsTxtIntro = '';
 
+    /** @var string Field handle for entry descriptions in llms.txt (empty = auto-extract) */
+    public string $descriptionField = '';
+
     /** @var int Cache TTL in seconds (0 = no caching) */
     public int $cacheTtl = 3600;
 
@@ -42,7 +45,7 @@ class Settings extends Model
     {
         return [
             [['enabled', 'noindexHeader', 'autoInjectDiscoveryTag', 'enableContentNegotiation', 'enableUserAgentDetection'], 'boolean'],
-            [['contentSelector', 'llmsTxtIntro'], 'string'],
+            [['contentSelector', 'llmsTxtIntro', 'descriptionField'], 'string'],
             ['cacheTtl', 'integer', 'min' => 0],
             ['additionalBotUserAgents', 'each', 'rule' => ['string']],
         ];

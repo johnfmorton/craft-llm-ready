@@ -74,10 +74,9 @@ class LlmsTxtService extends Component
 
             $entryLines = [];
             foreach ($entries as $entry) {
-                $url = $entry->getUrl();
-                // Skip homepage entries — the .md route cannot resolve "/.md"
-                if ($url && $entry->uri !== '__home__') {
-                    $entryLines[] = "- [{$entry->title}]({$url}.md)";
+                $line = $markdownService->formatEntryLink($entry);
+                if ($line !== null) {
+                    $entryLines[] = $line;
                 }
             }
 
