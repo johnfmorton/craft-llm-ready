@@ -4,6 +4,8 @@ _LLM Ready_ makes your Craft CMS site machine-readable by serving clean Markdown
 
 For complete documentation, see the [LLM Ready Documentation](DOCUMENTATION.md) in this repo.
 
+**Using an AI coding assistant?** Point your agent to [AI-INSTALL.md](AI-INSTALL.md) for automated installation and configuration.
+
 ## Highlights
 
 * Append `.md` to any entry URL to get a clean Markdown version.
@@ -44,4 +46,3 @@ composer require johnfmorton/craft-llm-ready
 # tell Craft to install the plugin
 ./craft plugin/install llm-ready
 ```
-# craft-llm-ready

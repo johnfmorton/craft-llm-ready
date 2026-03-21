@@ -2,6 +2,8 @@
 
 LLM Ready serves Markdown versions of your Craft CMS pages to AI crawlers and large language models. It works out of the box with zero template changes — install the plugin and your content is immediately available as Markdown.
 
+> **Using an AI coding assistant?** Point your agent to [AI-INSTALL.md](AI-INSTALL.md) for a step-by-step installation and configuration runbook designed for Claude Code, Codex, Gemini, and similar tools.
+
 ## How it works
 
 LLM Ready intercepts requests for Markdown content using three detection methods:
