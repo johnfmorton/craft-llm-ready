@@ -63,10 +63,6 @@ class LlmsTxtService extends Component
                 continue;
             }
 
-            // Section heading
-            $lines[] = "## {$section->name}";
-            $lines[] = '';
-
             // Get entries for this section
             $entries = Entry::find()
                 ->section($section->handle)
@@ -76,16 +72,22 @@ class LlmsTxtService extends Component
                 ->limit(50)
                 ->all();
 
+            $entryLines = [];
             foreach ($entries as $entry) {
                 $url = $entry->getUrl();
-                // Skip entries with no URL or homepage entries (uri is empty/null)
-                // because the .md route cannot resolve "/.md"
-                if ($url && $entry->uri) {
-                    $lines[] = "- [{$entry->title}]({$url}.md)";
+                // Skip homepage entries — the .md route cannot resolve "/.md"
+                if ($url && $entry->uri !== '__home__') {
+                    $entryLines[] = "- [{$entry->title}]({$url}.md)";
                 }
             }
 
-            $lines[] = '';
+            // Only add section heading if there are entries to list
+            if (!empty($entryLines)) {
+                $lines[] = "## {$section->name}";
+                $lines[] = '';
+                array_push($lines, ...$entryLines);
+                $lines[] = '';
+            }
         }
 
         $result = implode("\n", $lines);

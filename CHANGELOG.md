@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-03-21
+
+### Fixed
+
+- Homepage singles no longer appear in `/llms.txt` and listing pages with broken `/.md` URLs
+- Sections with no listable entries (e.g. homepage singles) no longer show empty headings in `/llms.txt`
+
 ## [1.0.0] - 2026-03-21
 
 ### Added
@@ -30,5 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Permission checks on all Markdown endpoints — logged-in users without view permission receive a 403
 - Template path traversal protection and XPath injection prevention
 
-[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/johnfmorton/craft-llm-ready/releases/tag/v1.0.0
