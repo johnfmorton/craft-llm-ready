@@ -1,0 +1,156 @@
+{% import '_includes/forms.twig' as forms %}
+
+{{ forms.lightswitchField({
+    label: 'Enabled',
+    instructions: 'Whether LLM Ready is globally enabled.',
+    id: 'enabled',
+    name: 'enabled',
+    on: settings.enabled,
+}) }}
+
+<hr>
+
+<h2>Detection Methods</h2>
+
+{{ forms.lightswitchField({
+    label: 'Content Negotiation',
+    instructions: 'Serve Markdown when the request includes an <code>Accept: text/markdown</code> header.',
+    id: 'enableContentNegotiation',
+    name: 'enableContentNegotiation',
+    on: settings.enableContentNegotiation,
+}) }}
+
+{{ forms.lightswitchField({
+    label: 'AI Bot User-Agent Detection',
+    instructions: 'Automatically serve Markdown to known AI crawlers (GPTBot, ClaudeBot, etc.).',
+    id: 'enableUserAgentDetection',
+    name: 'enableUserAgentDetection',
+    on: settings.enableUserAgentDetection,
+}) }}
+
+{{ forms.editableTableField({
+    label: 'Additional Bot User-Agents',
+    instructions: 'Add custom user-agent strings to detect as AI bots.',
+    id: 'additionalBotUserAgents',
+    name: 'additionalBotUserAgents',
+    cols: {
+        value: {
+            heading: 'User-Agent String',
+            type: 'singleline',
+        },
+    },
+    rows: settings.additionalBotUserAgents|map(ua => { value: ua }),
+    allowAdd: true,
+    allowDelete: true,
+    allowReorder: true,
+}) }}
+
+<hr>
+
+<h2>Content Extraction</h2>
+
+{{ forms.textField({
+    label: 'Content Selector',
+    instructions: 'CSS selectors for extracting main content from HTML (comma-separated). Used when no dedicated LLM template is configured.',
+    id: 'contentSelector',
+    name: 'contentSelector',
+    value: settings.contentSelector,
+    placeholder: 'main, article, [role="main"], .content, #content',
+}) }}
+
+<hr>
+
+<h2>Response Headers</h2>
+
+{{ forms.lightswitchField({
+    label: 'X-Robots-Tag: noindex',
+    instructions: 'Add a <code>noindex</code> header to Markdown responses to prevent search engines from indexing them.',
+    id: 'noindexHeader',
+    name: 'noindexHeader',
+    on: settings.noindexHeader,
+}) }}
+
+{{ forms.lightswitchField({
+    label: 'Auto-inject Discovery Tag',
+    instructions: 'Automatically add <code>&lt;link rel="alternate" type="text/markdown"&gt;</code> to HTML pages.',
+    id: 'autoInjectDiscoveryTag',
+    name: 'autoInjectDiscoveryTag',
+    on: settings.autoInjectDiscoveryTag,
+}) }}
+
+<hr>
+
+<h2>Caching</h2>
+
+{{ forms.textField({
+    label: 'Cache TTL (seconds)',
+    instructions: 'How long to cache Markdown output. Set to <code>0</code> to disable caching.',
+    id: 'cacheTtl',
+    name: 'cacheTtl',
+    value: settings.cacheTtl,
+    type: 'number',
+    min: 0,
+    size: 10,
+}) }}
+
+<hr>
+
+<h2>llms.txt</h2>
+
+{{ forms.textareaField({
+    label: 'Site Description',
+    instructions: 'Introduction text for the <code>/llms.txt</code> file. Appears as a blockquote below the site name.',
+    id: 'llmsTxtIntro',
+    name: 'llmsTxtIntro',
+    value: settings.llmsTxtIntro,
+    rows: 4,
+}) }}
+
+<hr>
+
+<h2>Section Settings</h2>
+<p class="light">Configure which sections serve Markdown output and optionally assign dedicated LLM templates.</p>
+
+{% for sectionInfo in sectionData %}
+    <h3 style="margin-top: 24px;">{{ sectionInfo.section.name }} <span class="light">({{ sectionInfo.section.type }})</span></h3>
+
+    <table class="data fullwidth">
+        <thead>
+            <tr>
+                <th>Site</th>
+                <th>Enabled</th>
+                <th>LLM Template</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for siteInfo in sectionInfo.sites %}
+                <tr>
+                    <td>{{ siteInfo.site.name }}</td>
+                    <td>
+                        {% set toggleName = 'sectionSettings[' ~ sectionInfo.section.id ~ '][' ~ siteInfo.site.id ~ '][enabled]' %}
+                        <div>
+                            {{ forms.lightswitch({
+                                name: toggleName,
+                                on: siteInfo.enabled,
+                                small: true,
+                            }) }}
+                        </div>
+                    </td>
+                    <td>
+                        {% set templateName = 'sectionSettings[' ~ sectionInfo.section.id ~ '][' ~ siteInfo.site.id ~ '][llmTemplate]' %}
+                        {{ forms.text({
+                            name: templateName,
+                            value: siteInfo.llmTemplate,
+                            placeholder: 'e.g., _llm/blog',
+                            size: 40,
+                        }) }}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endfor %}
+
+{% if sectionData is empty %}
+    <p class="zilch">No sections with URLs found.</p>
+{% endif %}

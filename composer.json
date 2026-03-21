@@ -1,0 +1,53 @@
+{
+  "name": "johnfmorton/craft-llm-ready",
+  "description": "Serve Markdown versions of your Craft CMS pages to AI crawlers and LLMs via .md URLs, content negotiation, and user-agent detection.",
+  "type": "craft-plugin",
+  "version": "1.0.0",
+  "license": "proprietary",
+  "authors": [
+    {
+      "name": "John F Morton",
+      "homepage": "https://johnfmorton.com/"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/johnfmorton/craft-llm-ready/issues?state=open",
+    "source": "https://github.com/johnfmorton/craft-llm-ready"
+  },
+  "require": {
+    "php": ">=8.2",
+    "craftcms/cms": "^5.5.0",
+    "league/html-to-markdown": "^5.0"
+  },
+  "require-dev": {
+    "craftcms/ecs": "dev-main",
+    "craftcms/phpstan": "dev-main"
+  },
+  "autoload": {
+    "psr-4": {
+      "johnfmorton\\llmready\\": "src/"
+    }
+  },
+  "extra": {
+    "handle": "llm-ready",
+    "name": "LLM Ready",
+    "developer": "John F Morton",
+    "documentationUrl": "https://github.com/johnfmorton/craft-llm-ready",
+    "class": "johnfmorton\\llmready\\LlmReady"
+  },
+  "scripts": {
+    "check-cs": "ecs check --ansi",
+    "fix-cs": "ecs check --ansi --fix",
+    "phpstan": "phpstan --memory-limit=1G"
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.2"
+    },
+    "allow-plugins": {
+      "yiisoft/yii2-composer": true,
+      "craftcms/plugin-installer": true
+    }
+  }
+}
