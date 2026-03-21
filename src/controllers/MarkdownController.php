@@ -92,8 +92,10 @@ class MarkdownController extends Controller
             throw new NotFoundHttpException();
         }
 
-        // Only serve live entries with URLs
-        if ($entry->status !== Entry::STATUS_LIVE || !$entry->getUrl()) {
+        $isPreview = Craft::$app->getRequest()->getIsPreview();
+
+        // Only serve live entries with URLs (allow drafts during live preview)
+        if (!$isPreview && ($entry->status !== Entry::STATUS_LIVE || !$entry->getUrl())) {
             throw new NotFoundHttpException();
         }
 

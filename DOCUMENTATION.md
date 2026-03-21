@@ -29,6 +29,18 @@ curl -H "Accept: text/markdown" https://your-site.test/blog/my-post
 curl https://your-site.test/llms.txt
 ```
 
+## Preview targets
+
+You can preview the Markdown version of an entry directly from the Craft control panel by adding an **LLM version** preview target to your sections.
+
+1. Go to **Settings > Sections** and edit the section you want to configure.
+2. In the **Preview Targets** table, click **+ Add a row**.
+3. Set the **Label** to `LLM version` (or any name you prefer).
+4. Set the **URL Format** to `{url}.md`.
+5. Enable **Auto-refresh** if you want the preview to update as you edit.
+
+This gives content authors a side-by-side view of the HTML page and its Markdown equivalent, making it easy to verify how the content will appear to AI crawlers and LLMs.
+
 ## Markdown conversion
 
 LLM Ready converts your HTML pages to Markdown in two ways:
