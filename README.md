@@ -28,6 +28,8 @@ This plugin requires Craft CMS 5.5.0 or later, and PHP 8.2 or later.
 
 You can install this plugin from the Plugin Store or with Composer.
 
+**Using an AI coding assistant?** See [AI-INSTALL.md](AI-INSTALL.md) for a step-by-step guide your agent can follow to install, verify, and configure the plugin automatically.
+
 ### From the Plugin Store
 
 Go to the Plugin Store in your project's Control Panel and search for "LLM Ready". Then press "Install".
