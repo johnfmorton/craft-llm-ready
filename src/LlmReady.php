@@ -83,6 +83,18 @@ class LlmReady extends Plugin
         $sectionData = [];
         foreach ($sections as $section) {
             $siteSettings = $section->getSiteSettings();
+
+            // Skip homepage Singles — they can't serve .md URLs
+            $isHomepage = false;
+            foreach ($siteSettings as $siteSetting) {
+                if ($siteSetting->uriFormat === '__home__') {
+                    $isHomepage = true;
+                    break;
+                }
+            }
+            if ($isHomepage) {
+                continue;
+            }
             $sectionSites = [];
 
             foreach ($sites as $site) {

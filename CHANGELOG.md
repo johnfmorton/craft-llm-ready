@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Homepage singles no longer appear in the plugin settings page, since they can't serve `.md` URLs
+
 ## [1.1.0] - 2026-03-21
 
 ### Added
