@@ -118,6 +118,29 @@
 
 <hr>
 
+<h2>Analytics</h2>
+
+{{ forms.lightswitchField({
+    label: 'Enable Analytics',
+    instructions: 'Log requests to <code>.md</code> pages, <code>/llms.txt</code>, and content negotiation responses for the analytics dashboard.',
+    id: 'enableAnalytics',
+    name: 'enableAnalytics',
+    on: settings.enableAnalytics,
+}) }}
+
+{{ forms.textField({
+    label: 'Data Retention (days)',
+    instructions: 'How many days of analytics data to keep. Older data can be purged via the dashboard or the <code>llm-ready/analytics/purge</code> console command.',
+    id: 'analyticsRetentionDays',
+    name: 'analyticsRetentionDays',
+    value: settings.analyticsRetentionDays,
+    type: 'number',
+    min: 1,
+    size: 10,
+}) }}
+
+<hr>
+
 <h2>Section Settings</h2>
 <p class="light">Configure which sections serve Markdown output and optionally assign dedicated LLM templates.</p>
 

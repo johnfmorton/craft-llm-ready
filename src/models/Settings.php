@@ -41,12 +41,19 @@ class Settings extends Model
     /** @var int Cache TTL in seconds (0 = no caching) */
     public int $cacheTtl = 3600;
 
+    /** @var bool Whether to enable analytics logging */
+    public bool $enableAnalytics = false;
+
+    /** @var int Number of days to retain analytics data */
+    public int $analyticsRetentionDays = 90;
+
     public function rules(): array
     {
         return [
-            [['enabled', 'noindexHeader', 'autoInjectDiscoveryTag', 'enableContentNegotiation', 'enableUserAgentDetection'], 'boolean'],
+            [['enabled', 'noindexHeader', 'autoInjectDiscoveryTag', 'enableContentNegotiation', 'enableUserAgentDetection', 'enableAnalytics'], 'boolean'],
             [['contentSelector', 'llmsTxtIntro', 'descriptionField'], 'string'],
             ['cacheTtl', 'integer', 'min' => 0],
+            ['analyticsRetentionDays', 'integer', 'min' => 1],
             ['additionalBotUserAgents', 'each', 'rule' => ['string']],
         ];
     }

@@ -1,0 +1,64 @@
+.llm-ready-dashboard .stats-row {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+.llm-ready-dashboard .stat-card {
+    flex: 1;
+    background: var(--ui-control-bg-color, #f3f7fc);
+    border-radius: 8px;
+    padding: 16px 20px;
+}
+
+.llm-ready-dashboard .stat-card h4 {
+    margin: 0 0 4px;
+    font-size: 13px;
+    color: var(--medium-text-color, #8f98a3);
+    font-weight: normal;
+}
+
+.llm-ready-dashboard .stat-card .stat-value {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text-color, #3f4d5a);
+}
+
+.llm-ready-dashboard .chart-container {
+    position: relative;
+    height: 300px;
+    margin-bottom: 24px;
+}
+
+.llm-ready-dashboard .dashboard-controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    align-items: center;
+}
+
+.llm-ready-dashboard .dashboard-section {
+    margin-bottom: 32px;
+}
+
+.llm-ready-dashboard .dashboard-section h3 {
+    margin-bottom: 12px;
+}
+
+.llm-ready-dashboard .dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+@media (max-width: 900px) {
+    .llm-ready-dashboard .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.llm-ready-dashboard .purge-section {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--hairline-color, #e3e5e8);
+}

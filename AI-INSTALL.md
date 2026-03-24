@@ -175,12 +175,12 @@ curl -s -D - {site_url}/llms.txt
 ### 7e. Test discovery tag injection
 
 ```bash
-curl -s {entry_url} | grep 'rel="alternate" type="text/markdown"'
+curl -s {entry_url} | grep 'type="text/markdown"'
 ```
 
-**Expected:** A `<link>` tag with `rel="alternate"` and `type="text/markdown"` pointing to the `.md` URL.
+**Expected:** A `<link>` tag with `rel="alternate"` and `type="text/markdown"` pointing to the `.md` URL. Note that the attribute order may vary (e.g., `type` before `rel`), so the grep matches on `type="text/markdown"` rather than a fixed attribute sequence.
 
-**Note:** This test will only pass if the entry's HTML template renders successfully. If the template has errors or the page returns a non-200 status, the discovery tag will not be injected.
+**Note:** This test requires that the entry's HTML template includes a `<head>` element. Craft automatically injects registered head tags before the closing `</head>` tag. If the template has no `<head>` element, or if the page returns a non-200 status, the discovery tag will not appear.
 
 ---
 
@@ -356,5 +356,5 @@ If any tests fail, check these common issues:
 | Markdown output is empty | Template rendering failed, no content fields found | Check template for errors; create a dedicated LLM template |
 | Markdown includes nav/footer | Content selector doesn't match the template's main content area | Update the Content Selector setting to target the correct element |
 | `/llms.txt` is empty | No sections have URLs enabled | Check that sections have URI formats configured |
-| Discovery tag missing | HTML page didn't render successfully, or setting is disabled | Check the entry's HTML page loads correctly |
+| Discovery tag missing | Template has no `<head>` element, HTML page didn't render, or setting is disabled | Ensure the template includes a `<head>` element, and that the page loads correctly |
 | Content negotiation not working | Setting is disabled, or the Accept header is incorrect | Verify `enableContentNegotiation` is on and header is `Accept: text/markdown` |

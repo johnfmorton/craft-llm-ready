@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Opt-in analytics dashboard tracking AI bot visits to `.md` pages, `/llms.txt`, and content negotiation responses
+- Bot breakdown table showing request counts and last-seen timestamps per crawler (GPTBot, ClaudeBot, PerplexityBot, etc.)
+- Requests over time bar chart powered by Chart.js with date range filtering (7d / 30d / 90d / all time)
+- Most accessed pages table with links to the served Markdown page and entry edit page
+- Request type breakdown (entry, llmstxt, listing, negotiated)
+- Multi-site support for analytics with site selector
+- Configurable data retention period (default 90 days) with manual purge from dashboard
+- Console command `llm-ready/analytics/purge` for cron-based data cleanup
+- CP section with sub-navigation (Dashboard, Settings)
+
 ### Changed
 
 - Use Yii's `registerLinkTag()` for discovery tag injection instead of manual HTML string replacement

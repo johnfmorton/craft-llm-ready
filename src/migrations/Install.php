@@ -6,6 +6,7 @@ namespace johnfmorton\llmready\migrations;
 
 use Craft;
 use craft\db\Migration;
+use johnfmorton\llmready\records\AnalyticsRecord;
 use johnfmorton\llmready\records\SectionSettingRecord;
 
 /**
@@ -28,6 +29,7 @@ class Install extends Migration
 
     public function safeDown(): bool
     {
+        $this->dropTableIfExists(AnalyticsRecord::tableName());
         $this->dropTableIfExists(SectionSettingRecord::tableName());
 
         // Clean up project config
@@ -38,6 +40,18 @@ class Install extends Migration
 
     private function createTables(): void
     {
+        if ($this->db->schema->getTableSchema(AnalyticsRecord::tableName()) === null) {
+            $this->createTable(AnalyticsRecord::tableName(), [
+                'id' => $this->primaryKey(),
+                'siteId' => $this->integer()->notNull(),
+                'entryId' => $this->integer()->null(),
+                'requestType' => $this->string(20)->notNull(),
+                'botName' => $this->string(100)->notNull(),
+                'requestPath' => $this->string(500)->notNull(),
+                'dateCreated' => $this->dateTime()->notNull(),
+            ]);
+        }
+
         if ($this->db->schema->getTableSchema(SectionSettingRecord::tableName()) === null) {
             $this->createTable(SectionSettingRecord::tableName(), [
                 'id' => $this->primaryKey(),
@@ -54,6 +68,14 @@ class Install extends Migration
 
     private function createIndexes(): void
     {
+        $this->createIndex(null, AnalyticsRecord::tableName(), ['dateCreated']);
+        $this->createIndex(null, AnalyticsRecord::tableName(), ['siteId', 'dateCreated']);
+        $this->createIndex(null, AnalyticsRecord::tableName(), ['botName']);
+        $this->createIndex(null, AnalyticsRecord::tableName(), ['entryId']);
+
+        $this->addForeignKey(null, AnalyticsRecord::tableName(), ['siteId'], '{{%sites}}', ['id'], 'CASCADE');
+        $this->addForeignKey(null, AnalyticsRecord::tableName(), ['entryId'], '{{%elements}}', ['id'], 'SET NULL');
+
         $this->createIndex(
             null,
             SectionSettingRecord::tableName(),

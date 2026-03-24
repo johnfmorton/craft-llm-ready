@@ -1,0 +1,164 @@
+{% extends '_layouts/cp' %}
+{% set title = 'LLM Ready' %}
+{% set selectedSubnavItem = 'dashboard' %}
+
+{% do view.registerAssetBundle('johnfmorton\\llmready\\web\\assets\\analytics\\AnalyticsAsset') %}
+
+{% block content %}
+<div class="llm-ready-dashboard">
+
+    {% if not settings.enableAnalytics %}
+        <div class="pane" style="padding: 24px; text-align: center;">
+            <p>Analytics is currently disabled.</p>
+            <p><a href="{{ cpUrl('settings/plugins/llm-ready') }}" class="btn submit">Enable Analytics in Settings</a></p>
+        </div>
+    {% else %}
+        <div class="dashboard-controls">
+            <label for="dateRange">Date Range:</label>
+            <div class="select">
+                <select id="dateRange">
+                    <option value="7" {{ selectedRange == '7' ? 'selected' }}>Last 7 days</option>
+                    <option value="30" {{ selectedRange == '30' ? 'selected' }}>Last 30 days</option>
+                    <option value="90" {{ selectedRange == '90' ? 'selected' }}>Last 90 days</option>
+                    <option value="all">All time</option>
+                </select>
+            </div>
+
+            {% if sites|length > 1 %}
+                <label for="siteSelect">Site:</label>
+                <div class="select">
+                    <select id="siteSelect">
+                        {% for site in sites %}
+                            <option value="{{ site.id }}" {{ site.id == currentSiteId ? 'selected' }}>{{ site.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="stats-row">
+            <div class="stat-card">
+                <h4>Total Requests</h4>
+                <div class="stat-value" id="totalRequests">{{ data.totalRequests|number_format }}</div>
+            </div>
+            <div class="stat-card">
+                <h4>Unique Bots</h4>
+                <div class="stat-value">{{ data.botBreakdown|length }}</div>
+            </div>
+            <div class="stat-card">
+                <h4>Content Types Served</h4>
+                <div class="stat-value">{{ data.requestTypeBreakdown|length }}</div>
+            </div>
+        </div>
+
+        <div class="dashboard-section">
+            <h3>Requests Over Time</h3>
+            <div class="chart-container">
+                <canvas id="requestsChart"></canvas>
+            </div>
+        </div>
+
+        <script type="application/json" id="chartData">{{ data|json_encode|raw }}</script>
+        <script type="application/json" id="siteBaseUrl">{{ siteUrl()|json_encode|raw }}</script>
+
+        <div class="dashboard-grid">
+            <div class="dashboard-section">
+                <h3>Bot Breakdown</h3>
+                <table class="data fullwidth">
+                    <thead>
+                        <tr>
+                            <th>Bot</th>
+                            <th>Requests</th>
+                            <th>Last Seen</th>
+                        </tr>
+                    </thead>
+                    <tbody id="botTableBody">
+                        {% if data.botBreakdown|length == 0 %}
+                            <tr><td colspan="3" class="zilch">No data yet.</td></tr>
+                        {% else %}
+                            {% for row in data.botBreakdown %}
+                                <tr>
+                                    <td><strong>{{ row.botName }}</strong></td>
+                                    <td>{{ row.count|number_format }}</td>
+                                    <td>{{ row.lastSeen ? row.lastSeen|date('n/j/Y, g:i A') : '—' }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="dashboard-section">
+                <h3>Request Types</h3>
+                <table class="data fullwidth">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Requests</th>
+                            <th>Share</th>
+                        </tr>
+                    </thead>
+                    <tbody id="typeTableBody">
+                        {% if data.requestTypeBreakdown|length == 0 %}
+                            <tr><td colspan="3" class="zilch">No data yet.</td></tr>
+                        {% else %}
+                            {% set totalTypeRequests = 0 %}
+                            {% for row in data.requestTypeBreakdown %}
+                                {% set totalTypeRequests = totalTypeRequests + row.count %}
+                            {% endfor %}
+                            {% for row in data.requestTypeBreakdown %}
+                                <tr>
+                                    <td>{{ row.requestType }}</td>
+                                    <td>{{ row.count|number_format }}</td>
+                                    <td>{{ totalTypeRequests > 0 ? ((row.count / totalTypeRequests) * 100)|round ~ '%' : '—' }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="dashboard-section">
+            <h3>Most Accessed Pages</h3>
+            <table class="data fullwidth">
+                <thead>
+                    <tr>
+                        <th>Path</th>
+                        <th>Type</th>
+                        <th>Requests</th>
+                    </tr>
+                </thead>
+                <tbody id="pagesTableBody">
+                    {% if data.mostAccessedPages|length == 0 %}
+                        <tr><td colspan="3" class="zilch">No data yet.</td></tr>
+                    {% else %}
+                        {% for row in data.mostAccessedPages %}
+                            {% set mdUrl = siteUrl(row.requestPath == 'llms.txt' ? row.requestPath : row.requestPath ~ '.md') %}
+                            <tr>
+                                <td>
+                                    <a href="{{ mdUrl }}" target="_blank">{{ row.requestPath }}</a>
+                                    {% if row.cpEditUrl %}
+                                        <a href="{{ row.cpEditUrl }}" target="_blank" title="Edit entry" class="light" style="margin-left: 4px;">&#9998;</a>
+                                    {% endif %}
+                                </td>
+                                <td>{{ row.requestType }}</td>
+                                <td>{{ row.count|number_format }}</td>
+                            </tr>
+                        {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="purge-section">
+            <form method="post">
+                {{ csrfInput() }}
+                {{ actionInput('llm-ready/analytics/purge') }}
+                <p class="light">Remove analytics data older than {{ settings.analyticsRetentionDays }} days.</p>
+                <button type="submit" class="btn">Purge Old Data</button>
+            </form>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -17,6 +17,7 @@ use craft\web\UrlManager;
 use craft\web\View;
 use johnfmorton\llmready\models\Settings;
 use johnfmorton\llmready\records\SectionSettingRecord;
+use johnfmorton\llmready\services\AnalyticsService;
 use johnfmorton\llmready\services\DetectionService;
 use johnfmorton\llmready\services\LlmsTxtService;
 use johnfmorton\llmready\services\MarkdownService;
@@ -33,14 +34,15 @@ use yii\base\Event;
  * @property-read MarkdownService $markdownService
  * @property-read LlmsTxtService $llmsTxtService
  * @property-read DetectionService $detectionService
+ * @property-read AnalyticsService $analyticsService
  */
 class LlmReady extends Plugin
 {
     public const PROJECT_CONFIG_PATH = 'llm-ready.sectionSettings';
 
-    public string $schemaVersion = '1.1.0';
+    public string $schemaVersion = '1.2.0';
     public bool $hasCpSettings = true;
-    public bool $hasCpSection = false;
+    public bool $hasCpSection = true;
 
     public static function config(): array
     {
@@ -49,6 +51,7 @@ class LlmReady extends Plugin
                 'markdownService' => MarkdownService::class,
                 'llmsTxtService' => LlmsTxtService::class,
                 'detectionService' => DetectionService::class,
+                'analyticsService' => AnalyticsService::class,
             ],
         ];
     }
@@ -64,8 +67,23 @@ class LlmReady extends Plugin
             $this->registerDiscoveryTagInjection();
         }
 
+        if (Craft::$app->getRequest()->getIsCpRequest()) {
+            $this->registerCpUrlRules();
+        }
+
         $this->registerCacheInvalidation();
         $this->registerProjectConfigListeners();
+    }
+
+    public function getCpNavItem(): ?array
+    {
+        $item = parent::getCpNavItem();
+        $item['subnav'] = [
+            'dashboard' => ['label' => 'Dashboard', 'url' => 'llm-ready'],
+            'settings' => ['label' => 'Settings', 'url' => 'llm-ready/settings'],
+        ];
+
+        return $item;
     }
 
     protected function createSettingsModel(): ?Model
@@ -198,6 +216,22 @@ class LlmReady extends Plugin
     }
 
     /**
+     * Register CP URL rules for the analytics dashboard
+     */
+    private function registerCpUrlRules(): void
+    {
+        Event::on(
+            UrlManager::class,
+            UrlManager::EVENT_REGISTER_CP_URL_RULES,
+            function(RegisterUrlRulesEvent $event) {
+                $event->rules['llm-ready'] = 'llm-ready/analytics/index';
+                $event->rules['llm-ready/data'] = 'llm-ready/analytics/data';
+                $event->rules['llm-ready/settings'] = 'llm-ready/analytics/settings';
+            },
+        );
+    }
+
+    /**
      * Register handler for content negotiation and user-agent detection
      */
     private function registerContentNegotiationHandler(): void
@@ -262,6 +296,17 @@ class LlmReady extends Plugin
                         $response->getHeaders()->set('Link', "<{$element->getUrl()}>; rel=\"canonical\"");
 
                         $response->data = $content;
+
+                        if ($settings->enableAnalytics) {
+                            $this->analyticsService->logRequest(
+                                $site->id,
+                                $element->getCanonicalId(),
+                                'negotiated',
+                                $this->analyticsService->identifyBot($request),
+                                $request->getPathInfo(),
+                            );
+                        }
+
                         $response->send();
                         Craft::$app->end();
                     }

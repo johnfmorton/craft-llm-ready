@@ -173,6 +173,8 @@ LLM Ready auto-injects a `<link>` tag into the `<head>` of your HTML pages so AI
 
 This tag is added automatically to all pages in enabled sections. You can disable it in the plugin settings.
 
+**Note:** Your page templates must include a `<head>` element for the discovery tag to be rendered. Craft automatically injects registered head tags before the closing `</head>` tag.
+
 ## Response headers
 
 Markdown responses include the following headers:

@@ -75,6 +75,16 @@ class MarkdownController extends Controller
 
         $response->data = $content;
 
+        if ($settings->enableAnalytics) {
+            $plugin->analyticsService->logRequest(
+                $site->id,
+                null,
+                'llmstxt',
+                $plugin->analyticsService->identifyBot(Craft::$app->getRequest()),
+                Craft::$app->getRequest()->getPathInfo(),
+            );
+        }
+
         return $response;
     }
 
@@ -120,6 +130,16 @@ class MarkdownController extends Controller
 
         $response->data = $content;
 
+        if ($settings->enableAnalytics) {
+            $plugin->analyticsService->logRequest(
+                $site->id,
+                $entry->getCanonicalId(),
+                'entry',
+                $plugin->analyticsService->identifyBot(Craft::$app->getRequest()),
+                Craft::$app->getRequest()->getPathInfo(),
+            );
+        }
+
         return $response;
     }
 
@@ -147,6 +167,16 @@ class MarkdownController extends Controller
         }
 
         $response->data = $content;
+
+        if ($settings->enableAnalytics) {
+            $plugin->analyticsService->logRequest(
+                $site->id,
+                null,
+                'listing',
+                $plugin->analyticsService->identifyBot(Craft::$app->getRequest()),
+                Craft::$app->getRequest()->getPathInfo(),
+            );
+        }
 
         return $response;
     }

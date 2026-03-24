@@ -14,7 +14,7 @@ use yii\base\Component;
 class DetectionService extends Component
 {
     /** @var string[] Default AI bot user-agent strings */
-    private const DEFAULT_BOT_USER_AGENTS = [
+    public const BOT_USER_AGENTS = [
         'GPTBot',
         'ChatGPT-User',
         'OAI-SearchBot',
@@ -81,7 +81,7 @@ class DetectionService extends Component
         }
 
         $botAgents = array_merge(
-            self::DEFAULT_BOT_USER_AGENTS,
+            self::BOT_USER_AGENTS,
             $settings->additionalBotUserAgents,
         );
 
