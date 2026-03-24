@@ -12,6 +12,7 @@ use craft\models\Site;
 use johnfmorton\llmready\LlmReady;
 use League\HTMLToMarkdown\HtmlConverter;
 use yii\base\Component;
+use yii\helpers\Html;
 
 /**
  * Handles Markdown conversion and rendering
@@ -481,7 +482,7 @@ class MarkdownService extends Component
         }
 
         $text = strip_tags($value);
-        $text = html_entity_decode($text, ENT_QUOTES, 'UTF-8');
+        $text = Html::decode($text);
         $text = (string) preg_replace('/\s+/', ' ', $text);
         $text = trim($text);
 

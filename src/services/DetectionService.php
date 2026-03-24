@@ -60,9 +60,9 @@ class DetectionService extends Component
             return false;
         }
 
-        $acceptHeader = $request->getHeaders()->get('Accept', '');
+        $acceptableTypes = $request->getAcceptableContentTypes();
 
-        return str_contains($acceptHeader, 'text/markdown');
+        return isset($acceptableTypes['text/markdown']);
     }
 
     /**

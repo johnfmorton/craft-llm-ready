@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Use Yii's `registerLinkTag()` for discovery tag injection instead of manual HTML string replacement
+- Use Yii's `getAcceptableContentTypes()` for content negotiation instead of manual Accept header parsing
+- Use Yii's `Html::decode()` for HTML entity decoding instead of raw `html_entity_decode()`
+
 ## [1.1.1] - 2026-03-23
 
 ### Fixed

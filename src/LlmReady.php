@@ -277,7 +277,7 @@ class LlmReady extends Plugin
     {
         Event::on(
             View::class,
-            View::EVENT_AFTER_RENDER_PAGE_TEMPLATE,
+            View::EVENT_BEFORE_RENDER_PAGE_TEMPLATE,
             function(TemplateEvent $event) {
                 $settings = $this->getSettings();
                 if (!$settings->enabled || !$settings->autoInjectDiscoveryTag) {
@@ -310,9 +310,11 @@ class LlmReady extends Plugin
                     return;
                 }
 
-                // Inject the link tag before </head>
-                $linkTag = '<link rel="alternate" type="text/markdown" href="' . $url . '.md">';
-                $event->output = str_replace('</head>', $linkTag . "\n</head>", $event->output);
+                Craft::$app->getView()->registerLinkTag([
+                    'rel' => 'alternate',
+                    'type' => 'text/markdown',
+                    'href' => $url . '.md',
+                ]);
             },
         );
     }
