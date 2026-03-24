@@ -77,6 +77,10 @@ class LlmReady extends Plugin
 
     public function getCpNavItem(): ?array
     {
+        if (!$this->getSettings()->enableAnalytics) {
+            return null;
+        }
+
         $item = parent::getCpNavItem();
         $item['subnav'] = [
             'dashboard' => ['label' => 'Dashboard', 'url' => 'llm-ready'],
