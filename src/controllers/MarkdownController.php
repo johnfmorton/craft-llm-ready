@@ -88,6 +88,16 @@ class MarkdownController extends Controller
     }
 
     /**
+     * Redirect /.well-known/llms.txt → /llms.txt (RFC 8615)
+     */
+    public function actionWellKnownLlmsTxt(): Response
+    {
+        $site = Craft::$app->getSites()->getCurrentSite();
+
+        return $this->redirect($site->getBaseUrl() . 'llms.txt', 301);
+    }
+
+    /**
      * Serve Markdown for an entry with permission checks
      */
     private function serveEntry(Entry $entry, \craft\models\Site $site): Response

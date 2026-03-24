@@ -202,6 +202,9 @@ class LlmReady extends Plugin
                 // Route for /llms.txt
                 $event->rules['llms.txt'] = 'llm-ready/markdown/llms-txt';
 
+                // Redirect /.well-known/llms.txt → /llms.txt (RFC 8615)
+                $event->rules['.well-known/llms.txt'] = 'llm-ready/markdown/well-known-llms-txt';
+
                 // Catch-all route for *.md URLs using Yii2 UrlRule with suffix
                 // Use .+ (not .*) to avoid matching the bare homepage
                 $event->rules[] = [
