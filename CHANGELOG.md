@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-03-24
+
 ### Added
 
 - 301 redirect from `/.well-known/llms.txt` to `/llms.txt` so LLMs checking the RFC 8615 well-known path are directed to the canonical location
@@ -86,7 +88,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Permission checks on all Markdown endpoints — logged-in users without view permission receive a 403
 - Template path traversal protection and XPath injection prevention
 
-[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.0.1...v1.1.0
