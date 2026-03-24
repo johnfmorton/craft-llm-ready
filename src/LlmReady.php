@@ -81,13 +81,7 @@ class LlmReady extends Plugin
             return null;
         }
 
-        $item = parent::getCpNavItem();
-        $item['subnav'] = [
-            'dashboard' => ['label' => 'Dashboard', 'url' => 'llm-ready'],
-            'settings' => ['label' => 'Settings', 'url' => 'llm-ready/settings'],
-        ];
-
-        return $item;
+        return parent::getCpNavItem();
     }
 
     protected function createSettingsModel(): ?Model
@@ -230,7 +224,6 @@ class LlmReady extends Plugin
             function(RegisterUrlRulesEvent $event) {
                 $event->rules['llm-ready'] = 'llm-ready/analytics/index';
                 $event->rules['llm-ready/data'] = 'llm-ready/analytics/data';
-                $event->rules['llm-ready/settings'] = 'llm-ready/analytics/settings';
             },
         );
     }
@@ -278,12 +271,6 @@ class LlmReady extends Plugin
                         }
 
                         if ($element->status !== Entry::STATUS_LIVE || !$element->getUrl()) {
-                            return;
-                        }
-
-                        // Respect entry view permissions for logged-in users
-                        $currentUser = Craft::$app->getUser()->getIdentity();
-                        if ($currentUser !== null && !$element->canView($currentUser)) {
                             return;
                         }
 

@@ -160,10 +160,14 @@ class AnalyticsService extends Component
             $entries = Entry::find()->id($entryIds)->siteId($siteId)->status(null)->indexBy('id')->all();
         }
 
+        $currentUser = Craft::$app->getUser()->getIdentity();
+
         foreach ($rows as &$row) {
             $entryId = $row['entryId'] ? (int) $row['entryId'] : null;
             $entry = $entryId ? ($entries[$entryId] ?? null) : null;
-            $row['cpEditUrl'] = $entry?->getCpEditUrl();
+            $row['cpEditUrl'] = ($entry && $currentUser && $entry->canView($currentUser))
+                ? $entry->getCpEditUrl()
+                : null;
         }
 
         return $rows;

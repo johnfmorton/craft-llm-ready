@@ -17,13 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-site support for analytics with site selector
 - Configurable data retention period (default 90 days) with manual purge from dashboard
 - Console command `llm-ready/analytics/purge` for cron-based data cleanup
-- CP section with sub-navigation (Dashboard, Settings)
+- CP section for the analytics dashboard
 
 ### Changed
 
+- Analytics dashboard edit links are only shown to users with permission to view the entry
 - Use Yii's `registerLinkTag()` for discovery tag injection instead of manual HTML string replacement
 - Use Yii's `getAcceptableContentTypes()` for content negotiation instead of manual Accept header parsing
 - Use Yii's `Html::decode()` for HTML entity decoding instead of raw `html_entity_decode()`
+
+### Fixed
+
+- Logged-in users without section edit permissions no longer get a 403 error on public `.md` pages
 
 ## [1.1.1] - 2026-03-23
 

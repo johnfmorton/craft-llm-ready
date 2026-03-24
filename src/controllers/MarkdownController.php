@@ -8,7 +8,6 @@ use Craft;
 use craft\elements\Entry;
 use craft\web\Controller;
 use johnfmorton\llmready\LlmReady;
-use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
 use yii\web\Response;
 
@@ -107,12 +106,6 @@ class MarkdownController extends Controller
         // Only serve live entries with URLs (allow drafts during live preview)
         if (!$isPreview && ($entry->status !== Entry::STATUS_LIVE || !$entry->getUrl())) {
             throw new NotFoundHttpException();
-        }
-
-        // Respect permissions — if a user is logged in, check view permissions
-        $currentUser = Craft::$app->getUser()->getIdentity();
-        if ($currentUser !== null && !$entry->canView($currentUser)) {
-            throw new ForbiddenHttpException();
         }
 
         $content = $markdownService->renderMarkdown($entry, $site);

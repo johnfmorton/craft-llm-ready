@@ -96,12 +96,4 @@ class AnalyticsController extends Controller
 
         return $this->redirect('llm-ready');
     }
-
-    /**
-     * Render the settings page within the CP section
-     */
-    public function actionSettings(): Response
-    {
-        return $this->redirect('settings/plugins/llm-ready');
-    }
 }
