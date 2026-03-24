@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - 301 redirect from `/.well-known/llms.txt` to `/llms.txt` so LLMs checking the RFC 8615 well-known path are directed to the canonical location
+- Documentation for the analytics dashboard, including explanations of the four request types (entry, listing, llmstxt, negotiated) and data retention
 
 ## [1.2.0] - 2026-03-24
 

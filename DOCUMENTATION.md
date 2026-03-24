@@ -232,6 +232,31 @@ LLM Ready detects the following AI crawler user-agents by default:
 
 Add custom user-agent strings in the plugin settings under **Additional Bot User-Agents**.
 
+## Analytics
+
+LLM Ready includes an opt-in analytics dashboard that tracks AI bot requests to your site. Enable it in the plugin settings under **Enable Analytics**.
+
+Once enabled, a **LLM Ready** section appears in the control panel navigation with a dashboard showing requests over time, bot breakdown, most accessed pages, and request type breakdown.
+
+### Request types
+
+The analytics dashboard groups requests into four types:
+
+| Type | Meaning |
+|------|---------|
+| **entry** | A direct request for a specific entry's Markdown version via the `.md` URL suffix (e.g., `/blog/my-post.md`). This is the most common request type. |
+| **listing** | A request for a section's listing page via the `.md` suffix (e.g., `/blog.md`), which returns a Markdown list of all entries in that section. |
+| **llmstxt** | A request for the `/llms.txt` site index file. |
+| **negotiated** | A request for a normal URL where the client sent an `Accept: text/markdown` HTTP header, and the plugin responded with Markdown instead of HTML. Some AI tools use this approach rather than appending `.md` to URLs. |
+
+### Data retention
+
+Analytics data is retained for a configurable number of days (default 90). You can purge old data manually from the dashboard or automatically via the console command:
+
+```bash
+./craft llm-ready/analytics/purge
+```
+
 ## Caching
 
 Markdown output is cached using Craft's cache component (Redis, database, or file-based depending on your configuration). The cache is automatically invalidated when:
