@@ -94,7 +94,7 @@ class AnalyticsService extends Component
      */
     public function getBotBreakdown(int $siteId, string $startDate, string $endDate): array
     {
-        return (new Query())
+        $rows = (new Query())
             ->select([
                 'botName',
                 'count' => 'COUNT(*)',
@@ -107,6 +107,18 @@ class AnalyticsService extends Component
             ->groupBy(['botName'])
             ->orderBy(['count' => SORT_DESC])
             ->all();
+
+        // Convert lastSeen from UTC (database) to the Craft system timezone
+        $timezone = new \DateTimeZone(\Craft::$app->getTimeZone());
+        foreach ($rows as &$row) {
+            if (!empty($row['lastSeen'])) {
+                $dt = new \DateTime($row['lastSeen'], new \DateTimeZone('UTC'));
+                $dt->setTimezone($timezone);
+                $row['lastSeen'] = $dt->format('c');
+            }
+        }
+
+        return $rows;
     }
 
     /**

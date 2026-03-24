@@ -79,7 +79,7 @@
                                 <tr>
                                     <td><strong>{{ row.botName }}</strong></td>
                                     <td>{{ row.count|number_format }}</td>
-                                    <td>{{ row.lastSeen ? row.lastSeen|date('n/j/Y, g:i A', craft.app.timezone) : '—' }}</td>
+                                    <td>{{ row.lastSeen ? row.lastSeen|date('n/j/Y, g:i A') : '—' }}</td>
                                 </tr>
                             {% endfor %}
                         {% endif %}
