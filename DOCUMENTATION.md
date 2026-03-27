@@ -232,6 +232,20 @@ LLM Ready detects the following AI crawler user-agents by default:
 
 Add custom user-agent strings in the plugin settings under **Additional Bot User-Agents**.
 
+### Blocking specific bots
+
+LLM Ready does not manage which bots can access your site — it only detects known AI crawlers so it can serve them Markdown. To block a specific bot from crawling your site entirely, configure your `robots.txt` file. Most Craft CMS SEO plugins (e.g., SEOmatic, Sprout SEO) provide a `robots.txt` editor where you can add rules like:
+
+```
+User-agent: GPTBot
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+```
+
+This tells the bot not to crawl any pages on your site. Note that `robots.txt` is a voluntary standard — well-behaved crawlers respect it, but it is not an access control mechanism. If you need to enforce a hard block, use server-level rules (e.g., in your web server or `.htaccess` configuration).
+
 ## Analytics
 
 LLM Ready includes an opt-in analytics dashboard that tracks AI bot requests to your site. Enable it in the plugin settings under **Enable Analytics**.

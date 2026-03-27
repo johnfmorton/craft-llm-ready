@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-03-27
+
 ### Changed
 
 - Chart legend items now show a pointer cursor on hover to indicate they are clickable for toggling datasets
+
+### Added
+
+- Documentation on how to block specific bots via `robots.txt`
 
 ## [1.3.0] - 2026-03-27
 
@@ -106,7 +112,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Permission checks on all Markdown endpoints — logged-in users without view permission receive a 403
 - Template path traversal protection and XPath injection prevention
 
-[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.3.0...v1.3.1
 [1.2.2]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.1.1...v1.2.0
