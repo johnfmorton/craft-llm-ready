@@ -403,7 +403,7 @@ class MarkdownService extends Component
      */
     public function formatEntryLink(Entry $entry): ?string
     {
-        $url = $entry->getUrl();
+        $url = rtrim($entry->getUrl(), '/');
         if (!$url || $entry->uri === '__home__') {
             return null;
         }

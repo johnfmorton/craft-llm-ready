@@ -352,7 +352,7 @@ class LlmReady extends Plugin
                 Craft::$app->getView()->registerLinkTag([
                     'rel' => 'alternate',
                     'type' => 'text/markdown',
-                    'href' => $url . '.md',
+                    'href' => rtrim($url, '/') . '.md',
                 ]);
             },
         );

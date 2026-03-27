@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Strip trailing slash from entry URLs before appending `.md`, preventing broken links like `/about/.md` in `llms.txt` and `<link rel="alternate">` discovery tags
+
 ## [1.2.2] - 2026-03-24
 
 ### Fixed
