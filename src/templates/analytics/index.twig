@@ -51,7 +51,14 @@
         </div>
 
         <div class="dashboard-section">
-            <h3>Requests Over Time</h3>
+            <div class="chart-header">
+                <h3>Requests Over Time</h3>
+                <div class="chart-view-toggle" id="chartViewToggle">
+                    <button type="button" class="chart-toggle-btn active" data-view="total">Total</button>
+                    <button type="button" class="chart-toggle-btn" data-view="bot">By Bot</button>
+                    <button type="button" class="chart-toggle-btn" data-view="type">By Type</button>
+                </div>
+            </div>
             <div class="chart-container">
                 <canvas id="requestsChart"></canvas>
             </div>

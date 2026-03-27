@@ -88,6 +88,74 @@ class AnalyticsService extends Component
     }
 
     /**
+     * Get request counts over time grouped by bot name
+     *
+     * @return array<string, array<int, array{date: string, count: int}>>
+     */
+    public function getRequestsOverTimeByBot(int $siteId, string $startDate, string $endDate, string $granularity = 'day'): array
+    {
+        $dateExpr = match ($granularity) {
+            'week' => 'DATE(DATE_SUB([[dateCreated]], INTERVAL WEEKDAY([[dateCreated]]) DAY))',
+            'month' => 'DATE_FORMAT([[dateCreated]], \'%Y-%m-01\')',
+            default => 'DATE([[dateCreated]])',
+        };
+
+        $rows = (new Query())
+            ->select(["date" => $dateExpr, 'botName', 'count' => 'COUNT(*)'])
+            ->from(AnalyticsRecord::tableName())
+            ->where(['siteId' => $siteId])
+            ->andWhere(['>=', 'dateCreated', $startDate])
+            ->andWhere(['<=', 'dateCreated', $endDate])
+            ->groupBy([$dateExpr, 'botName'])
+            ->orderBy(['date' => SORT_ASC])
+            ->all();
+
+        $result = [];
+        foreach ($rows as $row) {
+            $result[$row['botName']][] = [
+                'date' => $row['date'],
+                'count' => (int) $row['count'],
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get request counts over time grouped by request type
+     *
+     * @return array<string, array<int, array{date: string, count: int}>>
+     */
+    public function getRequestsOverTimeByType(int $siteId, string $startDate, string $endDate, string $granularity = 'day'): array
+    {
+        $dateExpr = match ($granularity) {
+            'week' => 'DATE(DATE_SUB([[dateCreated]], INTERVAL WEEKDAY([[dateCreated]]) DAY))',
+            'month' => 'DATE_FORMAT([[dateCreated]], \'%Y-%m-01\')',
+            default => 'DATE([[dateCreated]])',
+        };
+
+        $rows = (new Query())
+            ->select(["date" => $dateExpr, 'requestType', 'count' => 'COUNT(*)'])
+            ->from(AnalyticsRecord::tableName())
+            ->where(['siteId' => $siteId])
+            ->andWhere(['>=', 'dateCreated', $startDate])
+            ->andWhere(['<=', 'dateCreated', $endDate])
+            ->groupBy([$dateExpr, 'requestType'])
+            ->orderBy(['date' => SORT_ASC])
+            ->all();
+
+        $result = [];
+        foreach ($rows as $row) {
+            $result[$row['requestType']][] = [
+                'date' => $row['date'],
+                'count' => (int) $row['count'],
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
      * Get bot breakdown with request count and last seen date
      *
      * @return array<int, array{botName: string, count: int, lastSeen: string}>

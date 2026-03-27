@@ -31,6 +31,8 @@ class AnalyticsController extends Controller
         $data = [
             'totalRequests' => $analyticsService->getTotalRequests($site->id, $startDate, $endDate),
             'requestsOverTime' => $analyticsService->getRequestsOverTime($site->id, $startDate, $endDate),
+            'requestsOverTimeByBot' => $analyticsService->getRequestsOverTimeByBot($site->id, $startDate, $endDate),
+            'requestsOverTimeByType' => $analyticsService->getRequestsOverTimeByType($site->id, $startDate, $endDate),
             'botBreakdown' => $analyticsService->getBotBreakdown($site->id, $startDate, $endDate),
             'requestTypeBreakdown' => $analyticsService->getRequestTypeBreakdown($site->id, $startDate, $endDate),
             'mostAccessedPages' => $analyticsService->getMostAccessedPages($site->id, $startDate, $endDate),
@@ -76,6 +78,8 @@ class AnalyticsController extends Controller
         return $this->asJson([
             'totalRequests' => $analyticsService->getTotalRequests($siteId, $startDate, $endDate),
             'requestsOverTime' => $analyticsService->getRequestsOverTime($siteId, $startDate, $endDate, $granularity),
+            'requestsOverTimeByBot' => $analyticsService->getRequestsOverTimeByBot($siteId, $startDate, $endDate, $granularity),
+            'requestsOverTimeByType' => $analyticsService->getRequestsOverTimeByType($siteId, $startDate, $endDate, $granularity),
             'botBreakdown' => $analyticsService->getBotBreakdown($siteId, $startDate, $endDate),
             'requestTypeBreakdown' => $analyticsService->getRequestTypeBreakdown($siteId, $startDate, $endDate),
             'mostAccessedPages' => $analyticsService->getMostAccessedPages($siteId, $startDate, $endDate),

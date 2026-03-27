@@ -24,6 +24,53 @@
     color: var(--text-color, #3f4d5a);
 }
 
+.llm-ready-dashboard .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.llm-ready-dashboard .chart-header h3 {
+    margin: 0;
+}
+
+.llm-ready-dashboard .chart-view-toggle {
+    display: inline-flex;
+    border: 1px solid var(--hairline-color, #e3e5e8);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.llm-ready-dashboard .chart-toggle-btn {
+    appearance: none;
+    border: none;
+    background: transparent;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--medium-text-color, #8f98a3);
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    border-right: 1px solid var(--hairline-color, #e3e5e8);
+    line-height: 1.4;
+}
+
+.llm-ready-dashboard .chart-toggle-btn:last-child {
+    border-right: none;
+}
+
+.llm-ready-dashboard .chart-toggle-btn:hover {
+    background: var(--ui-control-bg-color, #f3f7fc);
+    color: var(--text-color, #3f4d5a);
+}
+
+.llm-ready-dashboard .chart-toggle-btn.active {
+    background: var(--ui-control-bg-color, #f3f7fc);
+    color: var(--text-color, #3f4d5a);
+    font-weight: 600;
+}
+
 .llm-ready-dashboard .chart-container {
     position: relative;
     height: 300px;

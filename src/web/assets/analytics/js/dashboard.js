@@ -2,13 +2,44 @@
     'use strict';
 
     let chart = null;
+    let currentView = 'total';
+    let currentData = null;
+
+    // Color palette for stacked chart segments
+    var COLORS = [
+        { bg: 'rgba(225, 65, 60, 0.7)',  border: 'rgba(225, 65, 60, 1)' },
+        { bg: 'rgba(52, 131, 210, 0.7)',  border: 'rgba(52, 131, 210, 1)' },
+        { bg: 'rgba(81, 182, 105, 0.7)',  border: 'rgba(81, 182, 105, 1)' },
+        { bg: 'rgba(245, 166, 35, 0.7)',  border: 'rgba(245, 166, 35, 1)' },
+        { bg: 'rgba(144, 98, 196, 0.7)',  border: 'rgba(144, 98, 196, 1)' },
+        { bg: 'rgba(42, 187, 187, 0.7)',  border: 'rgba(42, 187, 187, 1)' },
+        { bg: 'rgba(232, 108, 64, 0.7)',  border: 'rgba(232, 108, 64, 1)' },
+        { bg: 'rgba(165, 125, 86, 0.7)',  border: 'rgba(165, 125, 86, 1)' },
+    ];
 
     function initDashboard() {
         const chartCanvas = document.getElementById('requestsChart');
         if (!chartCanvas) return;
 
-        const initialData = JSON.parse(document.getElementById('chartData').textContent);
-        renderChart(initialData.requestsOverTime);
+        currentData = JSON.parse(document.getElementById('chartData').textContent);
+        renderChart();
+
+        var toggleContainer = document.getElementById('chartViewToggle');
+        if (toggleContainer) {
+            toggleContainer.addEventListener('click', function(e) {
+                var btn = e.target.closest('.chart-toggle-btn');
+                if (!btn) return;
+                var view = btn.getAttribute('data-view');
+                if (view === currentView) return;
+
+                currentView = view;
+                toggleContainer.querySelectorAll('.chart-toggle-btn').forEach(function(b) {
+                    b.classList.remove('active');
+                });
+                btn.classList.add('active');
+                renderChart();
+            });
+        }
 
         const rangeSelect = document.getElementById('dateRange');
         const siteSelect = document.getElementById('siteSelect');
@@ -39,6 +70,7 @@
         })
         .then(function(response) { return response.json(); })
         .then(function(data) {
+            currentData = data;
             updateDashboard(data);
         })
         .catch(function(err) {
@@ -52,35 +84,53 @@
             totalEl.textContent = data.totalRequests.toLocaleString();
         }
 
-        renderChart(data.requestsOverTime);
+        renderChart();
         updateBotTable(data.botBreakdown);
         updateTypeTable(data.requestTypeBreakdown);
         updatePagesTable(data.mostAccessedPages);
     }
 
-    function renderChart(requestsOverTime) {
-        const ctx = document.getElementById('requestsChart');
+    function renderChart() {
+        if (!currentData) return;
+        var ctx = document.getElementById('requestsChart');
         if (!ctx) return;
 
-        const labels = requestsOverTime.map(function(r) { return r.date; });
-        const values = requestsOverTime.map(function(r) { return parseInt(r.count); });
+        var chartConfig = buildChartConfig();
 
         if (chart) {
-            chart.data.labels = labels;
-            chart.data.datasets[0].data = values;
+            chart.data = chartConfig.data;
+            chart.options = chartConfig.options;
             chart.update();
-            return;
+        } else {
+            chart = new Chart(ctx, chartConfig);
+        }
+    }
+
+    function buildChartConfig() {
+        if (currentView === 'total') {
+            return buildTotalConfig();
         }
 
-        chart = new Chart(ctx, {
+        var breakdownData = currentView === 'bot'
+            ? currentData.requestsOverTimeByBot
+            : currentData.requestsOverTimeByType;
+
+        return buildStackedConfig(breakdownData);
+    }
+
+    function buildTotalConfig() {
+        var labels = currentData.requestsOverTime.map(function(r) { return r.date; });
+        var values = currentData.requestsOverTime.map(function(r) { return parseInt(r.count); });
+
+        return {
             type: 'bar',
             data: {
                 labels: labels,
                 datasets: [{
                     label: 'Requests',
                     data: values,
-                    backgroundColor: 'rgba(225, 65, 60, 0.7)',
-                    borderColor: 'rgba(225, 65, 60, 1)',
+                    backgroundColor: COLORS[0].bg,
+                    borderColor: COLORS[0].border,
                     borderWidth: 1,
                     borderRadius: 3,
                 }],
@@ -94,14 +144,87 @@
                 scales: {
                     y: {
                         beginAtZero: true,
+                        stacked: false,
                         ticks: { precision: 0 },
                     },
                     x: {
+                        stacked: false,
                         grid: { display: false },
                     },
                 },
             },
+        };
+    }
+
+    function buildStackedConfig(breakdownData) {
+        // Collect all unique dates across all groups
+        var dateSet = {};
+        Object.keys(breakdownData).forEach(function(group) {
+            breakdownData[group].forEach(function(row) {
+                dateSet[row.date] = true;
+            });
         });
+        var labels = Object.keys(dateSet).sort();
+
+        // Sort groups by total count descending so the largest is at the bottom
+        var groups = Object.keys(breakdownData).sort(function(a, b) {
+            var totalA = breakdownData[a].reduce(function(sum, r) { return sum + r.count; }, 0);
+            var totalB = breakdownData[b].reduce(function(sum, r) { return sum + r.count; }, 0);
+            return totalB - totalA;
+        });
+
+        var datasets = groups.map(function(group, i) {
+            // Build a date→count lookup for this group
+            var countByDate = {};
+            breakdownData[group].forEach(function(row) {
+                countByDate[row.date] = row.count;
+            });
+
+            var color = COLORS[i % COLORS.length];
+            return {
+                label: group,
+                data: labels.map(function(date) { return countByDate[date] || 0; }),
+                backgroundColor: color.bg,
+                borderColor: color.border,
+                borderWidth: 1,
+                borderRadius: 3,
+            };
+        });
+
+        return {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: datasets,
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            pointStyle: 'rectRounded',
+                            padding: 16,
+                            font: { size: 11 },
+                        },
+                    },
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        stacked: true,
+                        ticks: { precision: 0 },
+                    },
+                    x: {
+                        stacked: true,
+                        grid: { display: false },
+                    },
+                },
+            },
+        };
     }
 
     function clearElement(el) {
