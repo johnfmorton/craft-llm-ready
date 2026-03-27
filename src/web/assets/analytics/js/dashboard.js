@@ -204,6 +204,12 @@
                     legend: {
                         display: true,
                         position: 'bottom',
+                        onHover: function(event) {
+                            event.native.target.style.cursor = 'pointer';
+                        },
+                        onLeave: function(event) {
+                            event.native.target.style.cursor = 'default';
+                        },
                         labels: {
                             usePointStyle: true,
                             pointStyle: 'rectRounded',
