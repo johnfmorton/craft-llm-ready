@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-03-27
+
 ### Added
 
 - Toggle on the Requests Over Time chart to view stacked breakdowns by bot or by request type
