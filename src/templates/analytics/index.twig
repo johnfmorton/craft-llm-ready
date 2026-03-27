@@ -133,10 +133,19 @@
                         <tr><td colspan="3" class="zilch">No data yet.</td></tr>
                     {% else %}
                         {% for row in data.mostAccessedPages %}
-                            {% set mdUrl = siteUrl(row.requestPath == 'llms.txt' ? row.requestPath : row.requestPath ~ '.md') %}
+                            {% if row.requestPath == '__home__' %}
+                                {% set mdUrl = siteUrl() %}
+                                {% set displayPath = 'Homepage' %}
+                            {% elseif row.requestPath == 'llms.txt' %}
+                                {% set mdUrl = siteUrl(row.requestPath) %}
+                                {% set displayPath = row.requestPath %}
+                            {% else %}
+                                {% set mdUrl = siteUrl(row.requestPath ~ '.md') %}
+                                {% set displayPath = row.requestPath %}
+                            {% endif %}
                             <tr>
                                 <td>
-                                    <a href="{{ mdUrl }}" target="_blank">{{ row.requestPath }}</a>
+                                    <a href="{{ mdUrl }}" target="_blank">{{ displayPath }}</a>
                                     {% if row.cpEditUrl %}
                                         <a href="{{ row.cpEditUrl }}" target="_blank" title="Edit entry" class="light" style="margin-left: 4px;">&#9998;</a>
                                     {% endif %}

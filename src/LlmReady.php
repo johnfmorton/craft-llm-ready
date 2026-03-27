@@ -297,7 +297,7 @@ class LlmReady extends Plugin
                                 $element->getCanonicalId(),
                                 'negotiated',
                                 $this->analyticsService->identifyBot($request),
-                                $request->getPathInfo(),
+                                $request->getPathInfo() ?: '__home__',
                             );
                         }
 
@@ -349,11 +349,19 @@ class LlmReady extends Plugin
                     return;
                 }
 
-                Craft::$app->getView()->registerLinkTag([
-                    'rel' => 'alternate',
-                    'type' => 'text/markdown',
-                    'href' => rtrim($url, '/') . '.md',
-                ]);
+                if ($element->uri === '__home__') {
+                    Craft::$app->getView()->registerLinkTag([
+                        'rel' => 'alternate',
+                        'type' => 'text/markdown',
+                        'href' => rtrim($url, '/') . '/llms.txt',
+                    ]);
+                } else {
+                    Craft::$app->getView()->registerLinkTag([
+                        'rel' => 'alternate',
+                        'type' => 'text/markdown',
+                        'href' => rtrim($url, '/') . '.md',
+                    ]);
+                }
             },
         );
     }

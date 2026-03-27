@@ -189,11 +189,18 @@
 
         pages.forEach(function(row) {
             var container = document.createElement('span');
-            var mdSuffix = row.requestPath === 'llms.txt' ? '' : '.md';
             var mdLink = document.createElement('a');
-            mdLink.href = baseUrl + row.requestPath + mdSuffix;
+            if (row.requestPath === '__home__') {
+                mdLink.href = baseUrl;
+                mdLink.textContent = 'Homepage';
+            } else if (row.requestPath === 'llms.txt') {
+                mdLink.href = baseUrl + row.requestPath;
+                mdLink.textContent = row.requestPath;
+            } else {
+                mdLink.href = baseUrl + row.requestPath + '.md';
+                mdLink.textContent = row.requestPath;
+            }
             mdLink.target = '_blank';
-            mdLink.textContent = row.requestPath;
             container.appendChild(mdLink);
 
             if (row.cpEditUrl) {
