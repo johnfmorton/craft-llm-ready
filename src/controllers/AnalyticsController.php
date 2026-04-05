@@ -74,7 +74,13 @@ class AnalyticsController extends Controller
         };
 
         $botName = $request->getParam('botName') ?: null;
+        if ($botName !== null) {
+            $botName = array_map('trim', explode(',', $botName));
+        }
         $requestType = $request->getParam('requestType') ?: null;
+        if ($requestType !== null) {
+            $requestType = array_map('trim', explode(',', $requestType));
+        }
 
         $analyticsService = LlmReady::getInstance()->analyticsService;
 

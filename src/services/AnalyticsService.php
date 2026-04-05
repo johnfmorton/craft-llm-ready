@@ -66,7 +66,7 @@ class AnalyticsService extends Component
     /**
      * Apply optional bot/type filter conditions to a query
      */
-    private function applyFilters(Query $query, ?string $botName, ?string $requestType): Query
+    private function applyFilters(Query $query, string|array|null $botName, string|array|null $requestType): Query
     {
         if ($botName !== null) {
             $query->andWhere(['botName' => $botName]);
@@ -82,7 +82,7 @@ class AnalyticsService extends Component
      *
      * @return array<int, array{date: string, count: int}>
      */
-    public function getRequestsOverTime(int $siteId, string $startDate, string $endDate, string $granularity = 'day', ?string $botName = null, ?string $requestType = null): array
+    public function getRequestsOverTime(int $siteId, string $startDate, string $endDate, string $granularity = 'day', string|array|null $botName = null, string|array|null $requestType = null): array
     {
         $dateExpr = match ($granularity) {
             'week' => 'DATE(DATE_SUB([[dateCreated]], INTERVAL WEEKDAY([[dateCreated]]) DAY))',
@@ -109,7 +109,7 @@ class AnalyticsService extends Component
      *
      * @return array<string, array<int, array{date: string, count: int}>>
      */
-    public function getRequestsOverTimeByBot(int $siteId, string $startDate, string $endDate, string $granularity = 'day', ?string $botName = null, ?string $requestType = null): array
+    public function getRequestsOverTimeByBot(int $siteId, string $startDate, string $endDate, string $granularity = 'day', string|array|null $botName = null, string|array|null $requestType = null): array
     {
         $dateExpr = match ($granularity) {
             'week' => 'DATE(DATE_SUB([[dateCreated]], INTERVAL WEEKDAY([[dateCreated]]) DAY))',
@@ -146,7 +146,7 @@ class AnalyticsService extends Component
      *
      * @return array<string, array<int, array{date: string, count: int}>>
      */
-    public function getRequestsOverTimeByType(int $siteId, string $startDate, string $endDate, string $granularity = 'day', ?string $botName = null, ?string $requestType = null): array
+    public function getRequestsOverTimeByType(int $siteId, string $startDate, string $endDate, string $granularity = 'day', string|array|null $botName = null, string|array|null $requestType = null): array
     {
         $dateExpr = match ($granularity) {
             'week' => 'DATE(DATE_SUB([[dateCreated]], INTERVAL WEEKDAY([[dateCreated]]) DAY))',
@@ -183,7 +183,7 @@ class AnalyticsService extends Component
      *
      * @return array<int, array{botName: string, count: int, lastSeen: string}>
      */
-    public function getBotBreakdown(int $siteId, string $startDate, string $endDate, ?string $botName = null, ?string $requestType = null): array
+    public function getBotBreakdown(int $siteId, string $startDate, string $endDate, string|array|null $botName = null, string|array|null $requestType = null): array
     {
         $query = (new Query())
             ->select([
@@ -220,7 +220,7 @@ class AnalyticsService extends Component
      *
      * @return array<int, array{requestType: string, count: int}>
      */
-    public function getRequestTypeBreakdown(int $siteId, string $startDate, string $endDate, ?string $botName = null, ?string $requestType = null): array
+    public function getRequestTypeBreakdown(int $siteId, string $startDate, string $endDate, string|array|null $botName = null, string|array|null $requestType = null): array
     {
         $query = (new Query())
             ->select([
@@ -244,7 +244,7 @@ class AnalyticsService extends Component
      *
      * @return array<int, array{requestPath: string, requestType: string, count: int, cpEditUrl: string|null}>
      */
-    public function getMostAccessedPages(int $siteId, string $startDate, string $endDate, int $limit = 20, ?string $botName = null, ?string $requestType = null): array
+    public function getMostAccessedPages(int $siteId, string $startDate, string $endDate, int $limit = 20, string|array|null $botName = null, string|array|null $requestType = null): array
     {
         $query = (new Query())
             ->select([
@@ -288,7 +288,7 @@ class AnalyticsService extends Component
     /**
      * Get total request count for a date range
      */
-    public function getTotalRequests(int $siteId, string $startDate, string $endDate, ?string $botName = null, ?string $requestType = null): int
+    public function getTotalRequests(int $siteId, string $startDate, string $endDate, string|array|null $botName = null, string|array|null $requestType = null): int
     {
         $query = (new Query())
             ->from(AnalyticsRecord::tableName())
