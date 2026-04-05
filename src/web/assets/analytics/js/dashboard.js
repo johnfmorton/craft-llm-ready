@@ -260,16 +260,18 @@
             });
 
             var color = COLORS[i % COLORS.length];
-            var isSelected = activeFilters.length === 0 || activeFilters.indexOf(group) > -1;
-            var displayColor = isSelected ? color : GRAY;
+            var data = labels.map(function(date) { return countByDate[date] || 0; });
+            var hasFilter = activeFilters.length > 0;
+            var isSelected = !hasFilter || activeFilters.indexOf(group) > -1;
 
             return {
                 label: group,
-                data: labels.map(function(date) { return countByDate[date] || 0; }),
-                backgroundColor: displayColor.bg,
-                borderColor: displayColor.border,
+                data: isSelected ? data.slice() : data.map(function() { return 0; }),
+                backgroundColor: isSelected ? (hasFilter ? color.border : color.bg) : GRAY.bg,
+                borderColor: isSelected ? color.border : GRAY.border,
                 _originalBg: color.bg,
                 _originalBorder: color.border,
+                _originalData: data,
                 borderWidth: 1,
                 borderRadius: 3,
             };
@@ -359,14 +361,19 @@
     function applyChartFilterStyles() {
         if (!chart || !chart.data || !chart.data.datasets) return;
 
+        var hasFilter = activeFilters.length > 0;
+
         chart.data.datasets.forEach(function(ds) {
-            var isSelected = activeFilters.length === 0 || activeFilters.indexOf(ds.label) > -1;
+            var isSelected = !hasFilter || activeFilters.indexOf(ds.label) > -1;
             if (isSelected) {
-                ds.backgroundColor = ds._originalBg;
+                // Full opacity when actively filtered, normal when no filter
+                ds.backgroundColor = hasFilter ? ds._originalBorder : ds._originalBg;
                 ds.borderColor = ds._originalBorder;
+                ds.data = ds._originalData.slice();
             } else {
                 ds.backgroundColor = GRAY.bg;
                 ds.borderColor = GRAY.border;
+                ds.data = ds._originalData.map(function() { return 0; });
             }
         });
 
