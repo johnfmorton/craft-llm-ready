@@ -312,7 +312,7 @@
                                         lineWidth: 1,
                                         hidden: false,
                                         datasetIndex: i,
-                                        fontColor: isSelected ? undefined : 'rgba(150, 150, 150, 0.6)',
+                                        fontColor: isSelected ? '#3f4d5a' : 'rgba(150, 150, 150, 0.6)',
                                     };
                                 });
                             },
