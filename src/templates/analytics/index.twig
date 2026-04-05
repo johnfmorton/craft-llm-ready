@@ -42,17 +42,21 @@
             </div>
             <div class="stat-card">
                 <h4>Unique Bots</h4>
-                <div class="stat-value">{{ data.botBreakdown|length }}</div>
+                <div class="stat-value" id="uniqueBots">{{ data.botBreakdown|length }}</div>
             </div>
             <div class="stat-card">
                 <h4>Content Types Served</h4>
-                <div class="stat-value">{{ data.requestTypeBreakdown|length }}</div>
+                <div class="stat-value" id="contentTypes">{{ data.requestTypeBreakdown|length }}</div>
             </div>
         </div>
 
         <div class="dashboard-section">
             <div class="chart-header">
                 <h3>Requests Over Time</h3>
+                <span class="active-filter" id="activeFilter" style="display: none;">
+                    Filtered: <strong id="activeFilterValue"></strong>
+                    <button type="button" class="btn small" id="clearFilter">Clear</button>
+                </span>
                 <div class="chart-view-toggle" id="chartViewToggle">
                     <button type="button" class="chart-toggle-btn active" data-view="total">Total</button>
                     <button type="button" class="chart-toggle-btn" data-view="bot">By Bot</button>

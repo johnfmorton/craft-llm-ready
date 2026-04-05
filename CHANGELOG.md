@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Chart legend filtering is now additive — clicking a bot or type shows only that item instead of hiding it; clicking it again shows all
+- Clicking a chart legend item now updates the bot breakdown table, request types table, most accessed pages table, and stats cards to reflect the selected filter
+
 ## [1.3.1] - 2026-03-27
 
 ### Changed

@@ -252,6 +252,17 @@ LLM Ready includes an opt-in analytics dashboard that tracks AI bot requests to 
 
 Once enabled, a **LLM Ready** section appears in the control panel navigation with a dashboard showing requests over time, bot breakdown, most accessed pages, and request type breakdown.
 
+### Filtering by bot or request type
+
+Switch the chart to the **By Bot** or **By Type** view using the toggle buttons, then click any legend item to filter the entire dashboard to that bot or type. When a filter is active:
+
+- The chart shows only the selected item.
+- The stats cards (Total Requests, Unique Bots, Content Types Served) update to reflect the filtered data.
+- The bot breakdown, request types, and most accessed pages tables all update to show only data matching the filter.
+- A **Filtered: [name]** indicator appears with a **Clear** button to remove the filter.
+
+Click the same legend item again or press **Clear** to restore the full (unfiltered) view. Switching chart views or changing the date range also clears any active filter.
+
 ### Request types
 
 The analytics dashboard groups requests into four types:

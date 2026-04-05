@@ -1,9 +1,11 @@
 (function() {
     'use strict';
 
-    let chart = null;
-    let currentView = 'total';
-    let currentData = null;
+    var chart = null;
+    var currentView = 'total';
+    var currentData = null;
+    var activeFilters = []; // Array of selected legend item names
+    var filterType = null;  // 'bot' or 'type'
 
     // Color palette for stacked chart segments
     var COLORS = [
@@ -17,8 +19,10 @@
         { bg: 'rgba(165, 125, 86, 0.7)',  border: 'rgba(165, 125, 86, 1)' },
     ];
 
+    var GRAY = { bg: 'rgba(200, 200, 200, 0.15)', border: 'rgba(200, 200, 200, 0.4)' };
+
     function initDashboard() {
-        const chartCanvas = document.getElementById('requestsChart');
+        var chartCanvas = document.getElementById('requestsChart');
         if (!chartCanvas) return;
 
         currentData = JSON.parse(document.getElementById('chartData').textContent);
@@ -33,6 +37,7 @@
                 if (view === currentView) return;
 
                 currentView = view;
+                clearFilters();
                 toggleContainer.querySelectorAll('.chart-toggle-btn').forEach(function(b) {
                     b.classList.remove('active');
                 });
@@ -41,23 +46,43 @@
             });
         }
 
-        const rangeSelect = document.getElementById('dateRange');
-        const siteSelect = document.getElementById('siteSelect');
+        var rangeSelect = document.getElementById('dateRange');
+        var siteSelect = document.getElementById('siteSelect');
 
         if (rangeSelect) {
-            rangeSelect.addEventListener('change', fetchData);
+            rangeSelect.addEventListener('change', function() {
+                clearFilters();
+                fetchData();
+            });
         }
         if (siteSelect) {
-            siteSelect.addEventListener('change', fetchData);
+            siteSelect.addEventListener('change', function() {
+                clearFilters();
+                fetchData();
+            });
+        }
+
+        var clearBtn = document.getElementById('clearFilter');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                clearFilters();
+                restoreUnfilteredTables();
+            });
         }
     }
 
-    function fetchData() {
-        const range = document.getElementById('dateRange').value;
-        const siteSelect = document.getElementById('siteSelect');
-        const siteId = siteSelect ? siteSelect.value : '';
+    function clearFilters() {
+        activeFilters = [];
+        filterType = null;
+        updateFilterIndicator();
+    }
 
-        const params = new URLSearchParams({ range: range });
+    function fetchData() {
+        var range = document.getElementById('dateRange').value;
+        var siteSelect = document.getElementById('siteSelect');
+        var siteId = siteSelect ? siteSelect.value : '';
+
+        var params = new URLSearchParams({ range: range });
         if (siteId) {
             params.set('siteId', siteId);
         }
@@ -78,16 +103,71 @@
         });
     }
 
-    function updateDashboard(data) {
-        var totalEl = document.getElementById('totalRequests');
-        if (totalEl) {
-            totalEl.textContent = data.totalRequests.toLocaleString();
+    function fetchFilteredTables() {
+        var range = document.getElementById('dateRange').value;
+        var siteSelect = document.getElementById('siteSelect');
+        var siteId = siteSelect ? siteSelect.value : '';
+
+        var params = new URLSearchParams({ range: range });
+        if (siteId) {
+            params.set('siteId', siteId);
         }
 
+        if (filterType === 'bot') {
+            params.set('botName', activeFilters.join(','));
+        } else if (filterType === 'type') {
+            params.set('requestType', activeFilters.join(','));
+        }
+
+        fetch(Craft.getActionUrl('llm-ready/analytics/data') + '?' + params.toString(), {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        })
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            // Update only tables and stats — chart stays as-is
+            updateStats(data);
+            updateBotTable(data.botBreakdown);
+            updateTypeTable(data.requestTypeBreakdown);
+            updatePagesTable(data.mostAccessedPages);
+        })
+        .catch(function(err) {
+            console.error('Failed to fetch filtered data:', err);
+        });
+    }
+
+    function restoreUnfilteredTables() {
+        if (!currentData) return;
+        updateStats(currentData);
+        updateBotTable(currentData.botBreakdown);
+        updateTypeTable(currentData.requestTypeBreakdown);
+        updatePagesTable(currentData.mostAccessedPages);
+        applyChartFilterStyles();
+    }
+
+    function updateDashboard(data) {
+        updateStats(data);
         renderChart();
         updateBotTable(data.botBreakdown);
         updateTypeTable(data.requestTypeBreakdown);
         updatePagesTable(data.mostAccessedPages);
+    }
+
+    function updateStats(data) {
+        var totalEl = document.getElementById('totalRequests');
+        if (totalEl) {
+            totalEl.textContent = data.totalRequests.toLocaleString();
+        }
+        var botsEl = document.getElementById('uniqueBots');
+        if (botsEl) {
+            botsEl.textContent = data.botBreakdown.length;
+        }
+        var typesEl = document.getElementById('contentTypes');
+        if (typesEl) {
+            typesEl.textContent = data.requestTypeBreakdown.length;
+        }
     }
 
     function renderChart() {
@@ -174,18 +254,24 @@
         });
 
         var datasets = groups.map(function(group, i) {
-            // Build a date→count lookup for this group
             var countByDate = {};
             breakdownData[group].forEach(function(row) {
                 countByDate[row.date] = row.count;
             });
 
             var color = COLORS[i % COLORS.length];
+            var data = labels.map(function(date) { return countByDate[date] || 0; });
+            var hasFilter = activeFilters.length > 0;
+            var isSelected = !hasFilter || activeFilters.indexOf(group) > -1;
+
             return {
                 label: group,
-                data: labels.map(function(date) { return countByDate[date] || 0; }),
-                backgroundColor: color.bg,
-                borderColor: color.border,
+                data: isSelected ? data.slice() : data.map(function() { return 0; }),
+                backgroundColor: isSelected ? (hasFilter ? color.border : color.bg) : GRAY.bg,
+                borderColor: isSelected ? color.border : GRAY.border,
+                _originalBg: color.bg,
+                _originalBorder: color.border,
+                _originalData: data,
                 borderWidth: 1,
                 borderRadius: 3,
             };
@@ -215,6 +301,45 @@
                             pointStyle: 'rectRounded',
                             padding: 16,
                             font: { size: 11 },
+                            generateLabels: function(chart) {
+                                var datasets = chart.data.datasets;
+                                return datasets.map(function(ds, i) {
+                                    var isSelected = activeFilters.length === 0 || activeFilters.indexOf(ds.label) > -1;
+                                    return {
+                                        text: ds.label,
+                                        fillStyle: isSelected ? ds._originalBg : GRAY.bg,
+                                        strokeStyle: isSelected ? ds._originalBorder : GRAY.border,
+                                        lineWidth: 1,
+                                        hidden: false,
+                                        datasetIndex: i,
+                                        fontColor: isSelected ? '#3f4d5a' : 'rgba(150, 150, 150, 0.6)',
+                                    };
+                                });
+                            },
+                        },
+                        onClick: function(e, legendItem) {
+                            var clickedLabel = legendItem.text;
+                            filterType = currentView;
+
+                            var idx = activeFilters.indexOf(clickedLabel);
+                            if (idx > -1) {
+                                activeFilters.splice(idx, 1);
+                            } else {
+                                activeFilters.push(clickedLabel);
+                            }
+
+                            if (activeFilters.length === 0) {
+                                filterType = null;
+                            }
+
+                            applyChartFilterStyles();
+                            updateFilterIndicator();
+
+                            if (activeFilters.length > 0) {
+                                fetchFilteredTables();
+                            } else {
+                                restoreUnfilteredTables();
+                            }
                         },
                     },
                 },
@@ -231,6 +356,41 @@
                 },
             },
         };
+    }
+
+    function applyChartFilterStyles() {
+        if (!chart || !chart.data || !chart.data.datasets) return;
+
+        var hasFilter = activeFilters.length > 0;
+
+        chart.data.datasets.forEach(function(ds) {
+            var isSelected = !hasFilter || activeFilters.indexOf(ds.label) > -1;
+            if (isSelected) {
+                // Full opacity when actively filtered, normal when no filter
+                ds.backgroundColor = hasFilter ? ds._originalBorder : ds._originalBg;
+                ds.borderColor = ds._originalBorder;
+                ds.data = ds._originalData.slice();
+            } else {
+                ds.backgroundColor = GRAY.bg;
+                ds.borderColor = GRAY.border;
+                ds.data = ds._originalData.map(function() { return 0; });
+            }
+        });
+
+        chart.update();
+    }
+
+    function updateFilterIndicator() {
+        var el = document.getElementById('activeFilter');
+        var valueEl = document.getElementById('activeFilterValue');
+        if (!el || !valueEl) return;
+
+        if (activeFilters.length > 0) {
+            valueEl.textContent = activeFilters.join(', ');
+            el.style.display = '';
+        } else {
+            el.style.display = 'none';
+        }
     }
 
     function clearElement(el) {
