@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-04-05
+
 ### Changed
 
 - Chart legend filtering is now additive — clicking a bot or type shows only that item instead of hiding it; clicking it again shows all
@@ -117,7 +119,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Permission checks on all Markdown endpoints — logged-in users without view permission receive a 403
 - Template path traversal protection and XPath injection prevention
 
-[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.3.2...HEAD
+[1.3.2]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.3.0...v1.3.1
 [1.2.2]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.2.0...v1.2.1
