@@ -35,6 +35,18 @@
     margin: 0;
 }
 
+.llm-ready-dashboard .active-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--medium-text-color, #8f98a3);
+}
+
+.llm-ready-dashboard .active-filter strong {
+    color: var(--text-color, #3f4d5a);
+}
+
 .llm-ready-dashboard .chart-view-toggle {
     display: inline-flex;
     border: 1px solid var(--hairline-color, #e3e5e8);

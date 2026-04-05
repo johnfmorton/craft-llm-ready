@@ -64,11 +64,25 @@ class AnalyticsService extends Component
     }
 
     /**
+     * Apply optional bot/type filter conditions to a query
+     */
+    private function applyFilters(Query $query, ?string $botName, ?string $requestType): Query
+    {
+        if ($botName !== null) {
+            $query->andWhere(['botName' => $botName]);
+        }
+        if ($requestType !== null) {
+            $query->andWhere(['requestType' => $requestType]);
+        }
+        return $query;
+    }
+
+    /**
      * Get request counts over time grouped by granularity
      *
      * @return array<int, array{date: string, count: int}>
      */
-    public function getRequestsOverTime(int $siteId, string $startDate, string $endDate, string $granularity = 'day'): array
+    public function getRequestsOverTime(int $siteId, string $startDate, string $endDate, string $granularity = 'day', ?string $botName = null, ?string $requestType = null): array
     {
         $dateExpr = match ($granularity) {
             'week' => 'DATE(DATE_SUB([[dateCreated]], INTERVAL WEEKDAY([[dateCreated]]) DAY))',
@@ -76,13 +90,16 @@ class AnalyticsService extends Component
             default => 'DATE([[dateCreated]])',
         };
 
-        return (new Query())
+        $query = (new Query())
             ->select(["date" => $dateExpr, 'count' => 'COUNT(*)'])
             ->from(AnalyticsRecord::tableName())
             ->where(['siteId' => $siteId])
             ->andWhere(['>=', 'dateCreated', $startDate])
-            ->andWhere(['<=', 'dateCreated', $endDate])
-            ->groupBy([$dateExpr])
+            ->andWhere(['<=', 'dateCreated', $endDate]);
+
+        $this->applyFilters($query, $botName, $requestType);
+
+        return $query->groupBy([$dateExpr])
             ->orderBy(['date' => SORT_ASC])
             ->all();
     }
@@ -92,7 +109,7 @@ class AnalyticsService extends Component
      *
      * @return array<string, array<int, array{date: string, count: int}>>
      */
-    public function getRequestsOverTimeByBot(int $siteId, string $startDate, string $endDate, string $granularity = 'day'): array
+    public function getRequestsOverTimeByBot(int $siteId, string $startDate, string $endDate, string $granularity = 'day', ?string $botName = null, ?string $requestType = null): array
     {
         $dateExpr = match ($granularity) {
             'week' => 'DATE(DATE_SUB([[dateCreated]], INTERVAL WEEKDAY([[dateCreated]]) DAY))',
@@ -100,13 +117,16 @@ class AnalyticsService extends Component
             default => 'DATE([[dateCreated]])',
         };
 
-        $rows = (new Query())
+        $query = (new Query())
             ->select(["date" => $dateExpr, 'botName', 'count' => 'COUNT(*)'])
             ->from(AnalyticsRecord::tableName())
             ->where(['siteId' => $siteId])
             ->andWhere(['>=', 'dateCreated', $startDate])
-            ->andWhere(['<=', 'dateCreated', $endDate])
-            ->groupBy([$dateExpr, 'botName'])
+            ->andWhere(['<=', 'dateCreated', $endDate]);
+
+        $this->applyFilters($query, $botName, $requestType);
+
+        $rows = $query->groupBy([$dateExpr, 'botName'])
             ->orderBy(['date' => SORT_ASC])
             ->all();
 
@@ -126,7 +146,7 @@ class AnalyticsService extends Component
      *
      * @return array<string, array<int, array{date: string, count: int}>>
      */
-    public function getRequestsOverTimeByType(int $siteId, string $startDate, string $endDate, string $granularity = 'day'): array
+    public function getRequestsOverTimeByType(int $siteId, string $startDate, string $endDate, string $granularity = 'day', ?string $botName = null, ?string $requestType = null): array
     {
         $dateExpr = match ($granularity) {
             'week' => 'DATE(DATE_SUB([[dateCreated]], INTERVAL WEEKDAY([[dateCreated]]) DAY))',
@@ -134,13 +154,16 @@ class AnalyticsService extends Component
             default => 'DATE([[dateCreated]])',
         };
 
-        $rows = (new Query())
+        $query = (new Query())
             ->select(["date" => $dateExpr, 'requestType', 'count' => 'COUNT(*)'])
             ->from(AnalyticsRecord::tableName())
             ->where(['siteId' => $siteId])
             ->andWhere(['>=', 'dateCreated', $startDate])
-            ->andWhere(['<=', 'dateCreated', $endDate])
-            ->groupBy([$dateExpr, 'requestType'])
+            ->andWhere(['<=', 'dateCreated', $endDate]);
+
+        $this->applyFilters($query, $botName, $requestType);
+
+        $rows = $query->groupBy([$dateExpr, 'requestType'])
             ->orderBy(['date' => SORT_ASC])
             ->all();
 
@@ -160,9 +183,9 @@ class AnalyticsService extends Component
      *
      * @return array<int, array{botName: string, count: int, lastSeen: string}>
      */
-    public function getBotBreakdown(int $siteId, string $startDate, string $endDate): array
+    public function getBotBreakdown(int $siteId, string $startDate, string $endDate, ?string $botName = null, ?string $requestType = null): array
     {
-        $rows = (new Query())
+        $query = (new Query())
             ->select([
                 'botName',
                 'count' => 'COUNT(*)',
@@ -171,8 +194,11 @@ class AnalyticsService extends Component
             ->from(AnalyticsRecord::tableName())
             ->where(['siteId' => $siteId])
             ->andWhere(['>=', 'dateCreated', $startDate])
-            ->andWhere(['<=', 'dateCreated', $endDate])
-            ->groupBy(['botName'])
+            ->andWhere(['<=', 'dateCreated', $endDate]);
+
+        $this->applyFilters($query, $botName, $requestType);
+
+        $rows = $query->groupBy(['botName'])
             ->orderBy(['count' => SORT_DESC])
             ->all();
 
@@ -194,9 +220,9 @@ class AnalyticsService extends Component
      *
      * @return array<int, array{requestType: string, count: int}>
      */
-    public function getRequestTypeBreakdown(int $siteId, string $startDate, string $endDate): array
+    public function getRequestTypeBreakdown(int $siteId, string $startDate, string $endDate, ?string $botName = null, ?string $requestType = null): array
     {
-        return (new Query())
+        $query = (new Query())
             ->select([
                 'requestType',
                 'count' => 'COUNT(*)',
@@ -204,8 +230,11 @@ class AnalyticsService extends Component
             ->from(AnalyticsRecord::tableName())
             ->where(['siteId' => $siteId])
             ->andWhere(['>=', 'dateCreated', $startDate])
-            ->andWhere(['<=', 'dateCreated', $endDate])
-            ->groupBy(['requestType'])
+            ->andWhere(['<=', 'dateCreated', $endDate]);
+
+        $this->applyFilters($query, $botName, $requestType);
+
+        return $query->groupBy(['requestType'])
             ->orderBy(['count' => SORT_DESC])
             ->all();
     }
@@ -215,9 +244,9 @@ class AnalyticsService extends Component
      *
      * @return array<int, array{requestPath: string, requestType: string, count: int, cpEditUrl: string|null}>
      */
-    public function getMostAccessedPages(int $siteId, string $startDate, string $endDate, int $limit = 20): array
+    public function getMostAccessedPages(int $siteId, string $startDate, string $endDate, int $limit = 20, ?string $botName = null, ?string $requestType = null): array
     {
-        $rows = (new Query())
+        $query = (new Query())
             ->select([
                 'requestPath',
                 'requestType',
@@ -227,8 +256,11 @@ class AnalyticsService extends Component
             ->from(AnalyticsRecord::tableName())
             ->where(['siteId' => $siteId])
             ->andWhere(['>=', 'dateCreated', $startDate])
-            ->andWhere(['<=', 'dateCreated', $endDate])
-            ->groupBy(['requestPath', 'requestType'])
+            ->andWhere(['<=', 'dateCreated', $endDate]);
+
+        $this->applyFilters($query, $botName, $requestType);
+
+        $rows = $query->groupBy(['requestPath', 'requestType'])
             ->orderBy(['count' => SORT_DESC])
             ->limit($limit)
             ->all();
@@ -256,14 +288,17 @@ class AnalyticsService extends Component
     /**
      * Get total request count for a date range
      */
-    public function getTotalRequests(int $siteId, string $startDate, string $endDate): int
+    public function getTotalRequests(int $siteId, string $startDate, string $endDate, ?string $botName = null, ?string $requestType = null): int
     {
-        return (int) (new Query())
+        $query = (new Query())
             ->from(AnalyticsRecord::tableName())
             ->where(['siteId' => $siteId])
             ->andWhere(['>=', 'dateCreated', $startDate])
-            ->andWhere(['<=', 'dateCreated', $endDate])
-            ->count();
+            ->andWhere(['<=', 'dateCreated', $endDate]);
+
+        $this->applyFilters($query, $botName, $requestType);
+
+        return (int) $query->count();
     }
 
     /**

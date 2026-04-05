@@ -73,16 +73,19 @@ class AnalyticsController extends Controller
             default => 'day',
         };
 
+        $botName = $request->getParam('botName') ?: null;
+        $requestType = $request->getParam('requestType') ?: null;
+
         $analyticsService = LlmReady::getInstance()->analyticsService;
 
         return $this->asJson([
-            'totalRequests' => $analyticsService->getTotalRequests($siteId, $startDate, $endDate),
-            'requestsOverTime' => $analyticsService->getRequestsOverTime($siteId, $startDate, $endDate, $granularity),
-            'requestsOverTimeByBot' => $analyticsService->getRequestsOverTimeByBot($siteId, $startDate, $endDate, $granularity),
-            'requestsOverTimeByType' => $analyticsService->getRequestsOverTimeByType($siteId, $startDate, $endDate, $granularity),
-            'botBreakdown' => $analyticsService->getBotBreakdown($siteId, $startDate, $endDate),
-            'requestTypeBreakdown' => $analyticsService->getRequestTypeBreakdown($siteId, $startDate, $endDate),
-            'mostAccessedPages' => $analyticsService->getMostAccessedPages($siteId, $startDate, $endDate),
+            'totalRequests' => $analyticsService->getTotalRequests($siteId, $startDate, $endDate, $botName, $requestType),
+            'requestsOverTime' => $analyticsService->getRequestsOverTime($siteId, $startDate, $endDate, $granularity, $botName, $requestType),
+            'requestsOverTimeByBot' => $analyticsService->getRequestsOverTimeByBot($siteId, $startDate, $endDate, $granularity, $botName, $requestType),
+            'requestsOverTimeByType' => $analyticsService->getRequestsOverTimeByType($siteId, $startDate, $endDate, $granularity, $botName, $requestType),
+            'botBreakdown' => $analyticsService->getBotBreakdown($siteId, $startDate, $endDate, $botName, $requestType),
+            'requestTypeBreakdown' => $analyticsService->getRequestTypeBreakdown($siteId, $startDate, $endDate, $botName, $requestType),
+            'mostAccessedPages' => $analyticsService->getMostAccessedPages($siteId, $startDate, $endDate, 20, $botName, $requestType),
         ]);
     }
 

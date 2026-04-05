@@ -4,6 +4,7 @@
     let chart = null;
     let currentView = 'total';
     let currentData = null;
+    let activeFilter = null; // null or { type: 'bot'|'type', value: string }
 
     // Color palette for stacked chart segments
     var COLORS = [
@@ -18,7 +19,7 @@
     ];
 
     function initDashboard() {
-        const chartCanvas = document.getElementById('requestsChart');
+        var chartCanvas = document.getElementById('requestsChart');
         if (!chartCanvas) return;
 
         currentData = JSON.parse(document.getElementById('chartData').textContent);
@@ -33,6 +34,8 @@
                 if (view === currentView) return;
 
                 currentView = view;
+                activeFilter = null;
+                updateFilterIndicator();
                 toggleContainer.querySelectorAll('.chart-toggle-btn').forEach(function(b) {
                     b.classList.remove('active');
                 });
@@ -41,25 +44,49 @@
             });
         }
 
-        const rangeSelect = document.getElementById('dateRange');
-        const siteSelect = document.getElementById('siteSelect');
+        var rangeSelect = document.getElementById('dateRange');
+        var siteSelect = document.getElementById('siteSelect');
 
         if (rangeSelect) {
-            rangeSelect.addEventListener('change', fetchData);
+            rangeSelect.addEventListener('change', function() {
+                activeFilter = null;
+                updateFilterIndicator();
+                fetchData();
+            });
         }
         if (siteSelect) {
-            siteSelect.addEventListener('change', fetchData);
+            siteSelect.addEventListener('change', function() {
+                activeFilter = null;
+                updateFilterIndicator();
+                fetchData();
+            });
+        }
+
+        var clearBtn = document.getElementById('clearFilter');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                activeFilter = null;
+                updateFilterIndicator();
+                fetchData();
+            });
         }
     }
 
     function fetchData() {
-        const range = document.getElementById('dateRange').value;
-        const siteSelect = document.getElementById('siteSelect');
-        const siteId = siteSelect ? siteSelect.value : '';
+        var range = document.getElementById('dateRange').value;
+        var siteSelect = document.getElementById('siteSelect');
+        var siteId = siteSelect ? siteSelect.value : '';
 
-        const params = new URLSearchParams({ range: range });
+        var params = new URLSearchParams({ range: range });
         if (siteId) {
             params.set('siteId', siteId);
+        }
+        if (activeFilter) {
+            if (activeFilter.type === 'bot') {
+                params.set('botName', activeFilter.value);
+            } else if (activeFilter.type === 'type') {
+                params.set('requestType', activeFilter.value);
+            }
         }
 
         fetch(Craft.getActionUrl('llm-ready/analytics/data') + '?' + params.toString(), {
@@ -82,6 +109,16 @@
         var totalEl = document.getElementById('totalRequests');
         if (totalEl) {
             totalEl.textContent = data.totalRequests.toLocaleString();
+        }
+
+        var botsEl = document.getElementById('uniqueBots');
+        if (botsEl) {
+            botsEl.textContent = data.botBreakdown.length;
+        }
+
+        var typesEl = document.getElementById('contentTypes');
+        if (typesEl) {
+            typesEl.textContent = data.requestTypeBreakdown.length;
         }
 
         renderChart();
@@ -216,6 +253,20 @@
                             padding: 16,
                             font: { size: 11 },
                         },
+                        onClick: function(e, legendItem) {
+                            var clickedLabel = legendItem.text;
+
+                            if (activeFilter && activeFilter.value === clickedLabel) {
+                                // Clicking the active filter clears it
+                                activeFilter = null;
+                            } else {
+                                // Additive: show only this item
+                                activeFilter = { type: currentView, value: clickedLabel };
+                            }
+
+                            updateFilterIndicator();
+                            fetchData();
+                        },
                     },
                 },
                 scales: {
@@ -231,6 +282,19 @@
                 },
             },
         };
+    }
+
+    function updateFilterIndicator() {
+        var el = document.getElementById('activeFilter');
+        var valueEl = document.getElementById('activeFilterValue');
+        if (!el || !valueEl) return;
+
+        if (activeFilter) {
+            valueEl.textContent = activeFilter.value;
+            el.style.display = '';
+        } else {
+            el.style.display = 'none';
+        }
     }
 
     function clearElement(el) {
