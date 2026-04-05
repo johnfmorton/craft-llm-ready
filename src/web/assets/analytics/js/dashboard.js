@@ -307,8 +307,8 @@
                                     var isSelected = activeFilters.length === 0 || activeFilters.indexOf(ds.label) > -1;
                                     return {
                                         text: ds.label,
-                                        fillStyle: ds._originalBg,
-                                        strokeStyle: ds._originalBorder,
+                                        fillStyle: isSelected ? ds._originalBg : GRAY.bg,
+                                        strokeStyle: isSelected ? ds._originalBorder : GRAY.border,
                                         lineWidth: 1,
                                         hidden: false,
                                         datasetIndex: i,
