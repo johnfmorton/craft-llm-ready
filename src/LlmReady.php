@@ -364,7 +364,9 @@ class LlmReady extends Plugin
     }
 
     /**
-     * Register discovery tag injection into HTML responses
+     * Advertise the Markdown alternate to AI crawlers, via the HTML
+     * `<link rel="alternate">` tag and/or the HTTP `Link` header (RFC 8288).
+     * Both are independently toggleable in plugin settings; default-on.
      */
     private function registerDiscoveryTagInjection(): void
     {
@@ -373,7 +375,10 @@ class LlmReady extends Plugin
             View::EVENT_BEFORE_RENDER_PAGE_TEMPLATE,
             function(TemplateEvent $event) {
                 $settings = $this->getSettings();
-                if (!$settings->enabled || !$settings->autoInjectDiscoveryTag) {
+                if (!$settings->enabled) {
+                    return;
+                }
+                if (!$settings->autoInjectDiscoveryTag && !$settings->autoInjectLinkHeader) {
                     return;
                 }
 
@@ -403,18 +408,25 @@ class LlmReady extends Plugin
                     return;
                 }
 
-                if ($element->uri === '__home__') {
+                $alternateUrl = $element->uri === '__home__'
+                    ? rtrim($url, '/') . '/llms.txt'
+                    : rtrim($url, '/') . '.md';
+
+                if ($settings->autoInjectDiscoveryTag) {
                     Craft::$app->getView()->registerLinkTag([
                         'rel' => 'alternate',
                         'type' => 'text/markdown',
-                        'href' => rtrim($url, '/') . '/llms.txt',
+                        'href' => $alternateUrl,
                     ]);
-                } else {
-                    Craft::$app->getView()->registerLinkTag([
-                        'rel' => 'alternate',
-                        'type' => 'text/markdown',
-                        'href' => rtrim($url, '/') . '.md',
-                    ]);
+                }
+
+                if ($settings->autoInjectLinkHeader) {
+                    // `add` (not `set`) because Link can carry multiple values
+                    // — preserves anything else already on the response.
+                    Craft::$app->getResponse()->getHeaders()->add(
+                        'Link',
+                        "<{$alternateUrl}>; rel=\"alternate\"; type=\"text/markdown\"",
+                    );
                 }
             },
         );

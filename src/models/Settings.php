@@ -20,6 +20,9 @@ class Settings extends Model
     /** @var bool Whether to auto-inject <link rel="alternate"> discovery tags */
     public bool $autoInjectDiscoveryTag = true;
 
+    /** @var bool Whether to auto-inject an HTTP Link header pointing at the Markdown alternate */
+    public bool $autoInjectLinkHeader = true;
+
     /** @var bool Whether to serve markdown via Accept: text/markdown header */
     public bool $enableContentNegotiation = true;
 
@@ -59,7 +62,7 @@ class Settings extends Model
     public function rules(): array
     {
         return [
-            [['enabled', 'noindexHeader', 'autoInjectDiscoveryTag', 'enableContentNegotiation', 'enableUserAgentDetection', 'enableAnalytics'], 'boolean'],
+            [['enabled', 'noindexHeader', 'autoInjectDiscoveryTag', 'autoInjectLinkHeader', 'enableContentNegotiation', 'enableUserAgentDetection', 'enableAnalytics'], 'boolean'],
             [['contentSelector', 'excludeSelector', 'llmsTxtIntro', 'descriptionField', 'titleField', 'authorOverride'], 'string'],
             ['cacheTtl', 'integer', 'min' => 0],
             ['analyticsRetentionDays', 'integer', 'min' => 1],

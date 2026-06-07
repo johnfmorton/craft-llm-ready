@@ -37,11 +37,19 @@ class AnalyticsWidget extends Widget
             return false;
         }
 
+        return self::currentUserCanView();
+    }
+
+    private static function currentUserCanView(): bool
+    {
         return Craft::$app->getUser()->checkPermission(LlmReady::PERMISSION_VIEW_ANALYTICS);
     }
 
     public function getTitle(): ?string
     {
+        if (!$this->currentUserCanView()) {
+            return null;
+        }
         return Craft::t('llm-ready', 'LLM Ready · last 30 days');
     }
 
@@ -50,6 +58,13 @@ class AnalyticsWidget extends Widget
         $plugin = LlmReady::getInstance();
 
         if (!$plugin->getSettings()->enableAnalytics) {
+            return null;
+        }
+
+        // Re-check permission at render time so that revoking the view-analytics
+        // permission immediately stops disclosure, even for widgets already
+        // saved on a user's dashboard.
+        if (!$this->currentUserCanView()) {
             return null;
         }
 

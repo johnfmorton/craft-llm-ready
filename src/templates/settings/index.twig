@@ -87,6 +87,14 @@
     on: settings.autoInjectDiscoveryTag,
 }) }}
 
+{{ forms.lightswitchField({
+    label: 'Auto-inject Link Header',
+    instructions: 'Add an HTTP <code>Link</code> response header (RFC 8288) pointing at the Markdown alternate. Useful for crawlers that inspect headers without parsing HTML.',
+    id: 'autoInjectLinkHeader',
+    name: 'autoInjectLinkHeader',
+    on: settings.autoInjectLinkHeader,
+}) }}
+
 <hr>
 
 <h2>Caching</h2>

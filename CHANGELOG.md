@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New "Title Field" front-matter setting — point at any field handle/path to override the front-matter `title:` value, with the same syntax as Description Field. Falls back to the entry's native title when unresolved ([#6](https://github.com/johnfmorton/craft-llm-ready/issues/6))
 - New "Author Override" front-matter setting — write a single authoritative author name (e.g., an editorial team) to every entry's front matter instead of leaking individual editor names ([#6](https://github.com/johnfmorton/craft-llm-ready/issues/6))
 - New CP dashboard widget — compact summary of last-30-day analytics for the current site (total requests, top bot, top page) with a click-through to the full dashboard. Hidden when analytics are disabled or the user lacks the `llm-ready:viewAnalytics` permission ([#5](https://github.com/johnfmorton/craft-llm-ready/issues/5))
+- New "Auto-inject Link Header" setting (default on) — adds an HTTP `Link` response header (RFC 8288) pointing at the Markdown alternate, alongside the existing `<link rel="alternate">` HTML tag. Useful for crawlers that inspect headers without parsing HTML ([#7](https://github.com/johnfmorton/craft-llm-ready/issues/7))
 - New `SEO-PLUGINS.md` documenting how to wire LLM Ready into SEOmatic, Ether SEO, SEOmate, and Studio Espresso SEO Fields
 - New user permissions under "LLM Ready": "View the analytics dashboard" and the nested "Purge analytics data". Admins have both by default
 

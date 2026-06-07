@@ -201,6 +201,7 @@ Configure LLM Ready from **Settings > Plugins > LLM Ready** in the Craft control
 | Exclude Selector | `""` | CSS selectors for elements to strip before Markdown conversion (e.g. `.carousel, [data-nosnippet]`) |
 | X-Robots-Tag: noindex | `true` | Add `noindex` header to Markdown responses |
 | Auto-inject Discovery Tag | `true` | Inject `<link rel="alternate">` into HTML pages |
+| Auto-inject Link Header | `true` | Add an HTTP `Link` response header (RFC 8288) pointing at the Markdown alternate. Useful for crawlers that inspect headers without parsing HTML |
 | Cache TTL (seconds) | `3600` | How long to cache Markdown output (`0` to disable) |
 | Site Description | `""` | Introduction text for the `/llms.txt` blockquote |
 | Description Field | `""` | Field handle to use for entry descriptions in `/llms.txt` and listing pages. Supports dot notation (e.g. `seo.seoDescription`), `()` method-call syntax (e.g. `metaData.getMetaDescription()`), Generated Field handles, and a native SEOmatic resolver via `seomatic:description`. See [SEO-PLUGINS.md](SEO-PLUGINS.md) for SEOmatic / Ether SEO / SEOmate / SEO Fields recipes. When set, the configured field is authoritative — no auto-extract fallback runs if it resolves to nothing. |
