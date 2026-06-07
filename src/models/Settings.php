@@ -41,6 +41,12 @@ class Settings extends Model
     /** @var string Field handle for entry descriptions in llms.txt (empty = auto-extract) */
     public string $descriptionField = '';
 
+    /** @var string Field handle/path used as the front-matter title (empty = entry.title) */
+    public string $titleField = '';
+
+    /** @var string Author name written to front matter for every entry (empty = use entry's author) */
+    public string $authorOverride = '';
+
     /** @var int Cache TTL in seconds (0 = no caching) */
     public int $cacheTtl = 3600;
 
@@ -54,7 +60,7 @@ class Settings extends Model
     {
         return [
             [['enabled', 'noindexHeader', 'autoInjectDiscoveryTag', 'enableContentNegotiation', 'enableUserAgentDetection', 'enableAnalytics'], 'boolean'],
-            [['contentSelector', 'excludeSelector', 'llmsTxtIntro', 'descriptionField'], 'string'],
+            [['contentSelector', 'excludeSelector', 'llmsTxtIntro', 'descriptionField', 'titleField', 'authorOverride'], 'string'],
             ['cacheTtl', 'integer', 'min' => 0],
             ['analyticsRetentionDays', 'integer', 'min' => 1],
             ['additionalBotUserAgents', 'each', 'rule' => ['string']],

@@ -204,6 +204,8 @@ Configure LLM Ready from **Settings > Plugins > LLM Ready** in the Craft control
 | Cache TTL (seconds) | `3600` | How long to cache Markdown output (`0` to disable) |
 | Site Description | `""` | Introduction text for the `/llms.txt` blockquote |
 | Description Field | `""` | Field handle to use for entry descriptions in `/llms.txt` and listing pages. Supports dot notation (e.g. `seo.seoDescription`), `()` method-call syntax (e.g. `metaData.getMetaDescription()`), Generated Field handles, and a native SEOmatic resolver via `seomatic:description`. See [SEO-PLUGINS.md](SEO-PLUGINS.md) for SEOmatic / Ether SEO / SEOmate / SEO Fields recipes. When set, the configured field is authoritative — no auto-extract fallback runs if it resolves to nothing. |
+| Title Field | `""` | Optional field handle for the front-matter `title:` value. Supports the same syntax as Description Field (dot notation, `()` method calls, Generated Field handles, `seomatic:title`). Falls back to the entry's native title when blank or unresolved. |
+| Author Override | `""` | Fixed author name written to every entry's front matter. Set to a team or company name to avoid leaking individual editor names. Blank uses each entry's own author. |
 
 ### Section settings
 

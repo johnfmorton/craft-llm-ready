@@ -127,6 +127,32 @@
 
 <hr>
 
+<h2>Front Matter</h2>
+
+<p class="light">Overrides for the YAML front matter that appears at the top of each Markdown response.</p>
+
+{{ forms.textField({
+    label: 'Title Field',
+    instructions: 'Optional field handle used for the front-matter <code>title:</code> value. Supports the same syntax as Description Field (dot notation, <code>()</code> method calls, Generated Field handles, and <code>seomatic:title</code>). Leave blank to use the entry\'s native title. If set but the field resolves to an empty value, falls back to the entry\'s native title — every Markdown response always has a title.',
+    id: 'titleField',
+    name: 'titleField',
+    value: settings.titleField,
+    placeholder: 'e.g., longTitle or seomatic:title',
+    size: 40,
+}) }}
+
+{{ forms.textField({
+    label: 'Author Override',
+    instructions: 'Optional fixed author name written to every entry\'s front matter. Useful when you want a single authoritative byline (e.g., an editorial team name) instead of leaking individual editor names. Leave blank to use each entry\'s own author.',
+    id: 'authorOverride',
+    name: 'authorOverride',
+    value: settings.authorOverride,
+    placeholder: 'e.g., Acme Editorial Team',
+    size: 40,
+}) }}
+
+<hr>
+
 <h2>Analytics</h2>
 
 {{ forms.lightswitchField({

@@ -352,18 +352,28 @@ class MarkdownService extends Component
      */
     public function buildFrontMatter(Entry $entry, Site $site): string
     {
+        $settings = LlmReady::getInstance()->getSettings();
         $lines = ['---'];
 
-        $lines[] = 'title: ' . $this->yamlEscape($entry->title ?? '');
+        // Title — fall back to entry.title when titleField is unset or resolves empty.
+        $title = null;
+        if ($settings->titleField !== '') {
+            $title = $this->resolveExplicitField($entry, $settings->titleField);
+        }
+        $lines[] = 'title: ' . $this->yamlEscape($title ?? $entry->title ?? '');
 
         if ($entry->postDate) {
             $lines[] = 'date: ' . $entry->postDate->format('c');
         }
 
-        // Author
-        $author = $entry->getAuthor();
-        if ($author) {
-            $lines[] = 'author: ' . $this->yamlEscape($author->fullName ?? $author->username);
+        // Author — explicit override wins; otherwise fall through to the entry's author.
+        if ($settings->authorOverride !== '') {
+            $lines[] = 'author: ' . $this->yamlEscape($settings->authorOverride);
+        } else {
+            $author = $entry->getAuthor();
+            if ($author) {
+                $lines[] = 'author: ' . $this->yamlEscape($author->fullName ?? $author->username);
+            }
         }
 
         // Canonical URL
@@ -469,7 +479,7 @@ class MarkdownService extends Component
         // Explicit setting wins outright — if it resolves to nothing, return
         // null rather than silently guessing from another field.
         if ($settings->descriptionField !== '') {
-            $text = $this->resolveExplicitDescription($entry, $settings->descriptionField);
+            $text = $this->resolveExplicitField($entry, $settings->descriptionField);
 
             if ($text === null) {
                 return null;
@@ -509,17 +519,17 @@ class MarkdownService extends Component
     }
 
     /**
-     * Route an explicit Description Field value to either a plugin-specific
+     * Route a Description Field / Title Field value to either a plugin-specific
      * resolver (e.g. `seomatic:description`) or the generic field/dot-notation
      * path. Returns the plain-text result, or null if nothing resolved.
      */
-    private function resolveExplicitDescription(Entry $entry, string $descriptionField): ?string
+    private function resolveExplicitField(Entry $entry, string $handle): ?string
     {
-        if (str_starts_with($descriptionField, 'seomatic:')) {
-            return $this->getSeomaticDescription($entry, substr($descriptionField, 9));
+        if (str_starts_with($handle, 'seomatic:')) {
+            return $this->getSeomaticValue($entry, substr($handle, 9));
         }
 
-        return $this->getFieldText($entry, $descriptionField);
+        return $this->getFieldText($entry, $handle);
     }
 
     /**
@@ -531,18 +541,21 @@ class MarkdownService extends Component
      * Catches all exceptions so a misbehaving SEOmatic build can't break
      * `/llms.txt`.
      */
-    private function getSeomaticDescription(Entry $entry, string $userKey): ?string
+    private function getSeomaticValue(Entry $entry, string $userKey): ?string
     {
         $seomaticKey = match ($userKey) {
             'description' => 'seoDescription',
             'og-description' => 'ogDescription',
             'twitter-description' => 'twitterDescription',
+            'title' => 'seoTitle',
+            'og-title' => 'ogTitle',
+            'twitter-title' => 'twitterTitle',
             default => null,
         };
 
         if ($seomaticKey === null) {
             Craft::warning(
-                "LLM Ready: Unknown SEOmatic key '{$userKey}'. Use 'description', 'og-description', or 'twitter-description'.",
+                "LLM Ready: Unknown SEOmatic key '{$userKey}'. Use one of: description, og-description, twitter-description, title, og-title, twitter-title.",
                 __METHOD__,
             );
             return null;
