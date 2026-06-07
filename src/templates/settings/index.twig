@@ -117,7 +117,7 @@
 
 {{ forms.textField({
     label: 'Description Field',
-    instructions: 'Field handle to use for entry descriptions in <code>/llms.txt</code> and listing pages (e.g., <code>summary</code>, <code>excerpt</code>). Use dot notation to reach sub-fields of ContentBlock fields (e.g., <code>seo.seoDescription</code>). Generated Field handles are also supported. Leave blank to auto-extract from the first text field. When set, the configured field is authoritative — no fallback is attempted if it resolves to nothing.',
+    instructions: 'Field handle to use for entry descriptions in <code>/llms.txt</code> and listing pages (e.g., <code>summary</code>, <code>excerpt</code>). Use dot notation to traverse sub-fields and sub-objects (e.g., <code>seo.seoDescription</code> for a ContentBlock sub-field, or <code>seo.description</code> for an Ether SEO field). Append <code>()</code> to call a method instead of reading a property (e.g., <code>metaData.getMetaDescription()</code>). Generated Field handles are also supported. See <a href="https://github.com/johnfmorton/craft-llm-ready/blob/main/SEO-PLUGINS.md">SEO-PLUGINS.md</a> for SEOmatic, Ether SEO, SEOmate, and SEO Fields recipes. Leave blank to auto-extract from the first text field. When set, the configured field is authoritative — no fallback is attempted if it resolves to nothing.',
     id: 'descriptionField',
     name: 'descriptionField',
     value: settings.descriptionField,

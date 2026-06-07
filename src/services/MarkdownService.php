@@ -511,11 +511,13 @@ class MarkdownService extends Component
     /**
      * Get plain text from a field value, stripping HTML if needed.
      *
-     * Supports dot notation for nested fields (e.g. `seo.seoDescription` for a
-     * sub-field inside a ContentBlock field), and falls back to property access
-     * when getFieldValue() can't resolve a handle — this covers Generated Fields,
-     * which are registered as magic properties via Craft's CustomFieldBehavior
-     * rather than as custom fields.
+     * Supports dot notation for traversing nested fields and sub-objects
+     * (e.g. `seo.seoDescription` for a ContentBlock sub-field, or
+     * `seo.description` for an Ether SEO field). Segments ending in `()` are
+     * treated as method calls (e.g. `metaData.getMetaDescription()` to call
+     * the resolver on a SEO Fields field rather than read the raw property).
+     * Falls back to property access when getFieldValue() can't resolve a
+     * handle, which covers Generated Fields and any other public properties.
      */
     private function getFieldText(Entry $entry, string $path): ?string
     {
@@ -539,8 +541,8 @@ class MarkdownService extends Component
             }
 
             if ($i < $lastIndex) {
-                // Must descend into another element to keep traversing
-                if (!$value instanceof ElementInterface) {
+                // Must descend into another object to keep traversing
+                if (!is_object($value)) {
                     return null;
                 }
                 $cursor = $value;
@@ -567,12 +569,26 @@ class MarkdownService extends Component
     }
 
     /**
-     * Resolve a single handle on an owner, trying getFieldValue() first
-     * (custom fields on elements) and falling back to property access
-     * (Generated Fields, public properties, magic getters).
+     * Resolve a single handle on an owner.
+     *
+     * A handle ending in `()` is treated as a no-argument method call —
+     * useful for plugins whose resolved description lives behind a getter
+     * that's shadowed by a same-named public property (e.g. SEO Fields'
+     * `getMetaDescription()` vs. raw `$metaDescription`).
+     *
+     * Otherwise: try getFieldValue() for elements (custom fields), then
+     * property access (Generated Fields, public properties, Yii __get magic).
      */
     private function resolveHandle(object $owner, string $handle): mixed
     {
+        if (str_ends_with($handle, '()')) {
+            $method = substr($handle, 0, -2);
+            if (preg_match('/^[a-zA-Z_]\w*$/', $method) && method_exists($owner, $method)) {
+                return $owner->$method();
+            }
+            return null;
+        }
+
         if ($owner instanceof ElementInterface) {
             try {
                 return $owner->getFieldValue($handle);

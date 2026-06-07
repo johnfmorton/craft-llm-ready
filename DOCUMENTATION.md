@@ -203,7 +203,7 @@ Configure LLM Ready from **Settings > Plugins > LLM Ready** in the Craft control
 | Auto-inject Discovery Tag | `true` | Inject `<link rel="alternate">` into HTML pages |
 | Cache TTL (seconds) | `3600` | How long to cache Markdown output (`0` to disable) |
 | Site Description | `""` | Introduction text for the `/llms.txt` blockquote |
-| Description Field | `""` | Field handle to use for entry descriptions in `/llms.txt` and listing pages. Supports dot notation (e.g. `seo.seoDescription`) and Generated Field handles. When set, the configured field is authoritative — no auto-extract fallback runs if it resolves to nothing. |
+| Description Field | `""` | Field handle to use for entry descriptions in `/llms.txt` and listing pages. Supports dot notation (e.g. `seo.seoDescription`), `()` method-call syntax (e.g. `metaData.getMetaDescription()`), and Generated Field handles. See [SEO-PLUGINS.md](SEO-PLUGINS.md) for SEOmatic / Ether SEO / SEOmate / SEO Fields recipes. When set, the configured field is authoritative — no auto-extract fallback runs if it resolves to nothing. |
 
 ### Section settings
 
