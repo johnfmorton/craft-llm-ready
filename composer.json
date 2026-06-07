@@ -16,7 +16,7 @@
   },
   "require": {
     "php": ">=8.2",
-    "craftcms/cms": "^5.5.0",
+    "craftcms/cms": "^5.9.18",
     "league/html-to-markdown": "^5.0"
   },
   "require-dev": {
