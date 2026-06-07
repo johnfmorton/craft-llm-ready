@@ -12,7 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - New "Exclude Selector" setting under Content Extraction — strip decorative or non-content elements (e.g. carousels, `[data-nosnippet]`) from the HTML before Markdown conversion ([#3](https://github.com/johnfmorton/craft-llm-ready/issues/3))
+- "Description Field" now supports dot notation for nested fields (e.g. `seo.seoDescription` inside a ContentBlock field) and Generated Field handles ([#4](https://github.com/johnfmorton/craft-llm-ready/issues/4))
 - New user permissions under "LLM Ready": "View the analytics dashboard" and the nested "Purge analytics data". Admins have both by default
+
+### Changed
+
+- When "Description Field" is explicitly configured but resolves to an empty value, the entry's description is now omitted rather than silently falling back to auto-extraction from other fields ([#4](https://github.com/johnfmorton/craft-llm-ready/issues/4))
 
 ### Security
 

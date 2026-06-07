@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace johnfmorton\llmready\services;
 
 use Craft;
+use craft\base\ElementInterface;
 use craft\elements\Entry;
 use craft\fields\PlainText;
 use craft\models\Section;
@@ -464,28 +465,35 @@ class MarkdownService extends Component
     public function getEntryDescription(Entry $entry, int $maxLength = 160): ?string
     {
         $settings = LlmReady::getInstance()->getSettings();
-        $text = null;
 
-        // Try configured description field first
+        // Explicit setting wins outright — if it resolves to nothing, return
+        // null rather than silently guessing from another field.
         if ($settings->descriptionField !== '') {
             $text = $this->getFieldText($entry, $settings->descriptionField);
+
+            if ($text === null) {
+                return null;
+            }
+
+            $text = $this->truncateText($text, $maxLength);
+
+            return mb_strlen($text) >= 10 ? $text : null;
         }
 
         // Auto-extract fallback: find the first text field with usable content
-        if ($text === null) {
-            $fieldLayout = $entry->getFieldLayout();
-            if ($fieldLayout !== null) {
-                foreach ($fieldLayout->getCustomFields() as $field) {
-                    $fieldClass = get_class($field);
-                    if ($field instanceof PlainText
-                        || $fieldClass === 'craft\\ckeditor\\Field'
-                        || $fieldClass === 'craft\\redactor\\Field'
-                    ) {
-                        $candidate = $this->getFieldText($entry, $field->handle);
-                        if ($candidate !== null && mb_strlen($candidate) >= 20) {
-                            $text = $candidate;
-                            break;
-                        }
+        $text = null;
+        $fieldLayout = $entry->getFieldLayout();
+        if ($fieldLayout !== null) {
+            foreach ($fieldLayout->getCustomFields() as $field) {
+                $fieldClass = get_class($field);
+                if ($field instanceof PlainText
+                    || $fieldClass === 'craft\\ckeditor\\Field'
+                    || $fieldClass === 'craft\\redactor\\Field'
+                ) {
+                    $candidate = $this->getFieldText($entry, $field->handle);
+                    if ($candidate !== null && mb_strlen($candidate) >= 20) {
+                        $text = $candidate;
+                        break;
                     }
                 }
             }
@@ -501,34 +509,83 @@ class MarkdownService extends Component
     }
 
     /**
-     * Get plain text from a field value, stripping HTML if needed
+     * Get plain text from a field value, stripping HTML if needed.
+     *
+     * Supports dot notation for nested fields (e.g. `seo.seoDescription` for a
+     * sub-field inside a ContentBlock field), and falls back to property access
+     * when getFieldValue() can't resolve a handle — this covers Generated Fields,
+     * which are registered as magic properties via Craft's CustomFieldBehavior
+     * rather than as custom fields.
      */
-    private function getFieldText(Entry $entry, string $handle): ?string
+    private function getFieldText(Entry $entry, string $path): ?string
     {
-        try {
-            $value = $entry->getFieldValue($handle);
-        } catch (\Throwable) {
+        $path = trim($path);
+        if ($path === '') {
             return null;
         }
 
-        if ($value === null) {
-            return null;
+        $segments = array_map('trim', explode('.', $path));
+        $cursor = $entry;
+        $lastIndex = count($segments) - 1;
+
+        foreach ($segments as $i => $segment) {
+            if ($segment === '') {
+                return null;
+            }
+
+            $value = $this->resolveHandle($cursor, $segment);
+            if ($value === null) {
+                return null;
+            }
+
+            if ($i < $lastIndex) {
+                // Must descend into another element to keep traversing
+                if (!$value instanceof ElementInterface) {
+                    return null;
+                }
+                $cursor = $value;
+                continue;
+            }
+
+            // Final segment — coerce to string
+            if (is_object($value) && method_exists($value, '__toString')) {
+                $value = (string) $value;
+            }
+            if (!is_string($value)) {
+                return null;
+            }
+
+            $text = strip_tags($value);
+            $text = Html::decode($text);
+            $text = (string) preg_replace('/\s+/', ' ', $text);
+            $text = trim($text);
+
+            return $text !== '' ? $text : null;
         }
 
-        if (is_object($value) && method_exists($value, '__toString')) {
-            $value = (string) $value;
+        return null;
+    }
+
+    /**
+     * Resolve a single handle on an owner, trying getFieldValue() first
+     * (custom fields on elements) and falling back to property access
+     * (Generated Fields, public properties, magic getters).
+     */
+    private function resolveHandle(object $owner, string $handle): mixed
+    {
+        if ($owner instanceof ElementInterface) {
+            try {
+                return $owner->getFieldValue($handle);
+            } catch (\Throwable) {
+                // Not a custom field — try property access below.
+            }
         }
 
-        if (!is_string($value)) {
-            return null;
+        if (isset($owner->$handle)) {
+            return $owner->$handle;
         }
 
-        $text = strip_tags($value);
-        $text = Html::decode($text);
-        $text = (string) preg_replace('/\s+/', ' ', $text);
-        $text = trim($text);
-
-        return $text !== '' ? $text : null;
+        return null;
     }
 
     /**
