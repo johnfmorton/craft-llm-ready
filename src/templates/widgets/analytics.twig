@@ -1,0 +1,30 @@
+<div class="llm-ready-widget">
+    <p class="centeralign" style="margin-top: 0;">
+        <span style="font-size: 2.5em; font-weight: 600; line-height: 1;">{{ total|number_format }}</span><br>
+        <span class="light">{{ 'Total requests · {site}'|t('llm-ready', { site: siteName }) }}</span>
+    </p>
+
+    {% if topBot %}
+        <p>
+            <strong>{{ 'Top bot'|t('llm-ready') }}:</strong>
+            {{ topBot.botName }}
+            <span class="light">({{ topBot.count|number_format }})</span>
+        </p>
+    {% endif %}
+
+    {% if topPage %}
+        <p>
+            <strong>{{ 'Top page'|t('llm-ready') }}:</strong>
+            <code>{{ topPage.requestPath }}</code>
+            <span class="light">({{ topPage.count|number_format }})</span>
+        </p>
+    {% endif %}
+
+    {% if not topBot and not topPage %}
+        <p class="light centeralign">{{ 'No analytics data yet for this site.'|t('llm-ready') }}</p>
+    {% endif %}
+
+    <p style="margin-bottom: 0;">
+        <a href="{{ cpUrl('llm-ready') }}">{{ 'View full dashboard →'|t('llm-ready') }}</a>
+    </p>
+</div>

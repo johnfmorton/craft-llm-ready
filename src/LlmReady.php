@@ -11,9 +11,11 @@ use craft\base\Plugin;
 use craft\elements\Entry;
 use craft\events\ConfigEvent;
 use craft\events\ModelEvent;
+use craft\events\RegisterComponentTypesEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
 use craft\events\TemplateEvent;
+use craft\services\Dashboard;
 use craft\services\UserPermissions;
 use craft\web\UrlManager;
 use craft\web\View;
@@ -23,6 +25,7 @@ use johnfmorton\llmready\services\AnalyticsService;
 use johnfmorton\llmready\services\DetectionService;
 use johnfmorton\llmready\services\LlmsTxtService;
 use johnfmorton\llmready\services\MarkdownService;
+use johnfmorton\llmready\widgets\AnalyticsWidget;
 use yii\base\ActionEvent;
 use yii\base\Event;
 
@@ -77,6 +80,7 @@ class LlmReady extends Plugin
         }
 
         $this->registerUserPermissions();
+        $this->registerDashboardWidget();
         $this->registerCacheInvalidation();
         $this->registerProjectConfigListeners();
     }
@@ -248,6 +252,20 @@ class LlmReady extends Plugin
                         ],
                     ],
                 ];
+            },
+        );
+    }
+
+    /**
+     * Register the dashboard widget so admins can drop it on their CP Dashboard
+     */
+    private function registerDashboardWidget(): void
+    {
+        Event::on(
+            Dashboard::class,
+            Dashboard::EVENT_REGISTER_WIDGET_TYPES,
+            function(RegisterComponentTypesEvent $event) {
+                $event->types[] = AnalyticsWidget::class;
             },
         );
     }

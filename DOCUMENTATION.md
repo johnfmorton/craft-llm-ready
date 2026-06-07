@@ -256,6 +256,10 @@ LLM Ready includes an opt-in analytics dashboard that tracks AI bot requests to 
 
 Once enabled, a **LLM Ready** section appears in the control panel navigation with a dashboard showing requests over time, bot breakdown, most accessed pages, and request type breakdown.
 
+### Dashboard widget
+
+A compact **LLM Ready Analytics** widget is available from the Craft CP dashboard's **+ Add widget** menu. It shows the last 30 days of activity for the current site — total requests, top bot, top page — with a click-through to the full dashboard. The widget only appears in the picker when analytics are enabled and the current user has the **View the analytics dashboard** permission.
+
 ### Filtering by bot or request type
 
 Switch the chart to the **By Bot** or **By Type** view using the toggle buttons, then click any legend item to filter the entire dashboard to that bot or type. When a filter is active:
