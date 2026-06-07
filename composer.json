@@ -23,6 +23,9 @@
     "craftcms/ecs": "dev-main",
     "craftcms/phpstan": "dev-main"
   },
+  "suggest": {
+    "nystudio107/craft-seomatic": "Pull entry descriptions directly from SEOmatic by setting Description Field to `seomatic:description`. See SEO-PLUGINS.md."
+  },
   "autoload": {
     "psr-4": {
       "johnfmorton\\llmready\\": "src/"

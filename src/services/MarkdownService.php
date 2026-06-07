@@ -469,7 +469,7 @@ class MarkdownService extends Component
         // Explicit setting wins outright — if it resolves to nothing, return
         // null rather than silently guessing from another field.
         if ($settings->descriptionField !== '') {
-            $text = $this->getFieldText($entry, $settings->descriptionField);
+            $text = $this->resolveExplicitDescription($entry, $settings->descriptionField);
 
             if ($text === null) {
                 return null;
@@ -506,6 +506,97 @@ class MarkdownService extends Component
         $text = $this->truncateText($text, $maxLength);
 
         return mb_strlen($text) >= 10 ? $text : null;
+    }
+
+    /**
+     * Route an explicit Description Field value to either a plugin-specific
+     * resolver (e.g. `seomatic:description`) or the generic field/dot-notation
+     * path. Returns the plain-text result, or null if nothing resolved.
+     */
+    private function resolveExplicitDescription(Entry $entry, string $descriptionField): ?string
+    {
+        if (str_starts_with($descriptionField, 'seomatic:')) {
+            return $this->getSeomaticDescription($entry, substr($descriptionField, 9));
+        }
+
+        return $this->getFieldText($entry, $descriptionField);
+    }
+
+    /**
+     * Resolve a SEOmatic meta value for an entry using SEOmatic's full
+     * fallback chain (per-entry override → section bundle → global bundle,
+     * with Twig token parsing).
+     *
+     * Safe no-op when SEOmatic isn't installed or the entry has no URI.
+     * Catches all exceptions so a misbehaving SEOmatic build can't break
+     * `/llms.txt`.
+     */
+    private function getSeomaticDescription(Entry $entry, string $userKey): ?string
+    {
+        $seomaticKey = match ($userKey) {
+            'description' => 'seoDescription',
+            'og-description' => 'ogDescription',
+            'twitter-description' => 'twitterDescription',
+            default => null,
+        };
+
+        if ($seomaticKey === null) {
+            Craft::warning(
+                "LLM Ready: Unknown SEOmatic key '{$userKey}'. Use 'description', 'og-description', or 'twitter-description'.",
+                __METHOD__,
+            );
+            return null;
+        }
+
+        $seomaticClass = '\nystudio107\seomatic\Seomatic';
+        if (!class_exists($seomaticClass)) {
+            return null;
+        }
+        if (!Craft::$app->getPlugins()->isPluginEnabled('seomatic')) {
+            return null;
+        }
+
+        $uri = $entry->uri;
+        if (!is_string($uri) || $uri === '') {
+            return null;
+        }
+
+        try {
+            // Drop the early-return guard inside previewMetaContainers so we
+            // get fresh resolution even when SEOmatic has already run for
+            // the outer /llms.txt or .md request.
+            $seomaticClass::$previewingMetaContainers = false;
+
+            $plugin = $seomaticClass::$plugin;
+            $plugin->metaContainers->previewMetaContainers(
+                $uri,
+                (int) $entry->siteId,
+                true,
+                true,
+                $entry,
+            );
+            $plugin->metaContainers->parseGlobalVars();
+
+            $meta = $seomaticClass::$seomaticVariable?->meta;
+            if ($meta === null) {
+                return null;
+            }
+
+            $value = $meta->parsedValue($seomaticKey);
+            if (!is_string($value) || $value === '') {
+                return null;
+            }
+
+            $value = strip_tags($value);
+            $value = Html::decode($value);
+            $value = (string) preg_replace('/\s+/', ' ', $value);
+            $value = trim($value);
+
+            return $value !== '' ? $value : null;
+        } catch (\Throwable $e) {
+            Craft::warning("LLM Ready: SEOmatic resolution failed for entry {$entry->id}: {$e->getMessage()}", __METHOD__);
+            return null;
+        }
     }
 
     /**
@@ -583,10 +674,18 @@ class MarkdownService extends Component
     {
         if (str_ends_with($handle, '()')) {
             $method = substr($handle, 0, -2);
-            if (preg_match('/^[a-zA-Z_]\w*$/', $method) && method_exists($owner, $method)) {
-                return $owner->$method();
+            if (!preg_match('/^[a-zA-Z_]\w*$/', $method) || !method_exists($owner, $method)) {
+                return null;
             }
-            return null;
+            try {
+                return $owner->$method();
+            } catch (\Throwable $e) {
+                Craft::warning(
+                    "LLM Ready: {$method}() on " . get_class($owner) . " threw: {$e->getMessage()}",
+                    __METHOD__,
+                );
+                return null;
+            }
         }
 
         if ($owner instanceof ElementInterface) {

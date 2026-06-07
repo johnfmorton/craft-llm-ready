@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - New "Exclude Selector" setting under Content Extraction — strip decorative or non-content elements (e.g. carousels, `[data-nosnippet]`) from the HTML before Markdown conversion ([#3](https://github.com/johnfmorton/craft-llm-ready/issues/3))
 - "Description Field" now supports dot notation for traversing nested fields and sub-objects (e.g. `seo.seoDescription` inside a ContentBlock field, or `seo.description` for an Ether SEO field), `()` method-call syntax (e.g. `metaData.getMetaDescription()` for SEO Fields), and Generated Field handles ([#4](https://github.com/johnfmorton/craft-llm-ready/issues/4))
+- Native SEOmatic resolver: set Description Field to `seomatic:description` (or `seomatic:og-description`, `seomatic:twitter-description`) to use SEOmatic's full resolution chain — per-entry override → section default → global default, with Twig token parsing. No Generated Field required
 - New `SEO-PLUGINS.md` documenting how to wire LLM Ready into SEOmatic, Ether SEO, SEOmate, and Studio Espresso SEO Fields
 - New user permissions under "LLM Ready": "View the analytics dashboard" and the nested "Purge analytics data". Admins have both by default
 
