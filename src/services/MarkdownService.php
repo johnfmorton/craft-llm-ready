@@ -196,6 +196,8 @@ class MarkdownService extends Component
 
         $xpath = new \DOMXPath($dom);
 
+        $this->stripExcludedNodes($xpath, $settings->excludeSelector);
+
         foreach ($selectors as $selector) {
             $xpathQuery = $this->cssSelectorToXPath($selector);
             $nodes = $xpath->query($xpathQuery);
@@ -221,8 +223,41 @@ class MarkdownService extends Component
     }
 
     /**
+     * Remove any nodes matching the configured exclude selectors from the document.
+     */
+    private function stripExcludedNodes(\DOMXPath $xpath, string $excludeSelector): void
+    {
+        $excludeSelector = trim($excludeSelector);
+        if ($excludeSelector === '') {
+            return;
+        }
+
+        foreach (array_map('trim', explode(',', $excludeSelector)) as $selector) {
+            if ($selector === '') {
+                continue;
+            }
+
+            $nodes = $xpath->query($this->cssSelectorToXPath($selector));
+            if ($nodes === false) {
+                continue;
+            }
+
+            // Collect first — removing during iteration mutates the live NodeList.
+            $toRemove = [];
+            foreach ($nodes as $node) {
+                $toRemove[] = $node;
+            }
+            foreach ($toRemove as $node) {
+                if ($node->parentNode !== null) {
+                    $node->parentNode->removeChild($node);
+                }
+            }
+        }
+    }
+
+    /**
      * Convert a simple CSS selector to an XPath expression
-     * Supports: tag, .class, #id, [attr="val"], tag.class, tag#id
+     * Supports: tag, .class, #id, [attr], [attr="val"], tag.class, tag#id
      */
     private function cssSelectorToXPath(string $selector): string
     {
@@ -242,6 +277,13 @@ class MarkdownService extends Component
             $class = $this->xpathEscapeString(' ' . $matches[2] . ' ');
 
             return "//{$tag}[contains(concat(' ', normalize-space(@class), ' '), {$class})]";
+        }
+
+        // Attribute presence selector: [data-nosnippet] — restrict attr name to safe characters
+        if (preg_match('/^\[([\w-]+)\]$/', $selector, $matches)) {
+            $attr = preg_replace('/[^\w-]/', '', $matches[1]);
+
+            return "//*[@{$attr}]";
         }
 
         // Attribute selector: [role="main"] — restrict attr values to safe characters

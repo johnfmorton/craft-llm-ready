@@ -58,6 +58,15 @@
     placeholder: 'main, article, [role="main"], .content, #content',
 }) }}
 
+{{ forms.textField({
+    label: 'Exclude Selector',
+    instructions: 'CSS selectors for elements to strip from the HTML before Markdown conversion (comma-separated). Use this to remove decorative or non-content elements such as carousels, marquees, or anything marked with `[data-nosnippet]`.',
+    id: 'excludeSelector',
+    name: 'excludeSelector',
+    value: settings.excludeSelector,
+    placeholder: '.carousel, [data-nosnippet], .decorative',
+}) }}
+
 <hr>
 
 <h2>Response Headers</h2>

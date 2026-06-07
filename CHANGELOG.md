@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-06-07
+
+### Added
+
+- New "Exclude Selector" setting under Content Extraction — strip decorative or non-content elements (e.g. carousels, `[data-nosnippet]`) from the HTML before Markdown conversion ([#3](https://github.com/johnfmorton/craft-llm-ready/issues/3))
+- New user permissions under "LLM Ready": "View the analytics dashboard" and the nested "Purge analytics data". Admins have both by default
+
+### Security
+
+- Analytics dashboard, JSON data endpoint, and purge action now require the corresponding permission. Previously any CP user could view analytics and trigger a purge. Existing non-admin users will lose access until granted the new permissions
+
 ## [1.3.2] - 2026-04-05
 
 ### Changed

@@ -29,6 +29,9 @@ class Settings extends Model
     /** @var string CSS selectors for smart content extraction (comma-separated) */
     public string $contentSelector = 'main, article, [role="main"], .content, #content';
 
+    /** @var string CSS selectors for nodes to strip before extraction (comma-separated) */
+    public string $excludeSelector = '';
+
     /** @var string[] Additional bot user-agent strings to detect */
     public array $additionalBotUserAgents = [];
 
@@ -51,7 +54,7 @@ class Settings extends Model
     {
         return [
             [['enabled', 'noindexHeader', 'autoInjectDiscoveryTag', 'enableContentNegotiation', 'enableUserAgentDetection', 'enableAnalytics'], 'boolean'],
-            [['contentSelector', 'llmsTxtIntro', 'descriptionField'], 'string'],
+            [['contentSelector', 'excludeSelector', 'llmsTxtIntro', 'descriptionField'], 'string'],
             ['cacheTtl', 'integer', 'min' => 0],
             ['analyticsRetentionDays', 'integer', 'min' => 1],
             ['additionalBotUserAgents', 'each', 'rule' => ['string']],

@@ -14,6 +14,21 @@ use yii\web\Response;
  */
 class AnalyticsController extends Controller
 {
+    public function beforeAction($action): bool
+    {
+        if (!parent::beforeAction($action)) {
+            return false;
+        }
+
+        $permission = $action->id === 'purge'
+            ? LlmReady::PERMISSION_PURGE_ANALYTICS
+            : LlmReady::PERMISSION_VIEW_ANALYTICS;
+
+        $this->requirePermission($permission);
+
+        return true;
+    }
+
     /**
      * Render the analytics dashboard
      */

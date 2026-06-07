@@ -198,6 +198,7 @@ Configure LLM Ready from **Settings > Plugins > LLM Ready** in the Craft control
 | AI Bot User-Agent Detection | `true` | Serve Markdown to known AI crawlers |
 | Additional Bot User-Agents | `[]` | Custom user-agent strings to detect as AI bots |
 | Content Selector | `main, article, [role="main"], .content, #content` | CSS selectors for extracting main content from HTML |
+| Exclude Selector | `""` | CSS selectors for elements to strip before Markdown conversion (e.g. `.carousel, [data-nosnippet]`) |
 | X-Robots-Tag: noindex | `true` | Add `noindex` header to Markdown responses |
 | Auto-inject Discovery Tag | `true` | Inject `<link rel="alternate">` into HTML pages |
 | Cache TTL (seconds) | `3600` | How long to cache Markdown output (`0` to disable) |
@@ -320,6 +321,10 @@ LLM Ready supports Craft's multi-site feature. Each section can be independently
 ### Markdown output includes navigation or footer content
 
 Adjust the **Content Selector** in plugin settings to match your template's main content area. For example, if your content is in `<div class="article-body">`, set the selector to `.article-body`.
+
+### Markdown output includes decorative or repeated text
+
+If a region inside your main content area is purely decorative (e.g. a marquee, a logo carousel, or alt-less imagery), add a selector for it to **Exclude Selector**. Matching nodes are removed from the HTML before Markdown conversion, so they never reach the output. Selectors marked with the standard `[data-nosnippet]` attribute can also be excluded with `[data-nosnippet]`.
 
 ### Markdown output is empty or minimal
 

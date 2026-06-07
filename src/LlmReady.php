@@ -12,7 +12,9 @@ use craft\elements\Entry;
 use craft\events\ConfigEvent;
 use craft\events\ModelEvent;
 use craft\events\RegisterUrlRulesEvent;
+use craft\events\RegisterUserPermissionsEvent;
 use craft\events\TemplateEvent;
+use craft\services\UserPermissions;
 use craft\web\UrlManager;
 use craft\web\View;
 use johnfmorton\llmready\models\Settings;
@@ -39,6 +41,9 @@ use yii\base\Event;
 class LlmReady extends Plugin
 {
     public const PROJECT_CONFIG_PATH = 'llm-ready.sectionSettings';
+
+    public const PERMISSION_VIEW_ANALYTICS = 'llm-ready:viewAnalytics';
+    public const PERMISSION_PURGE_ANALYTICS = 'llm-ready:purgeAnalytics';
 
     public string $schemaVersion = '1.2.0';
     public bool $hasCpSettings = true;
@@ -71,6 +76,7 @@ class LlmReady extends Plugin
             $this->registerCpUrlRules();
         }
 
+        $this->registerUserPermissions();
         $this->registerCacheInvalidation();
         $this->registerProjectConfigListeners();
     }
@@ -78,6 +84,10 @@ class LlmReady extends Plugin
     public function getCpNavItem(): ?array
     {
         if (!$this->getSettings()->enableAnalytics) {
+            return null;
+        }
+
+        if (!Craft::$app->getUser()->checkPermission(self::PERMISSION_VIEW_ANALYTICS)) {
             return null;
         }
 
@@ -211,6 +221,32 @@ class LlmReady extends Plugin
                     'pattern' => '<path:.+>',
                     'route' => 'llm-ready/markdown/serve',
                     'suffix' => '.md',
+                ];
+            },
+        );
+    }
+
+    /**
+     * Register custom user permissions for the analytics dashboard
+     */
+    private function registerUserPermissions(): void
+    {
+        Event::on(
+            UserPermissions::class,
+            UserPermissions::EVENT_REGISTER_PERMISSIONS,
+            function(RegisterUserPermissionsEvent $event) {
+                $event->permissions[] = [
+                    'heading' => 'LLM Ready',
+                    'permissions' => [
+                        self::PERMISSION_VIEW_ANALYTICS => [
+                            'label' => 'View the analytics dashboard',
+                            'nested' => [
+                                self::PERMISSION_PURGE_ANALYTICS => [
+                                    'label' => 'Purge analytics data',
+                                ],
+                            ],
+                        ],
+                    ],
                 ];
             },
         );

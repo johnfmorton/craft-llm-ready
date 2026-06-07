@@ -170,6 +170,7 @@
             </table>
         </div>
 
+        {% if currentUser and currentUser.can('llm-ready:purgeAnalytics') %}
         <div class="purge-section">
             <form method="post">
                 {{ csrfInput() }}
@@ -178,6 +179,7 @@
                 <button type="submit" class="btn">Purge Old Data</button>
             </form>
         </div>
+        {% endif %}
     {% endif %}
 </div>
 {% endblock %}
