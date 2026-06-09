@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Auto-injected `Link` header is now emitted on `HEAD` requests as well as `GET`. Per RFC 9110, a `HEAD` response must carry the same headers as the equivalent `GET`, and some clients (uptime monitors, link checkers, `curl -I`) only issue `HEAD` ([#7](https://github.com/johnfmorton/craft-llm-ready/issues/7))
+
 ### Changed
 
 - Bumped minimum Craft CMS to `^5.9.18` (was `^5.5.0`) so consumers no longer install Craft versions affected by [GHSA-gj2p-p9m4-c8gw](https://github.com/advisories/GHSA-gj2p-p9m4-c8gw), [GHSA-qrgm-p9w5-rrfw](https://github.com/advisories/GHSA-qrgm-p9w5-rrfw), and [GHSA-33m5-hqp9-97pw](https://github.com/advisories/GHSA-33m5-hqp9-97pw), all patched in Craft 5.9.18

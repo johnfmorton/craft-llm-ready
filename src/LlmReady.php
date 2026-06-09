@@ -384,8 +384,10 @@ class LlmReady extends Plugin
 
                 $request = Craft::$app->getRequest();
 
-                // Don't inject into .md requests or non-GET requests
-                if (!$request->getIsGet()) {
+                // Allow GET and HEAD — per RFC 9110, HEAD must return the same
+                // headers as GET, and some clients (monitoring, link-checkers,
+                // `curl -I`) only issue HEAD.
+                if (!$request->getIsGet() && !$request->getIsHead()) {
                     return;
                 }
 
