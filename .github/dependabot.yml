@@ -1,0 +1,30 @@
+version: 2
+updates:
+  - package-ecosystem: "composer"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Only scan dependencies declared directly in composer.json.
+    # Without a lockfile, this is what consumers actually install — transitive
+    # deps are resolved against their own constraints, not ours.
+    allow:
+      - dependency-type: "direct"
+    # Only open a PR when the new version falls OUTSIDE the existing range.
+    # A patch release like 5.9.22 already satisfies `^5.9.18` — no PR.
+    # A security fix at 5.10.0 would not — PR opens to bump the minimum.
+    versioning-strategy: "increase-if-necessary"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore(deps)"
