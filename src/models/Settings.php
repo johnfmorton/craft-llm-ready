@@ -35,8 +35,26 @@ class Settings extends Model
     /** @var string CSS selectors for nodes to strip before extraction (comma-separated) */
     public string $excludeSelector = '';
 
-    /** @var string[] Additional bot user-agent strings to detect */
+    /** @var string[] Additional bot user-agent strings to detect (appended to the defaults) */
     public array $additionalBotUserAgents = [];
+
+    /**
+     * Full replacement for the built-in default bot user-agent list. When
+     * non-empty, these are used instead of DetectionService::BOT_USER_AGENTS.
+     * Intended to be set in config/llm-ready.php, not the control panel.
+     *
+     * @var string[]
+     */
+    public array $botUserAgents = [];
+
+    /**
+     * Bot user-agent strings to remove from the effective list — lets you drop
+     * a specific default (e.g. one you don't want) without copying the whole
+     * list. Intended to be set in config/llm-ready.php, not the control panel.
+     *
+     * @var string[]
+     */
+    public array $excludeBotUserAgents = [];
 
     /** @var string Site description for llms.txt header blockquote */
     public string $llmsTxtIntro = '';
@@ -66,7 +84,7 @@ class Settings extends Model
             [['contentSelector', 'excludeSelector', 'llmsTxtIntro', 'descriptionField', 'titleField', 'authorOverride'], 'string'],
             ['cacheTtl', 'integer', 'min' => 0],
             ['analyticsRetentionDays', 'integer', 'min' => 1],
-            ['additionalBotUserAgents', 'each', 'rule' => ['string']],
+            [['additionalBotUserAgents', 'botUserAgents', 'excludeBotUserAgents'], 'each', 'rule' => ['string']],
         ];
     }
 }

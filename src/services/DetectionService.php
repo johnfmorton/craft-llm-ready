@@ -13,21 +13,47 @@ use yii\base\Component;
  */
 class DetectionService extends Component
 {
-    /** @var string[] Default AI bot user-agent strings */
+    /**
+     * Default AI bot user-agent strings, matched case-insensitively as
+     * substrings of the request's User-Agent header.
+     *
+     * Override or trim this list per-install via config — see
+     * `getEffectiveBotUserAgents()` and `config.php` for the
+     * `botUserAgents` / `additionalBotUserAgents` / `excludeBotUserAgents`
+     * settings.
+     *
+     * @var string[]
+     */
     public const BOT_USER_AGENTS = [
-        'GPTBot',
-        'ChatGPT-User',
-        'OAI-SearchBot',
-        'ClaudeBot',
-        'Claude-Web',
-        'Amazonbot',
-        'Bytespider',
-        'CCBot',
-        'Google-Extended',
-        'FacebookBot',
-        'PerplexityBot',
-        'Applebot-Extended',
-        'cohere-ai',
+        // OpenAI
+        'GPTBot',           // training data collection
+        'ChatGPT-User',     // user-requested fetch
+        'OAI-SearchBot',    // search and citations
+
+        // Anthropic
+        'ClaudeBot',        // training data collection
+        'Claude-SearchBot', // search and citations
+        'Claude-User',      // user-requested fetch
+
+        // Perplexity
+        'PerplexityBot',    // answer index
+        'Perplexity-User',  // user-requested fetch
+
+        // Meta
+        'Meta-ExternalAgent',   // AI training and indexing
+        'Meta-ExternalFetcher', // user-requested fetch
+        'Meta-WebIndexer',      // web discovery index
+
+        // Other AI/LLM crawlers
+        'Amazonbot',  // Amazon AI/Alexa discovery
+        'Bytespider', // ByteDance AI data collection
+        'CCBot',      // Common Crawl dataset collection
+        'cohere-ai',  // Cohere AI data collection
+
+        // Note: Google-Extended and Applebot-Extended are deliberately
+        // omitted — they are robots.txt opt-out tokens, not request
+        // User-Agents, so they never appear in a User-Agent header and
+        // matching them here would be a no-op.
     ];
 
     /**
@@ -80,18 +106,42 @@ class DetectionService extends Component
             return false;
         }
 
-        $botAgents = array_merge(
-            self::BOT_USER_AGENTS,
-            $settings->additionalBotUserAgents,
-        );
-
-        foreach ($botAgents as $bot) {
+        foreach ($this->getEffectiveBotUserAgents() as $bot) {
             if (stripos($userAgent, $bot) !== false) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * The effective list of bot user-agent strings to detect, after applying
+     * the config overrides:
+     *
+     * - `botUserAgents`, when non-empty, fully replaces the built-in
+     *   {@see self::BOT_USER_AGENTS} defaults.
+     * - `additionalBotUserAgents` are appended to the base list.
+     * - `excludeBotUserAgents` are removed from the result (lets you drop a
+     *   default without copying the whole list).
+     *
+     * Used by both detection ({@see self::isAiBot()}) and analytics bot
+     * identification so the two never drift apart.
+     *
+     * @return string[]
+     */
+    public function getEffectiveBotUserAgents(): array
+    {
+        $settings = LlmReady::getInstance()->getSettings();
+
+        $base = !empty($settings->botUserAgents)
+            ? $settings->botUserAgents
+            : self::BOT_USER_AGENTS;
+
+        return array_values(array_diff(
+            array_merge($base, $settings->additionalBotUserAgents),
+            $settings->excludeBotUserAgents,
+        ));
     }
 
     /**

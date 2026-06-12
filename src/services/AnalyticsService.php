@@ -48,11 +48,7 @@ class AnalyticsService extends Component
             return 'direct';
         }
 
-        $settings = LlmReady::getInstance()->getSettings();
-        $botAgents = array_merge(
-            DetectionService::BOT_USER_AGENTS,
-            $settings->additionalBotUserAgents,
-        );
+        $botAgents = LlmReady::getInstance()->detectionService->getEffectiveBotUserAgents();
 
         foreach ($botAgents as $bot) {
             if (stripos($userAgent, $bot) !== false) {

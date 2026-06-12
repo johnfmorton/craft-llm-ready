@@ -175,6 +175,16 @@ This tag is added automatically to all pages in enabled sections. You can disabl
 
 **Note:** Your page templates must include a `<head>` element for the discovery tag to be rendered. Craft automatically injects registered head tags before the closing `</head>` tag.
 
+### HTTP `Link` header
+
+In addition to (or instead of) the HTML tag, LLM Ready can advertise the Markdown alternate via an HTTP `Link` response header (RFC 8288), which crawlers can read without parsing HTML:
+
+```
+Link: <https://example.com/blog/my-post.md>; rel="alternate"; type="text/markdown"
+```
+
+This is controlled by the **Auto-inject Link Header** setting (on by default). It is emitted on both `GET` and `HEAD` requests, so header-only clients (uptime monitors, link checkers, `curl -I`) can discover the alternate too.
+
 ## Response headers
 
 Markdown responses include the following headers:
@@ -221,21 +231,42 @@ Below the global settings, a per-section configuration table lists all sections 
 
 LLM Ready detects the following AI crawler user-agents by default:
 
-- `GPTBot` (OpenAI training)
-- `ChatGPT-User` (OpenAI live browsing)
-- `OAI-SearchBot` (OpenAI search)
-- `ClaudeBot` (Anthropic)
-- `Claude-Web` (Anthropic)
+- `GPTBot` (OpenAI — training)
+- `ChatGPT-User` (OpenAI — user-requested fetch)
+- `OAI-SearchBot` (OpenAI — search)
+- `ClaudeBot` (Anthropic — training)
+- `Claude-SearchBot` (Anthropic — search)
+- `Claude-User` (Anthropic — user-requested fetch)
+- `PerplexityBot` (Perplexity — answer index)
+- `Perplexity-User` (Perplexity — user-requested fetch)
+- `Meta-ExternalAgent` (Meta — AI training and indexing)
+- `Meta-ExternalFetcher` (Meta — user-requested fetch)
+- `Meta-WebIndexer` (Meta — web discovery index)
 - `Amazonbot` (Amazon)
 - `Bytespider` (ByteDance)
 - `CCBot` (Common Crawl)
-- `Google-Extended` (Google AI)
-- `FacebookBot` (Meta)
-- `PerplexityBot` (Perplexity)
-- `Applebot-Extended` (Apple)
 - `cohere-ai` (Cohere)
 
-Add custom user-agent strings in the plugin settings under **Additional Bot User-Agents**.
+Matching is case-insensitive against any substring of the request's `User-Agent` header.
+
+> **Note:** `Google-Extended` and `Applebot-Extended` are intentionally **not** in this list. They are robots.txt opt-out tokens for AI training, not request user-agents — they never appear in a `User-Agent` header, so detecting them would have no effect. Use them in `robots.txt`, not here.
+
+### Customizing the detected bots
+
+| Setting | Where | Effect |
+|---------|-------|--------|
+| `additionalBotUserAgents` | Control panel or config | **Appended** to the default list. Use for custom or internal crawlers. |
+| `botUserAgents` | Config file only | **Replaces** the default list entirely. `additionalBotUserAgents` is still appended on top. |
+| `excludeBotUserAgents` | Config file only | **Removes** entries from the effective list — drop a single default without re-listing the others. |
+
+The effective list is computed as: `(botUserAgents or the defaults) + additionalBotUserAgents − excludeBotUserAgents`. Set the config-only options in `config/llm-ready.php` (see [`src/config.php`](src/config.php) for the template). For example, to keep the defaults but stop detecting `Bytespider`:
+
+```php
+// config/llm-ready.php
+return [
+    'excludeBotUserAgents' => ['Bytespider'],
+];
+```
 
 ### Blocking specific bots
 
@@ -256,6 +287,15 @@ This tells the bot not to crawl any pages on your site. Note that `robots.txt` i
 LLM Ready includes an opt-in analytics dashboard that tracks AI bot requests to your site. Enable it in the plugin settings under **Enable Analytics**.
 
 Once enabled, a **LLM Ready** section appears in the control panel navigation with a dashboard showing requests over time, bot breakdown, most accessed pages, and request type breakdown.
+
+### Permissions
+
+Access to the analytics data is gated behind two user permissions under **LLM Ready** (set per user group, or per user, in **Settings > Users**):
+
+- **View the analytics dashboard** — required to open the dashboard, its JSON data endpoint, and the dashboard widget.
+- **Purge analytics data** (nested under the above) — required to manually purge analytics records.
+
+Admins have both by default. Non-admin users have no access until granted.
 
 ### Dashboard widget
 

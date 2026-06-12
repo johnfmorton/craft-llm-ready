@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-06-12
+
+### Added
+
+- Expanded the built-in AI bot detection list with current crawlers: `Claude-SearchBot` and `Claude-User` (Anthropic), `Perplexity-User` (Perplexity), and `Meta-ExternalAgent`, `Meta-ExternalFetcher`, and `Meta-WebIndexer` (Meta) ([#16](https://github.com/johnfmorton/craft-llm-ready/issues/16))
+- New `botUserAgents` config setting — a full replacement for the built-in bot user-agent list, for installs that want complete control. `additionalBotUserAgents` continues to append on top ([#16](https://github.com/johnfmorton/craft-llm-ready/issues/16))
+- New `excludeBotUserAgents` config setting — remove specific entries from the effective list (e.g. drop a single default) without re-listing the whole list ([#16](https://github.com/johnfmorton/craft-llm-ready/issues/16))
+
+### Changed
+
+- Removed `Claude-Web` (legacy, not in Anthropic's current crawler docs) and `FacebookBot` (a general crawler, not AI-specific) from the default detection list. Add either back via `additionalBotUserAgents` if you still want it ([#16](https://github.com/johnfmorton/craft-llm-ready/issues/16))
+- Removed `Google-Extended` and `Applebot-Extended` from the default list — these are robots.txt opt-out tokens, not request User-Agents, so they never appear in a `User-Agent` header and matching them was a no-op ([#16](https://github.com/johnfmorton/craft-llm-ready/issues/16))
+
+### Documentation
+
+- Brought the `config.php` template fully in sync with the available settings — it now includes `excludeSelector`, `autoInjectLinkHeader`, `titleField`, `authorOverride`, and the analytics options that were added in 1.4.0/1.4.1 but never documented in the template, and the `descriptionField` / `titleField` comments now describe the dot-notation, `()` method-call, Generated Field, and SEOmatic-resolver syntax
+- Documented the HTTP `Link` discovery header (Auto-inject Link Header) and the analytics dashboard/purge permissions in `DOCUMENTATION.md`
+- Overhauled `AI-INSTALL.md` to match 1.4.0/1.4.1/1.5.0: corrected the minimum Craft version to 5.9.18, added an SEO-plugin detection step (SEOmatic / Ether SEO / SEOmate / SEO Fields) for the Description/Title fields, an analytics setup step, an HTTP `Link` header verification test, and the Exclude Selector / Auto-inject Link Header / Title Field / Author Override settings
+
 ## [1.4.1] - 2026-06-09
 
 ### Fixed
@@ -152,7 +171,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Permission checks on all Markdown endpoints — logged-in users without view permission receive a 403
 - Template path traversal protection and XPath injection prevention
 
-[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.4.1...HEAD
+[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.4.1...v1.5.0
 [1.4.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.3.2...v1.4.0
 [1.3.2]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.3.1...v1.3.2
