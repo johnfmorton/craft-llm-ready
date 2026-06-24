@@ -9,6 +9,7 @@ use craft\db\Migration;
 use johnfmorton\llmready\LlmReady;
 use johnfmorton\llmready\records\AnalyticsRecord;
 use johnfmorton\llmready\records\SectionSettingRecord;
+use Throwable;
 
 /**
  * LLM Ready Install Migration
@@ -115,7 +116,7 @@ class Install extends Migration
 
         foreach ($sectionSettings as $sectionUid => $siteConfigs) {
             $section = $sectionsService->getSectionByUid($sectionUid);
-            if ($section === null) {
+            if ($section === null || !is_array($siteConfigs)) {
                 continue;
             }
 
@@ -125,12 +126,27 @@ class Install extends Migration
                     continue;
                 }
 
-                $record = new SectionSettingRecord();
-                $record->sectionId = $section->id;
-                $record->siteId = $site->id;
-                $record->enabled = $values['enabled'] ?? true;
-                $record->llmTemplate = $values['llmTemplate'] ?? null;
-                $record->save();
+                // Best-effort: skip and log a bad entry rather than failing the install.
+                try {
+                    $record = new SectionSettingRecord();
+                    $record->sectionId = $section->id;
+                    $record->siteId = $site->id;
+                    $record->enabled = $values['enabled'] ?? true;
+                    $record->llmTemplate = $values['llmTemplate'] ?? null;
+
+                    if (!$record->save()) {
+                        Craft::warning(
+                            "Could not rebuild LLM Ready setting for section {$sectionUid} / site {$siteUid}: "
+                            . implode('; ', $record->getFirstErrors()),
+                            __METHOD__,
+                        );
+                    }
+                } catch (Throwable $e) {
+                    Craft::warning(
+                        "Skipped LLM Ready setting for section {$sectionUid} / site {$siteUid}: {$e->getMessage()}",
+                        __METHOD__,
+                    );
+                }
             }
         }
     }
