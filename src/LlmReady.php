@@ -9,13 +9,17 @@ use craft\base\Element;
 use craft\base\Model;
 use craft\base\Plugin;
 use craft\elements\Entry;
+use craft\errors\SiteNotFoundException;
 use craft\events\ConfigEvent;
+use craft\events\DeleteSiteEvent;
 use craft\events\ModelEvent;
 use craft\events\RegisterComponentTypesEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
 use craft\events\TemplateEvent;
+use craft\models\Site;
 use craft\services\Dashboard;
+use craft\services\Sites;
 use craft\services\UserPermissions;
 use craft\web\UrlManager;
 use craft\web\View;
@@ -83,6 +87,7 @@ class LlmReady extends Plugin
         $this->registerDashboardWidget();
         $this->registerCacheInvalidation();
         $this->registerProjectConfigListeners();
+        $this->registerSiteListeners();
     }
 
     public function getCpNavItem(): ?array
@@ -448,6 +453,32 @@ class LlmReady extends Plugin
     }
 
     /**
+     * Register site event listeners to keep project config in sync
+     */
+    private function registerSiteListeners(): void
+    {
+        Event::on(
+            Sites::class,
+            Sites::EVENT_AFTER_DELETE_SITE,
+            [$this, 'handleDeletedSite'],
+        );
+    }
+
+    /**
+     * Returns a site by its UID, or null if no such site exists.
+     *
+     * Sites::getSiteByUid() throws for an unknown UID rather than returning null.
+     */
+    public static function siteByUidOrNull(string $uid): ?Site
+    {
+        try {
+            return Craft::$app->getSites()->getSiteByUid($uid);
+        } catch (SiteNotFoundException) {
+            return null;
+        }
+    }
+
+    /**
      * Handle a section setting being added or updated in project config
      */
     public function handleChangedSectionSetting(ConfigEvent $event): void
@@ -457,8 +488,7 @@ class LlmReady extends Plugin
         $siteUid = $event->tokenMatches[1];
 
         $section = Craft::$app->getEntries()->getSectionByUid($sectionUid);
-        /** @var \craft\models\Site|null $site */
-        $site = Craft::$app->getSites()->getSiteByUid($siteUid);
+        $site = self::siteByUidOrNull($siteUid);
 
         if ($section === null || $site === null) {
             return;
@@ -492,8 +522,7 @@ class LlmReady extends Plugin
         $siteUid = $event->tokenMatches[1];
 
         $section = Craft::$app->getEntries()->getSectionByUid($sectionUid);
-        /** @var \craft\models\Site|null $site */
-        $site = Craft::$app->getSites()->getSiteByUid($siteUid);
+        $site = self::siteByUidOrNull($siteUid);
 
         if ($section === null || $site === null) {
             return;
@@ -503,6 +532,30 @@ class LlmReady extends Plugin
             'sectionId' => $section->id,
             'siteId' => $site->id,
         ]);
+    }
+
+    /**
+     * Prune orphaned section settings from project config when a site is deleted.
+     *
+     * Craft leaves nested plugin config behind on site deletion; the matching DB
+     * rows are already dropped via the section_settings siteId foreign key.
+     */
+    public function handleDeletedSite(DeleteSiteEvent $event): void
+    {
+        $projectConfig = Craft::$app->getProjectConfig();
+
+        // Project config is read-only while it is being applied; the source
+        // environment is responsible for the removal in that case.
+        if ($projectConfig->readOnly) {
+            return;
+        }
+
+        $siteUid = $event->site->uid;
+        $sectionSettings = $projectConfig->get(self::PROJECT_CONFIG_PATH) ?? [];
+
+        foreach (array_keys($sectionSettings) as $sectionUid) {
+            $projectConfig->remove(self::PROJECT_CONFIG_PATH . ".{$sectionUid}.{$siteUid}");
+        }
     }
 
     /**

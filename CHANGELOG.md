@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Deleting a site no longer leaves orphaned section settings in project config. The plugin now prunes its `llm-ready.sectionSettings.*.{siteUid}` entries when a site is removed, so a later `project-config/apply` (or a fresh install of the config) no longer aborts referencing a site that no longer exists.
+- The project config add/update/remove handlers and the install-time rebuild no longer abort with a `SiteNotFoundException` when a section setting references a missing site. `Sites::getSiteByUid()` throws rather than returning null for an unknown UID, which defeated the existing `=== null` guards; lookups now resolve to null and skip the orphaned entry as intended.
+
 ## [1.5.0] - 2026-06-12
 
 ### Added

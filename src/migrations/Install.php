@@ -6,6 +6,7 @@ namespace johnfmorton\llmready\migrations;
 
 use Craft;
 use craft\db\Migration;
+use johnfmorton\llmready\LlmReady;
 use johnfmorton\llmready\records\AnalyticsRecord;
 use johnfmorton\llmready\records\SectionSettingRecord;
 
@@ -33,7 +34,7 @@ class Install extends Migration
         $this->dropTableIfExists(SectionSettingRecord::tableName());
 
         // Clean up project config
-        Craft::$app->getProjectConfig()->remove(\johnfmorton\llmready\LlmReady::PROJECT_CONFIG_PATH);
+        Craft::$app->getProjectConfig()->remove(LlmReady::PROJECT_CONFIG_PATH);
 
         return true;
     }
@@ -107,11 +108,10 @@ class Install extends Migration
      */
     private function rebuildFromProjectConfig(): void
     {
-        $configPath = \johnfmorton\llmready\LlmReady::PROJECT_CONFIG_PATH;
+        $configPath = LlmReady::PROJECT_CONFIG_PATH;
         $sectionSettings = Craft::$app->getProjectConfig()->get($configPath) ?? [];
 
         $sectionsService = Craft::$app->getEntries();
-        $sitesService = Craft::$app->getSites();
 
         foreach ($sectionSettings as $sectionUid => $siteConfigs) {
             $section = $sectionsService->getSectionByUid($sectionUid);
@@ -120,8 +120,7 @@ class Install extends Migration
             }
 
             foreach ($siteConfigs as $siteUid => $values) {
-                /** @var \craft\models\Site|null $site */
-                $site = $sitesService->getSiteByUid($siteUid);
+                $site = LlmReady::siteByUidOrNull($siteUid);
                 if ($site === null) {
                     continue;
                 }
