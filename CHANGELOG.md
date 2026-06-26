@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-06-26
+
 ### Fixed
 
 - Deleting a site no longer leaves orphaned section settings in project config. The plugin now prunes its `llm-ready.sectionSettings.*.{siteUid}` entries when a site is removed, so a later `project-config/apply` (or a fresh install of the config) no longer aborts referencing a site that no longer exists.
@@ -177,7 +179,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Permission checks on all Markdown endpoints — logged-in users without view permission receive a 403
 - Template path traversal protection and XPath injection prevention
 
-[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.1...HEAD
+[1.5.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.4.1...v1.5.0
 [1.4.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.3.2...v1.4.0
