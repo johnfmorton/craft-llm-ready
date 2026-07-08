@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-07-08
+
 ### Security
 
 - The analytics dashboard's Chart.js library is now bundled with the plugin instead of being loaded from a third-party CDN (`cdn.jsdelivr.net`). The dashboard renders in the authenticated control panel, so a compromised or MITM'd CDN response would have executed with full CP privileges. The vendored copy is pinned to Chart.js 4.4.7.
@@ -184,7 +186,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Permission checks on all Markdown endpoints — logged-in users without view permission receive a 403
 - Template path traversal protection and XPath injection prevention
 
-[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.1...HEAD
+[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.2...HEAD
+[1.5.2]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.4.1...v1.5.0
 [1.4.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.4.0...v1.4.1
