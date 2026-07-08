@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- The analytics dashboard's Chart.js library is now bundled with the plugin instead of being loaded from a third-party CDN (`cdn.jsdelivr.net`). The dashboard renders in the authenticated control panel, so a compromised or MITM'd CDN response would have executed with full CP privileges. The vendored copy is pinned to Chart.js 4.4.7.
+- The analytics data endpoints are now scoped to the sites the current user is allowed to edit. Previously any user with the "View the analytics dashboard" permission could request analytics for any `siteId`, disclosing request paths and bot activity for sites they otherwise couldn't access. Requests for a non-editable site now return a 403, and the dashboard's site switcher lists only editable sites.
+
 ## [1.5.1] - 2026-06-26
 
 ### Fixed

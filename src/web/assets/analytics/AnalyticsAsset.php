@@ -15,8 +15,11 @@ class AnalyticsAsset extends AssetBundle
     {
         $this->sourcePath = __DIR__;
 
+        // Chart.js is vendored locally (v4.4.7) rather than loaded from a CDN:
+        // the dashboard renders in the authenticated control panel, so a
+        // third-party script here would run with full CP privileges.
         $this->js = [
-            'https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js',
+            'js/chart.umd.min.js',
             'js/dashboard.js',
         ];
 

@@ -7,6 +7,7 @@ namespace johnfmorton\llmready\controllers;
 use Craft;
 use craft\web\Controller;
 use johnfmorton\llmready\LlmReady;
+use yii\web\ForbiddenHttpException;
 use yii\web\Response;
 
 /**
@@ -30,13 +31,54 @@ class AnalyticsController extends Controller
     }
 
     /**
+     * Resolve the site to report on, constrained to the sites the current user
+     * may edit.
+     *
+     * The view-analytics permission is global, but analytics reveal per-site
+     * request paths and bot activity, so an explicit `siteId` for a site the
+     * user can't edit is rejected rather than served. When no site is
+     * requested, fall back to the current site if it's editable, otherwise the
+     * user's first editable site.
+     *
+     * @throws ForbiddenHttpException if the requested site isn't editable, or
+     * the user has no editable sites at all.
+     */
+    private function resolveSiteId(?int $requestedSiteId): int
+    {
+        $editableSiteIds = Craft::$app->getSites()->getEditableSiteIds();
+
+        if (empty($editableSiteIds)) {
+            throw new ForbiddenHttpException('You don’t have permission to view analytics for any site.');
+        }
+
+        if ($requestedSiteId !== null) {
+            if (!in_array($requestedSiteId, $editableSiteIds, true)) {
+                throw new ForbiddenHttpException('You don’t have permission to view analytics for this site.');
+            }
+
+            return $requestedSiteId;
+        }
+
+        $currentSiteId = Craft::$app->getSites()->getCurrentSite()->id;
+        if (in_array($currentSiteId, $editableSiteIds, true)) {
+            return $currentSiteId;
+        }
+
+        return $editableSiteIds[0];
+    }
+
+    /**
      * Render the analytics dashboard
      */
     public function actionIndex(): Response
     {
         $plugin = LlmReady::getInstance();
         $settings = $plugin->getSettings();
-        $site = Craft::$app->getSites()->getCurrentSite();
+
+        // Restrict analytics to sites the current user is allowed to edit.
+        $editableSites = Craft::$app->getSites()->getEditableSites();
+        $siteId = $this->resolveSiteId(null);
+        $site = Craft::$app->getSites()->getSiteById($siteId);
 
         $endDate = (new \DateTime())->format('Y-m-d 23:59:59');
         $startDate = (new \DateTime())->modify('-30 days')->format('Y-m-d 00:00:00');
@@ -56,8 +98,8 @@ class AnalyticsController extends Controller
         return $this->renderTemplate('llm-ready/analytics/index', [
             'settings' => $settings,
             'data' => $data,
-            'sites' => Craft::$app->getSites()->getAllSites(),
-            'currentSiteId' => $site->id,
+            'sites' => $editableSites,
+            'currentSiteId' => $siteId,
             'selectedRange' => '30',
         ]);
     }
@@ -70,7 +112,8 @@ class AnalyticsController extends Controller
         $this->requireAcceptsJson();
 
         $request = Craft::$app->getRequest();
-        $siteId = (int) ($request->getParam('siteId') ?: Craft::$app->getSites()->getCurrentSite()->id);
+        $requestedSiteId = $request->getParam('siteId');
+        $siteId = $this->resolveSiteId($requestedSiteId !== null ? (int) $requestedSiteId : null);
         $range = $request->getParam('range', '30');
 
         $endDate = (new \DateTime())->format('Y-m-d 23:59:59');
