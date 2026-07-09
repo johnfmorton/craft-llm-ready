@@ -107,8 +107,17 @@ class MarkdownService extends Component
      */
     private function renderLlmTemplate(Entry $entry, string $template): string
     {
-        // Sanitize template path to prevent directory traversal
-        if (str_contains($template, '..') || str_starts_with($template, '/')) {
+        // Allowlist the template path to prevent directory traversal. Only
+        // letters, digits, underscores, hyphens, dots and forward slashes are
+        // permitted — which rejects backslash traversal, null bytes and stray
+        // percent-encoding — and `..` / leading `/` are rejected outright.
+        // Craft references templates without a file extension, so none is
+        // required here.
+        if (
+            !preg_match('#^[A-Za-z0-9_\-./]+$#', $template)
+            || str_contains($template, '..')
+            || str_starts_with($template, '/')
+        ) {
             Craft::warning("LLM Ready: Rejected unsafe template path '{$template}'", __METHOD__);
 
             return $this->buildBasicMarkdown($entry);

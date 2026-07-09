@@ -68,8 +68,11 @@
             </div>
         </div>
 
-        <script type="application/json" id="chartData">{{ data|json_encode|raw }}</script>
-        <script type="application/json" id="siteBaseUrl">{{ siteUrl()|json_encode|raw }}</script>
+        {# Escape HTML-special characters as \uXXXX so a stored requestPath containing
+           `</script>` can't break out of this block. See JSON context in the OWASP XSS cheat sheet. #}
+        {% set jsonSafeFlags = constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP') b-or constant('JSON_HEX_APOS') b-or constant('JSON_HEX_QUOT') %}
+        <script type="application/json" id="chartData">{{ data|json_encode(jsonSafeFlags)|raw }}</script>
+        <script type="application/json" id="siteBaseUrl">{{ siteUrl()|json_encode(jsonSafeFlags)|raw }}</script>
 
         <div class="dashboard-grid">
             <div class="dashboard-section">

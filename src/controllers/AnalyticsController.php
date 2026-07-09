@@ -15,6 +15,51 @@ use yii\web\Response;
  */
 class AnalyticsController extends Controller
 {
+    /**
+     * Date-range values the dashboard offers. Anything else falls back to '30'.
+     */
+    private const ALLOWED_RANGES = ['7', '30', '90', 'all'];
+
+    /**
+     * The request types the plugin logs (see AnalyticsService::logRequest callers).
+     */
+    private const ALLOWED_REQUEST_TYPES = ['entry', 'llmstxt', 'listing', 'negotiated'];
+
+    /**
+     * Maximum number of values accepted for a single comma-separated filter.
+     */
+    private const MAX_FILTER_VALUES = 50;
+
+    /**
+     * Parse a comma-separated filter parameter into a bounded, de-duplicated
+     * list of values. Returns null when nothing usable remains, so callers can
+     * skip the filter entirely.
+     *
+     * @param mixed $raw the raw request param
+     * @param string[]|null $allowed optional allowlist to intersect against
+     * @return string[]|null
+     */
+    private function parseFilterParam(mixed $raw, ?array $allowed = null): ?array
+    {
+        if (!is_string($raw) || $raw === '') {
+            return null;
+        }
+
+        $values = array_filter(array_map('trim', explode(',', $raw)), static fn(string $v): bool => $v !== '');
+
+        if ($allowed !== null) {
+            $values = array_intersect($values, $allowed);
+        }
+
+        $values = array_values(array_unique($values));
+
+        if ($values === []) {
+            return null;
+        }
+
+        return array_slice($values, 0, self::MAX_FILTER_VALUES);
+    }
+
     public function beforeAction($action): bool
     {
         if (!parent::beforeAction($action)) {
@@ -114,7 +159,14 @@ class AnalyticsController extends Controller
         $request = Craft::$app->getRequest();
         $requestedSiteId = $request->getParam('siteId');
         $siteId = $this->resolveSiteId($requestedSiteId !== null ? (int) $requestedSiteId : null);
+
+        // Constrain the range to the values the UI offers. An arbitrary integer
+        // would let a caller push the start date to the distant past (full-table
+        // scan) or the future (skewed results).
         $range = $request->getParam('range', '30');
+        if (!in_array($range, self::ALLOWED_RANGES, true)) {
+            $range = '30';
+        }
 
         $endDate = (new \DateTime())->format('Y-m-d 23:59:59');
 
@@ -126,19 +178,17 @@ class AnalyticsController extends Controller
         }
 
         $granularity = match (true) {
-            $range === 'all' || (int) $range > 90 => 'month',
+            $range === 'all' => 'month',
             (int) $range > 30 => 'week',
             default => 'day',
         };
 
-        $botName = $request->getParam('botName') ?: null;
-        if ($botName !== null) {
-            $botName = array_map('trim', explode(',', $botName));
-        }
-        $requestType = $request->getParam('requestType') ?: null;
-        if ($requestType !== null) {
-            $requestType = array_map('trim', explode(',', $requestType));
-        }
+        // Bound the filter arrays so a caller can't force a thousands-element
+        // SQL IN (...) clause on every query. requestType is additionally
+        // constrained to the known set; botName is left open (custom bot lists
+        // are configurable) but capped in length.
+        $botName = $this->parseFilterParam($request->getParam('botName'));
+        $requestType = $this->parseFilterParam($request->getParam('requestType'), self::ALLOWED_REQUEST_TYPES);
 
         $analyticsService = LlmReady::getInstance()->analyticsService;
 

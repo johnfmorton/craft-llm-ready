@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+_These fixes were surfaced by an independent security review of the plugin. Thank you to the reporter for the careful and well-documented findings._
+
+- The analytics dashboard no longer embeds server-side data into its inline `<script type="application/json">` blocks with an unescaped `json_encode`. A logged `requestPath` containing a literal `</script>` sequence could otherwise close the block and inject arbitrary HTML into the authenticated control panel. The `chartData` and `siteBaseUrl` payloads are now encoded with `JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT`, so HTML-special characters are emitted as `\uXXXX` escapes.
+- The analytics data endpoint (`analytics/data`) now validates the `range` parameter against the values the dashboard offers (`7`, `30`, `90`, `all`), falling back to `30` for anything else. Previously an arbitrary integer was passed straight to `DateTime::modify()`, letting a caller push the query's start date far into the past (a full-table scan) or the future (skewed results).
+- The `botName` and `requestType` filter parameters on `analytics/data` are now bounded: each comma-separated list is trimmed, de-duplicated and capped at 50 values, and `requestType` is additionally constrained to the known set (`entry`, `llmstxt`, `listing`, `negotiated`). This prevents a caller from forcing a many-thousand-element SQL `IN (...)` clause on every analytics query.
+- The dedicated-LLM-template path guard in `MarkdownService` now uses a positive character allowlist (`[A-Za-z0-9_\-./]`) in addition to the existing `..` / leading-`/` checks, rejecting backslash traversal, null bytes and stray percent-encoding rather than relying on a blocklist alone.
+
 ## [1.5.2] - 2026-07-08
 
 ### Security
