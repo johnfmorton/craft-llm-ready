@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- New "Enable llms.txt" setting (`enableLlmsTxt`, default `true`) — turns off `/llms.txt` and the `/.well-known/llms.txt` redirect without disabling the rest of the plugin, so `.md` URLs, content negotiation and discovery tags keep working. Previously the only way to remove the route was the global `enabled` setting, which took everything else with it. When off, the URL rules are never registered so the paths 404 naturally, the controller actions refuse to run (keeping them unreachable via their `actions/…` URLs), and the home page stops advertising an `llms.txt` alternate — there is no `.md` for the bare home page, so with llms.txt off it has no Markdown alternate to point at. Existing installs are unaffected: the default leaves the route on. Thanks to [@nikolenko-dmitriy](https://github.com/nikolenko-dmitriy) for the request ([#23](https://github.com/johnfmorton/craft-llm-ready/issues/23))
+
 ## [1.5.3] - 2026-07-09
 
 ### Security

@@ -114,6 +114,14 @@
 
 <h2>llms.txt</h2>
 
+{{ forms.lightswitchField({
+    label: 'Enable llms.txt',
+    instructions: 'Serve <code>/llms.txt</code> and <code>/.well-known/llms.txt</code>. Turn this off to remove the route — it will return a 404, and the home page stops advertising it — while leaving <code>.md</code> URLs, content negotiation and discovery tags working.',
+    id: 'enableLlmsTxt',
+    name: 'enableLlmsTxt',
+    on: settings.enableLlmsTxt,
+}) }}
+
 {{ forms.textareaField({
     label: 'Site Description',
     instructions: 'Introduction text for the <code>/llms.txt</code> file. Appears as a blockquote below the site name.',
