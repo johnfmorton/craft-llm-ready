@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- New "Enable llms.txt" setting (`enableLlmsTxt`, default `true`) — turns off `/llms.txt` and the `/.well-known/llms.txt` redirect without disabling the rest of the plugin, so `.md` URLs, content negotiation and discovery tags keep working. Previously the only way to remove the route was the global `enabled` setting, which took everything else with it. When off, the URL rules are never registered so the paths 404 naturally, the controller actions refuse to run (keeping them unreachable via their `actions/…` URLs), and the home page stops advertising an `llms.txt` alternate — there is no `.md` for the bare home page, so with llms.txt off it has no Markdown alternate to point at. Existing installs are unaffected: the default leaves the route on. Thanks to [@nikolenko-dmitriy](https://github.com/nikolenko-dmitriy) for the request ([#23](https://github.com/johnfmorton/craft-llm-ready/issues/23))
 ### Fixed
 
 - Nested entries no longer take the page down with a `TypeError`. A Matrix entry — and any other field-owned entry — belongs to a field rather than a section, so its `sectionId` is null. Give one its own URI format and template and it becomes routable, at which point the plugin passed that null straight into `isSectionEnabled(int $sectionId)` and fataled. `getSectionConfig()` and `isSectionEnabled()` now accept `?int` and treat a null section as not enabled, since a nested entry has nothing to toggle in the settings UI. The guard covers all four paths that look a section up: the content-negotiation handler, the discovery-tag injector, the `.md` route, and `renderMarkdown()`. Thanks to [@patrikkaprinay](https://github.com/patrikkaprinay) for the report ([#21](https://github.com/johnfmorton/craft-llm-ready/issues/21))
