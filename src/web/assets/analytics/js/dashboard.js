@@ -87,7 +87,10 @@
             params.set('siteId', siteId);
         }
 
-        fetch(Craft.getActionUrl('llm-ready/analytics/data') + '?' + params.toString(), {
+        // Let Craft build the query string. When the CP runs without PATH_INFO
+        // the action URL already carries a `?p=` param, so concatenating our
+        // own '?' produced a second one and the request 404'd.
+        fetch(Craft.getActionUrl('llm-ready/analytics/data', params.toString()), {
             headers: {
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
@@ -119,7 +122,10 @@
             params.set('requestType', activeFilters.join(','));
         }
 
-        fetch(Craft.getActionUrl('llm-ready/analytics/data') + '?' + params.toString(), {
+        // Let Craft build the query string. When the CP runs without PATH_INFO
+        // the action URL already carries a `?p=` param, so concatenating our
+        // own '?' produced a second one and the request 404'd.
+        fetch(Craft.getActionUrl('llm-ready/analytics/data', params.toString()), {
             headers: {
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
