@@ -10,8 +10,8 @@ For complete documentation, see the [LLM Ready Documentation](DOCUMENTATION.md) 
 
 * **Zero configuration required** — works out of the box with no template changes. Install the plugin and your content is immediately available as Markdown.
 * **Append `.md` to any entry URL** to get a clean Markdown version using your existing URLs — no separate URL prefix needed.
-* **Automatic AI bot detection** — transparently serves Markdown to known AI crawlers (GPTBot, ClaudeBot, PerplexityBot, and others) without any action from the visitor.
-* **Three detection methods**: `.md` URL suffix, `Accept: text/markdown` content negotiation, and AI bot user-agent detection.
+* **Crawlers find your Markdown on their own** — `/llms.txt` lists every entry's `.md` URL, and each HTML page advertises its Markdown alternate through a `<link rel="alternate">` tag and an HTTP `Link` header.
+* **Three detection methods**: `.md` URL suffix, `Accept: text/markdown` content negotiation, and AI bot user-agent detection. The first two are on by default; user-agent detection serves Markdown on the *canonical* URL and is **off by default**, because a response that varies by `User-Agent` can be cached and replayed to real visitors by a shared cache. Safe to enable on sites served straight from their origin — see [Why User-Agent detection is off by default](DOCUMENTATION.md#why-user-agent-detection-is-off-by-default).
 * **Smart HTML-to-Markdown conversion** extracts main content and strips navigation, footers, scripts, and other non-content elements — no template tags to add.
 * Optionally assign dedicated Twig templates per section that output raw Markdown for full control.
 * **Real-time rendering** — Markdown is generated on demand and cached, so content is always up to date without queue jobs or batch generation.
@@ -26,7 +26,7 @@ For complete documentation, see the [LLM Ready Documentation](DOCUMENTATION.md) 
 
 ## Requirements
 
-This plugin requires Craft CMS 5.5.0 or later, and PHP 8.2 or later.
+This plugin requires Craft CMS 5.9.18 or later, and PHP 8.2 or later.
 
 ## Installation
 
