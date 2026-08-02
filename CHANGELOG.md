@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Nested entries no longer take the page down with a `TypeError`. A Matrix entry — and any other field-owned entry — belongs to a field rather than a section, so its `sectionId` is null. Give one its own URI format and template and it becomes routable, at which point the plugin passed that null straight into `isSectionEnabled(int $sectionId)` and fataled. `getSectionConfig()` and `isSectionEnabled()` now accept `?int` and treat a null section as not enabled, since a nested entry has nothing to toggle in the settings UI. The guard covers all four paths that look a section up: the content-negotiation handler, the discovery-tag injector, the `.md` route, and `renderMarkdown()`. Thanks to [@patrikkaprinay](https://github.com/patrikkaprinay) for the report ([#21](https://github.com/johnfmorton/craft-llm-ready/issues/21))
+- `/llms.txt` no longer fatals when a live entry in an enabled section has no URL. `Entry::getUrl()` returns null for entries that have no URI — entries used as globals or as structural data — and `formatEntryLink()` handed that null to `rtrim()`, which throws a `TypeError` on PHP 8 before the existing `!$url` guard on the very next line could skip the entry. Thanks to [@S-n-d](https://github.com/S-n-d) for the report and the diagnosis ([#20](https://github.com/johnfmorton/craft-llm-ready/issues/20))
+- The analytics dashboard's date-range and site filters now actually filter. The dashboard appended `'?' + params` to an action URL that already carried a query string, so the result held two `?` separators. Which way that broke depended on the install's control-panel URL format: either the request 404'd — and the dashboard then threw a `TypeError` trying to read stats off the failed response — or the `range` value was folded into another parameter's value and silently ignored, so every range returned the same default 30 days of data. The parameters are now passed to `Craft.getActionUrl()`, which merges them correctly for both formats. Thanks to [@markdrzy](https://github.com/markdrzy) for the report ([#22](https://github.com/johnfmorton/craft-llm-ready/issues/22))
+
 ## [1.5.3] - 2026-07-09
 
 ### Security
