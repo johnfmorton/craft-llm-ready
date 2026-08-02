@@ -67,7 +67,7 @@ If it is not listed, proceed to Step 3.
 >
 > - `.md` URL suffix support (e.g., `/blog/my-post.md`)
 > - Content negotiation via `Accept: text/markdown` header
-> - Automatic AI bot user-agent detection (GPTBot, ClaudeBot, etc.)
+> - Optional AI bot user-agent detection (GPTBot, ClaudeBot, etc.), off by default
 > - A `/llms.txt` site index file
 > - `<link rel="alternate">` discovery tags (and an optional HTTP `Link` header) in HTML pages
 >
@@ -159,7 +159,11 @@ curl -s -D - -H "Accept: text/markdown" {entry_url}
 curl -s -D - -A "ClaudeBot/1.0" {entry_url}
 ```
 
-**Expected:** Same as 7a — Markdown response with front matter.
+**Expected on a fresh install: an ordinary HTML response.** "AI Bot User-Agent Detection" is **off by default** as of 1.6.0, so the canonical URL keeps a single representation. This is not a failure — do not turn the setting on to "fix" it.
+
+Serving Markdown on the canonical URL means the response varies by `User-Agent`, which shared caches don't key on, so one bot request can be cached and replayed to real visitors as raw Markdown. Crawlers are served through the `.md` URL, `/llms.txt`, and the discovery tag and header instead — all verified in the other steps here.
+
+If the site is served straight from its origin with no CDN or shared cache in front, the setting can be enabled deliberately in **Settings → Plugins → LLM Ready**, after which this command returns Markdown. Ask the site owner before changing it.
 
 ### 7d. Test `/llms.txt`
 
@@ -200,7 +204,7 @@ Summarize the test results. Example:
 >
 > - `.md` URL suffix: Working — `{entry_url}.md` returns Markdown with front matter
 > - Content negotiation: Working — `Accept: text/markdown` header returns Markdown
-> - AI bot detection: Working — ClaudeBot user-agent receives Markdown
+> - AI bot user-agent detection: Off by default — the canonical URL returns HTML to crawlers, which is expected. Crawlers reach the Markdown through `/llms.txt` and the discovery tag instead. Can be enabled if nothing caches in front of this site.
 > - `/llms.txt`: Working — site index lists X entries across Y sections
 > - Discovery tag: Working/Not working — `<link rel="alternate">` tag is/is not present in HTML pages
 >
@@ -382,7 +386,7 @@ If the developer wants to customize the plugin beyond defaults, here are the ava
 |---------|---------|--------------|
 | Enabled | On | Master switch for the entire plugin |
 | Content Negotiation | On | Respond to `Accept: text/markdown` headers |
-| AI Bot Detection | On | Auto-detect AI crawler user-agents |
+| AI Bot Detection | Off | Serve Markdown to AI crawler user-agents on the canonical URL. Off by default — only enable if no CDN or shared cache sits in front of the site |
 | Additional Bot User-Agents | (empty) | Custom user-agent strings to detect, appended to the built-in list |
 | Content Selector | `main, article, [role="main"], .content, #content` | CSS selectors for extracting main content during HTML conversion |
 | Exclude Selector | (empty) | CSS selectors for elements to strip before conversion (e.g. `.carousel, [data-nosnippet]`) |

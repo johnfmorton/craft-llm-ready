@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-08-02
+
 ### Added
 
 - New "Enable llms.txt" setting (`enableLlmsTxt`, default `true`) — turns off `/llms.txt` and the `/.well-known/llms.txt` redirect without disabling the rest of the plugin, so `.md` URLs, content negotiation and discovery tags keep working. Previously the only way to remove the route was the global `enabled` setting, which took everything else with it. When off, the URL rules are never registered so the paths 404 naturally, the controller actions refuse to run (keeping them unreachable via their `actions/…` URLs), and the home page stops advertising an `llms.txt` alternate — there is no `.md` for the bare home page, so with llms.txt off it has no Markdown alternate to point at. Existing installs are unaffected: the default leaves the route on. Thanks to [@nikolenko-dmitriy](https://github.com/nikolenko-dmitriy) for the request ([#23](https://github.com/johnfmorton/craft-llm-ready/issues/23))
@@ -227,7 +229,8 @@ _These fixes were surfaced by an independent security review of the plugin. Than
 - Permission checks on all Markdown endpoints — logged-in users without view permission receive a 403
 - Template path traversal protection and XPath injection prevention
 
-[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.3...HEAD
+[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.3...v1.6.0
 [1.5.3]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.2...v1.5.3
 [1.5.2]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.0...v1.5.1
