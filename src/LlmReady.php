@@ -221,11 +221,15 @@ class LlmReady extends Plugin
             UrlManager::class,
             UrlManager::EVENT_REGISTER_SITE_URL_RULES,
             function(RegisterUrlRulesEvent $event) {
-                // Route for /llms.txt
-                $event->rules['llms.txt'] = 'llm-ready/markdown/llms-txt';
+                // Leaving the rules unregistered is what makes a disabled
+                // llms.txt 404 — there is no route for Craft to match.
+                if ($this->getSettings()->enableLlmsTxt) {
+                    // Route for /llms.txt
+                    $event->rules['llms.txt'] = 'llm-ready/markdown/llms-txt';
 
-                // Redirect /.well-known/llms.txt → /llms.txt (RFC 8615)
-                $event->rules['.well-known/llms.txt'] = 'llm-ready/markdown/well-known-llms-txt';
+                    // Redirect /.well-known/llms.txt → /llms.txt (RFC 8615)
+                    $event->rules['.well-known/llms.txt'] = 'llm-ready/markdown/well-known-llms-txt';
+                }
 
                 // Catch-all route for *.md URLs using Yii2 UrlRule with suffix
                 // Use .+ (not .*) to avoid matching the bare homepage
@@ -351,6 +355,11 @@ class LlmReady extends Plugin
                         $response->format = \yii\web\Response::FORMAT_RAW;
                         $response->getHeaders()->set('Content-Type', 'text/markdown; charset=utf-8');
 
+                        // Markdown on the canonical URL varies by UA/Accept;
+                        // keep it out of shared caches to avoid poisoning (#24).
+                        $response->getHeaders()->set('Cache-Control', 'private, no-store');
+                        $response->getHeaders()->set('Vary', 'User-Agent, Accept');
+
                         if ($settings->noindexHeader) {
                             $response->getHeaders()->set('X-Robots-Tag', 'noindex');
                         }
@@ -430,7 +439,16 @@ class LlmReady extends Plugin
                     return;
                 }
 
-                $alternateUrl = $element->uri === '__home__'
+                // The home page's alternate is /llms.txt — there is no `.md`
+                // for the bare home page, since the catch-all rule matches
+                // `.+`. So with llms.txt off the home page has no Markdown
+                // alternate to advertise at all.
+                $isHome = $element->uri === '__home__';
+                if ($isHome && !$settings->enableLlmsTxt) {
+                    return;
+                }
+
+                $alternateUrl = $isHome
                     ? rtrim($url, '/') . '/llms.txt'
                     : rtrim($url, '/') . '.md';
 

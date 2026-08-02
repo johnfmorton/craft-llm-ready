@@ -57,7 +57,9 @@ class MarkdownController extends Controller
         $plugin = LlmReady::getInstance();
         $settings = $plugin->getSettings();
 
-        if (!$settings->enabled) {
+        // enableLlmsTxt is enforced here as well as by withholding the URL
+        // rules, so the action stays unreachable via its `actions/…` URL.
+        if (!$settings->enabled || !$settings->enableLlmsTxt) {
             throw new NotFoundHttpException();
         }
 
@@ -92,6 +94,12 @@ class MarkdownController extends Controller
      */
     public function actionWellKnownLlmsTxt(): Response
     {
+        $settings = LlmReady::getInstance()->getSettings();
+
+        if (!$settings->enabled || !$settings->enableLlmsTxt) {
+            throw new NotFoundHttpException();
+        }
+
         $site = Craft::$app->getSites()->getCurrentSite();
 
         return $this->redirect($site->getBaseUrl() . 'llms.txt', 301);

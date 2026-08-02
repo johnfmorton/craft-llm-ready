@@ -113,6 +113,13 @@ return [
     // /llms.txt and listing pages
     // -----------------------------------------------------------------------
 
+    // Whether to serve `/llms.txt` (and the `/.well-known/llms.txt` redirect).
+    // Set to false to turn the route off without disabling the rest of the
+    // plugin — `.md` URLs, content negotiation and discovery tags keep working.
+    // When off the routes are never registered, so they 404, and the home
+    // page stops advertising an `llms.txt` alternate.
+    'enableLlmsTxt' => true,
+
     // Introduction text for the `/llms.txt` file. Appears as a blockquote
     // below the site name. Helps LLMs understand what the site is about.
     // Example: 'SuperGeekery is a technical blog covering Craft CMS and web development.'
