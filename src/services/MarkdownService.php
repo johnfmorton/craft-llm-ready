@@ -86,7 +86,13 @@ class MarkdownService extends Component
         $siteName = $site->getName();
         $lines = ["# {$section->name} — {$siteName}", ''];
 
+        $seoService = LlmReady::getInstance()->seoService;
+
         foreach ($entries as $entry) {
+            if ($seoService->isNoindex($entry)) {
+                continue;
+            }
+
             $line = $this->formatEntryLink($entry);
             if ($line !== null) {
                 $lines[] = $line;

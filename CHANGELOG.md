@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Entries marked `noindex` in SEOmatic or Ether SEO are now excluded from all Markdown output.** `noindex` is an explicit "don't surface this URL" signal, so LLM Ready now honours it the way a search engine would: the entry is dropped from `/llms.txt` and listing pages, its `.md` URL returns a 404, its canonical URL stops serving Markdown to AI bots and `Accept: text/markdown` requests, and its HTML page stops advertising a Markdown alternate in both the `<link rel="alternate">` tag and the `Link` header. Live preview is exempt, so authors can still check a `noindex` entry's Markdown from the control panel.
+
+  **Note for existing installs.** This changes output on upgrade. If you run SEOmatic or Ether SEO and have entries marked `noindex` today, those entries will disappear from `/llms.txt` and their `.md` URLs will begin returning 404 as soon as the cached output is rebuilt. That is the intended behaviour — but if you were relying on `noindex` entries staying available as Markdown, review them before upgrading. Sites with neither plugin installed are unaffected, and no lookups run.
+
+  Both `noindex` and `none` count (`none` is shorthand for `noindex, nofollow`); `nofollow`, `noarchive` and `nosnippet` on their own do not. SEOmatic is read through its own resolver, so an entry inheriting `noindex` from its section or global meta bundle counts, not only one with a per-entry override — which means that for SEOmatic sites, building `/llms.txt` now runs SEOmatic's meta-container resolution once per listed entry. Results are memoised per request and `/llms.txt` remains cached for **Cache TTL** seconds, so the cost lands on a cache miss rather than every request. Every lookup fails open: if an SEO plugin's API throws or returns something unexpected, the entry is treated as indexable and a warning is logged. Thanks to [@Mathew-WD](https://github.com/Mathew-WD) for the request ([#19](https://github.com/johnfmorton/craft-llm-ready/issues/19))
+
 ## [1.5.3] - 2026-07-09
 
 ### Security

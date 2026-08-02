@@ -118,6 +118,13 @@ class MarkdownController extends Controller
             throw new NotFoundHttpException();
         }
 
+        // An SEO plugin marking the entry noindex means "don't surface this
+        // URL" — so the .md representation 404s too. Previewing is exempt, so
+        // authors can still check their Markdown from the control panel.
+        if (!$isPreview && $plugin->seoService->isNoindex($entry)) {
+            throw new NotFoundHttpException();
+        }
+
         $content = $markdownService->renderMarkdown($entry, $site);
 
         $response = Craft::$app->getResponse();

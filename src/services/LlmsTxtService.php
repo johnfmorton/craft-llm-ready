@@ -32,6 +32,7 @@ class LlmsTxtService extends Component
         }
 
         $markdownService = LlmReady::getInstance()->markdownService;
+        $seoService = LlmReady::getInstance()->seoService;
         $lines = [];
 
         // H1: Site name
@@ -74,6 +75,10 @@ class LlmsTxtService extends Component
 
             $entryLines = [];
             foreach ($entries as $entry) {
+                if ($seoService->isNoindex($entry)) {
+                    continue;
+                }
+
                 $line = $markdownService->formatEntryLink($entry);
                 if ($line !== null) {
                     $entryLines[] = $line;
