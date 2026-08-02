@@ -12,13 +12,15 @@ For complete documentation, see the [LLM Ready Documentation](DOCUMENTATION.md) 
 * **Append `.md` to any entry URL** to get a clean Markdown version using your existing URLs — no separate URL prefix needed.
 * **Crawlers find your Markdown on their own** — `/llms.txt` lists every entry's `.md` URL, and each HTML page advertises its Markdown alternate through a `<link rel="alternate">` tag and an HTTP `Link` header.
 * **Three detection methods**: `.md` URL suffix, `Accept: text/markdown` content negotiation, and AI bot user-agent detection. The first two are on by default; user-agent detection serves Markdown on the *canonical* URL and is **off by default**, because a response that varies by `User-Agent` can be cached and replayed to real visitors by a shared cache. Safe to enable on sites served straight from their origin — see [Why User-Agent detection is off by default](DOCUMENTATION.md#why-user-agent-detection-is-off-by-default).
+* **Cache and CDN safe** — Markdown served on a canonical URL is never storable, page caches like Blitz are opted out through their own API, and `.md` URLs and `/llms.txt` each keep a single representation, so everything a crawler fetches stays fully cacheable behind Cloudflare, Fastly, or Varnish.
+* **Respects `noindex`** — entries marked `noindex` in SEOmatic or Ether SEO are excluded from `/llms.txt`, listing pages, and all Markdown output, the same way a search engine would treat them.
 * **Smart HTML-to-Markdown conversion** extracts main content and strips navigation, footers, scripts, and other non-content elements — no template tags to add.
 * Optionally assign dedicated Twig templates per section that output raw Markdown for full control.
 * **Real-time rendering** — Markdown is generated on demand and cached, so content is always up to date without queue jobs or batch generation.
-* Auto-generates a `/llms.txt` site index following the [llms.txt specification](https://llmstxt.org/).
+* Auto-generates a `/llms.txt` site index following the [llms.txt specification](https://llmstxt.org/) — and it can be switched off independently if you only want the `.md` URLs.
 * **Listing page support** — append `.md` to a section's base URL to get a Markdown index of entries.
-* YAML front matter with entry metadata (title, date, author, canonical URL, section).
-* Auto-injects `<link rel="alternate" type="text/markdown">` discovery tags into HTML pages.
+* **Built-in analytics** — an opt-in dashboard shows which AI bots visit your site, what they read, and how often, with per-site breakdowns, a CP widget, and configurable data retention.
+* YAML front matter with entry metadata (title, date, author, canonical URL, section) — with settings to source the title, description, and author from any field, including SEOmatic's resolved meta description.
 * **Project config support** — per-section settings are stored in Craft's project config for version control and multi-environment sync.
 * Per-section enable/disable control from the plugin settings page.
 * Caches Markdown output with automatic invalidation when entries are saved.
