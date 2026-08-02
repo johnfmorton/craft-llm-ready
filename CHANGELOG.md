@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Markdown served on an entry's canonical URL now sends `Cache-Control: private, no-store` and `Vary: User-Agent, Accept`. The plugin chooses the Markdown representation from the request's `User-Agent` and `Accept` headers, but the response carried no cache directives, so a shared cache keying only on the URL could store the Markdown variant from a single AI-bot request and replay it to every later visitor — real browsers included — until the entry expired. Affected pages rendered as raw Markdown for everyone and then recovered on their own once the cache refreshed, which made the fault look mysterious and location-dependent. Thanks to [@aedan-umd](https://github.com/aedan-umd) for the detailed report and the fix ([#24](https://github.com/johnfmorton/craft-llm-ready/issues/24), [#25](https://github.com/johnfmorton/craft-llm-ready/pull/25)).
+
+### Changed
+
+- Behind a shared cache, Markdown on the canonical URL is now best-effort. The Markdown variant is no longer storable, and the HTML variant does not declare a `Vary` dependency on `User-Agent`, so an AI bot requesting a page that a CDN has already cached as HTML receives that HTML. Crawlers still reach the Markdown through the explicit `.md` URL and through the `rel="alternate"` discovery tag and `Link` header, none of which are affected.
+
 ## [1.5.3] - 2026-07-09
 
 ### Security
