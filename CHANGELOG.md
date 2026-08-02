@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Blitz no longer stores the Markdown served on an entry's canonical URL. `Cache-Control: private, no-store` stops a shared cache sitting in front of the site, but a page cache running *inside* Craft never sees those headers — Blitz decides what to store from the response format and its own URI patterns, and doesn't inspect `Cache-Control` at all. Its default of `cacheNonHtmlResponses = false` happened to spare this response, since it is `FORMAT_RAW` rather than `FORMAT_HTML`, but that protection was incidental: turning that documented Blitz setting on was enough for a single AI-bot request to be stored under the canonical URI and replayed to every later visitor — served as `Content-Type: text/html`, so browsers tried to render the raw Markdown as a page. LLM Ready now opts out through Blitz's own API instead of relying on a header Blitz never reads. `.md` URLs and `/llms.txt` stay fully cacheable, since each is its own URL with a single representation. Found while verifying the fix for ([#24](https://github.com/johnfmorton/craft-llm-ready/issues/24))
+
 ## [1.5.3] - 2026-07-09
 
 ### Security
