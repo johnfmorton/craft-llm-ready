@@ -23,7 +23,7 @@
 {{ forms.lightswitchField({
     label: 'AI Bot User-Agent Detection',
     instructions: 'Serve Markdown on the <strong>canonical</strong> URL to known AI crawlers (GPTBot, ClaudeBot, etc.). Off by default.<br><br>
-        <strong>Leave this off if a shared cache or CDN sits in front of this site</strong> (Cloudflare, Fastly, Varnish, Servd). The response then depends on the <code>User-Agent</code>, which such caches do not key on, so a bot request can be stored and replayed to real visitors as raw Markdown. Crawlers are already served through <code>.md</code> URLs, <code>/llms.txt</code>, and the discovery tag/header — each its own cacheable URL.<br><br>
+        <strong>This should be off if a shared cache or CDN sits in front of this site</strong> (Cloudflare, Fastly, Varnish, Servd). The response then depends on the <code>User-Agent</code>, which such caches do not key on, so a bot request can be stored and replayed to real visitors as raw Markdown. Crawlers are already served through <code>.md</code> URLs, <code>/llms.txt</code>, and the discovery tag/header — each its own cacheable URL.<br><br>
         Safe to turn on for a site served straight from its origin.',
     id: 'enableUserAgentDetection',
     name: 'enableUserAgentDetection',

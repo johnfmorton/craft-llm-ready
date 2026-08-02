@@ -26,7 +26,9 @@ The standards answer is to declare `Vary: User-Agent`. That is correct but unusa
 
 Markdown served on the canonical URL — by either method — carries `Cache-Control: private, no-store` and `Vary: User-Agent, Accept` so that it is never stored by a shared cache. The `.md` URLs are unaffected and remain fully cacheable.
 
-> **Upgrading from 1.5.x or earlier?** This setting used to default to on. An upgrade migration pins it to on for your site so nothing changes, and you can then turn it off deliberately. Fresh installs get the new default of off.
+> **Upgrading from 1.5.x or earlier?** This setting used to default to on. An upgrade migration pins it to on for your site, so the upgrade itself changes nothing — the migration won't switch a working feature off behind your back. Fresh installs get the new default of off.
+>
+> **You should still make the change yourself if anything caches in front of your site.** Turn AI Bot User-Agent Detection off in the plugin settings. That removes the variation on the canonical URL rather than only neutralising it with cache headers, and your crawlers keep working through `.md`, `/llms.txt`, and the discovery tag and header. Origin-only sites can leave it on.
 
 ## Quick start
 
