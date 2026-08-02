@@ -86,7 +86,13 @@ class MarkdownService extends Component
         $siteName = $site->getName();
         $lines = ["# {$section->name} — {$siteName}", ''];
 
+        $seoService = LlmReady::getInstance()->seoService;
+
         foreach ($entries as $entry) {
+            if ($seoService->isNoindex($entry)) {
+                continue;
+            }
+
             $line = $this->formatEntryLink($entry);
             if ($line !== null) {
                 $lines[] = $line;
@@ -421,8 +427,14 @@ class MarkdownService extends Component
      *
      * @return array{enabled: bool, llmTemplate: string|null}|null
      */
-    public function getSectionConfig(int $sectionId, int $siteId): ?array
+    public function getSectionConfig(?int $sectionId, int $siteId): ?array
     {
+        // Nested entries (Matrix, and any other field-owned entry) have no
+        // section, so there is no per-section config to look up.
+        if ($sectionId === null) {
+            return null;
+        }
+
         $section = Craft::$app->getEntries()->getSectionById($sectionId);
         $site = Craft::$app->getSites()->getSiteById($siteId);
 
@@ -438,8 +450,16 @@ class MarkdownService extends Component
     /**
      * Check if a section is enabled for LLM output
      */
-    public function isSectionEnabled(int $sectionId, int $siteId): bool
+    public function isSectionEnabled(?int $sectionId, int $siteId): bool
     {
+        // A nested entry belongs to a field, not a section, so it can never be
+        // enabled — there is nothing to toggle for it in the settings UI. Bail
+        // before the default-on fallback below, which is about sections that
+        // simply have no saved config yet.
+        if ($sectionId === null) {
+            return false;
+        }
+
         $config = $this->getSectionConfig($sectionId, $siteId);
 
         // If no config exists, the section is enabled by default
@@ -465,7 +485,10 @@ class MarkdownService extends Component
      */
     public function formatEntryLink(Entry $entry): ?string
     {
-        $url = rtrim($entry->getUrl(), '/');
+        // getUrl() is null for entries with no URI (entries used as globals or
+        // structural data, nested entries without a URI format). rtrim() would
+        // throw a TypeError on null before the guard below ever ran.
+        $url = rtrim($entry->getUrl() ?? '', '/');
         if (!$url || $entry->uri === '__home__') {
             return null;
         }

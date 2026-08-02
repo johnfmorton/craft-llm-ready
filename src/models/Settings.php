@@ -26,6 +26,9 @@ class Settings extends Model
     /** @var bool Whether to serve markdown via Accept: text/markdown header */
     public bool $enableContentNegotiation = true;
 
+    /** @var bool Whether to serve /llms.txt and /.well-known/llms.txt */
+    public bool $enableLlmsTxt = true;
+
     /**
      * Whether to serve Markdown on the canonical URL to known AI bot
      * user-agents.

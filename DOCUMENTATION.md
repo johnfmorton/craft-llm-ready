@@ -201,6 +201,34 @@ Link: <https://example.com/blog/my-post.md>; rel="alternate"; type="text/markdow
 
 This is controlled by the **Auto-inject Link Header** setting (on by default). It is emitted on both `GET` and `HEAD` requests, so header-only clients (uptime monitors, link checkers, `curl -I`) can discover the alternate too.
 
+## Respecting SEO `noindex`
+
+`noindex` is an explicit "don't surface this URL" signal, so LLM Ready honours it the same way a search engine would. If an entry is marked `noindex`, then:
+
+- it is dropped from `/llms.txt` and from listing pages;
+- its `.md` URL returns a 404;
+- its canonical URL stops serving Markdown to AI bots and to `Accept: text/markdown` requests, falling through to the normal HTML response;
+- its HTML page stops advertising a Markdown alternate, in both the `<link rel="alternate">` tag and the `Link` header — there is no point pointing crawlers at a URL that 404s.
+
+This is always on and has no setting. It is useful for redirect stubs, utility pages, and anything else you already keep out of search results.
+
+Live preview is exempt, so authors can still check the Markdown version of a `noindex` entry from the control panel.
+
+### Supported plugins
+
+| SEO plugin | How robots is read |
+|---|---|
+| [SEOmatic](https://github.com/nystudio107/craft-seomatic) | Through SEOmatic's own resolver, so an entry that inherits `noindex` from its section or global meta bundle counts, not just one with a per-entry override |
+| [Ether SEO](https://github.com/ethercreative/seo) | From the SEO field's `advanced.robots` value. The field is located by type, so there is nothing to configure |
+
+Both the `noindex` and `none` directives count as `noindex` — `none` is shorthand for `noindex, nofollow`. `nofollow`, `noarchive` and `nosnippet` on their own do not, since they don't say "don't index this".
+
+Other SEO plugins have no per-entry robots concept that maps cleanly onto this, so they are not consulted. If neither plugin is installed, nothing changes and no lookups run.
+
+### Performance note
+
+For SEOmatic sites, building `/llms.txt` runs SEOmatic's meta-container resolution once per listed entry (up to 50 per section) so that inherited `noindex` is caught. Results are memoised per request, and the generated `/llms.txt` is itself cached for **Cache TTL** seconds, so this cost is paid on a cache miss rather than on every request. Ether SEO is a plain field read and costs effectively nothing.
+
 ## Response headers
 
 Markdown responses include the following headers:
@@ -229,6 +257,7 @@ Configure LLM Ready from **Settings > Plugins > LLM Ready** in the Craft control
 | Auto-inject Discovery Tag | `true` | Inject `<link rel="alternate">` into HTML pages |
 | Auto-inject Link Header | `true` | Add an HTTP `Link` response header (RFC 8288) pointing at the Markdown alternate. Useful for crawlers that inspect headers without parsing HTML |
 | Cache TTL (seconds) | `3600` | How long to cache Markdown output (`0` to disable) |
+| Enable llms.txt | `true` | Serve `/llms.txt` and `/.well-known/llms.txt`. Turn off to 404 the route — and stop the home page advertising it — while leaving `.md` URLs, content negotiation and discovery tags working |
 | Site Description | `""` | Introduction text for the `/llms.txt` blockquote |
 | Description Field | `""` | Field handle to use for entry descriptions in `/llms.txt` and listing pages. Supports dot notation (e.g. `seo.seoDescription`), `()` method-call syntax (e.g. `metaData.getMetaDescription()`), Generated Field handles, and a native SEOmatic resolver via `seomatic:description`. See [SEO-PLUGINS.md](SEO-PLUGINS.md) for SEOmatic / Ether SEO / SEOmate / SEO Fields recipes. When set, the configured field is authoritative — no auto-extract fallback runs if it resolves to nothing. |
 | Title Field | `""` | Optional field handle for the front-matter `title:` value. Supports the same syntax as Description Field (dot notation, `()` method calls, Generated Field handles, `seomatic:title`). Falls back to the entry's native title when blank or unresolved. |

@@ -57,7 +57,9 @@ class MarkdownController extends Controller
         $plugin = LlmReady::getInstance();
         $settings = $plugin->getSettings();
 
-        if (!$settings->enabled) {
+        // enableLlmsTxt is enforced here as well as by withholding the URL
+        // rules, so the action stays unreachable via its `actions/…` URL.
+        if (!$settings->enabled || !$settings->enableLlmsTxt) {
             throw new NotFoundHttpException();
         }
 
@@ -92,6 +94,12 @@ class MarkdownController extends Controller
      */
     public function actionWellKnownLlmsTxt(): Response
     {
+        $settings = LlmReady::getInstance()->getSettings();
+
+        if (!$settings->enabled || !$settings->enableLlmsTxt) {
+            throw new NotFoundHttpException();
+        }
+
         $site = Craft::$app->getSites()->getCurrentSite();
 
         return $this->redirect($site->getBaseUrl() . 'llms.txt', 301);
@@ -115,6 +123,13 @@ class MarkdownController extends Controller
 
         // Only serve live entries with URLs (allow drafts during live preview)
         if (!$isPreview && ($entry->status !== Entry::STATUS_LIVE || !$entry->getUrl())) {
+            throw new NotFoundHttpException();
+        }
+
+        // An SEO plugin marking the entry noindex means "don't surface this
+        // URL" — so the .md representation 404s too. Previewing is exempt, so
+        // authors can still check their Markdown from the control panel.
+        if (!$isPreview && $plugin->seoService->isNoindex($entry)) {
             throw new NotFoundHttpException();
         }
 

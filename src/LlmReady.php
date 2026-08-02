@@ -29,6 +29,7 @@ use johnfmorton\llmready\services\AnalyticsService;
 use johnfmorton\llmready\services\DetectionService;
 use johnfmorton\llmready\services\LlmsTxtService;
 use johnfmorton\llmready\services\MarkdownService;
+use johnfmorton\llmready\services\SeoService;
 use johnfmorton\llmready\widgets\AnalyticsWidget;
 use yii\base\ActionEvent;
 use yii\base\Event;
@@ -44,6 +45,7 @@ use yii\base\Event;
  * @property-read LlmsTxtService $llmsTxtService
  * @property-read DetectionService $detectionService
  * @property-read AnalyticsService $analyticsService
+ * @property-read SeoService $seoService
  */
 class LlmReady extends Plugin
 {
@@ -64,6 +66,7 @@ class LlmReady extends Plugin
                 'llmsTxtService' => LlmsTxtService::class,
                 'detectionService' => DetectionService::class,
                 'analyticsService' => AnalyticsService::class,
+                'seoService' => SeoService::class,
             ],
         ];
     }
@@ -218,11 +221,15 @@ class LlmReady extends Plugin
             UrlManager::class,
             UrlManager::EVENT_REGISTER_SITE_URL_RULES,
             function(RegisterUrlRulesEvent $event) {
-                // Route for /llms.txt
-                $event->rules['llms.txt'] = 'llm-ready/markdown/llms-txt';
+                // Leaving the rules unregistered is what makes a disabled
+                // llms.txt 404 — there is no route for Craft to match.
+                if ($this->getSettings()->enableLlmsTxt) {
+                    // Route for /llms.txt
+                    $event->rules['llms.txt'] = 'llm-ready/markdown/llms-txt';
 
-                // Redirect /.well-known/llms.txt → /llms.txt (RFC 8615)
-                $event->rules['.well-known/llms.txt'] = 'llm-ready/markdown/well-known-llms-txt';
+                    // Redirect /.well-known/llms.txt → /llms.txt (RFC 8615)
+                    $event->rules['.well-known/llms.txt'] = 'llm-ready/markdown/well-known-llms-txt';
+                }
 
                 // Catch-all route for *.md URLs using Yii2 UrlRule with suffix
                 // Use .+ (not .*) to avoid matching the bare homepage
@@ -336,11 +343,22 @@ class LlmReady extends Plugin
                             return;
                         }
 
+                        // A noindex entry falls through to the normal HTML
+                        // response rather than being negotiated into Markdown.
+                        if ($this->seoService->isNoindex($element)) {
+                            return;
+                        }
+
                         $content = $this->markdownService->renderMarkdown($element, $site);
 
                         $response = Craft::$app->getResponse();
                         $response->format = \yii\web\Response::FORMAT_RAW;
                         $response->getHeaders()->set('Content-Type', 'text/markdown; charset=utf-8');
+
+                        // Markdown on the canonical URL varies by UA/Accept;
+                        // keep it out of shared caches to avoid poisoning (#24).
+                        $response->getHeaders()->set('Cache-Control', 'private, no-store');
+                        $response->getHeaders()->set('Vary', 'User-Agent, Accept');
 
                         if ($settings->noindexHeader) {
                             $response->getHeaders()->set('X-Robots-Tag', 'noindex');
@@ -349,6 +367,10 @@ class LlmReady extends Plugin
                         $response->getHeaders()->set('Link', "<{$element->getUrl()}>; rel=\"canonical\"");
 
                         $response->data = $content;
+
+                        // Cache headers don't reach a page cache running
+                        // inside Craft itself, so ask it directly.
+                        $this->preventPageCaching();
 
                         if ($settings->enableAnalytics) {
                             $this->analyticsService->logRequest(
@@ -366,6 +388,48 @@ class LlmReady extends Plugin
                 }
             },
         );
+    }
+
+    /**
+     * Stop an in-Craft page cache from storing the Markdown response that was
+     * just built for the canonical URL.
+     *
+     * `Cache-Control: private, no-store` handles shared caches sitting in
+     * front of the site, but a page cache running inside Craft never sees
+     * those headers. Blitz decides what to store from the response *format*
+     * plus its own URI patterns — `getIsCacheableResponse()` does not look at
+     * `Cache-Control` at all. Its default of `cacheNonHtmlResponses = false`
+     * happens to spare us, since this response is `FORMAT_RAW` rather than
+     * `FORMAT_HTML`, but that is incidental: turning that documented setting
+     * on is enough for Blitz to store Markdown under the canonical URI and
+     * serve it to every subsequent visitor — under `Content-Type: text/html`,
+     * so browsers try to render it as a page.
+     *
+     * So opt out through Blitz's own API rather than relying on a header it
+     * never reads. The `.md` URLs and `/llms.txt` are deliberately left
+     * cacheable: each is its own URL with a single representation.
+     */
+    private function preventPageCaching(): void
+    {
+        $blitzClass = '\putyourlightson\blitz\Blitz';
+
+        if (!class_exists($blitzClass) || !Craft::$app->getPlugins()->isPluginEnabled('blitz')) {
+            return;
+        }
+
+        try {
+            $blitzClass::$plugin->generateCache->options->cachingEnabled = false;
+            // PHPStan resolves nothing through the dynamic class string and so
+            // sees no throw above, but Yii's __get() raises
+            // UnknownPropertyException for a component that isn't defined —
+            // exactly the Blitz API change this guards against.
+            // @phpstan-ignore catch.neverThrown
+        } catch (\Throwable $e) {
+            Craft::warning(
+                "LLM Ready: could not opt out of Blitz page caching: {$e->getMessage()}",
+                __METHOD__,
+            );
+        }
     }
 
     /**
@@ -415,7 +479,22 @@ class LlmReady extends Plugin
                     return;
                 }
 
-                $alternateUrl = $element->uri === '__home__'
+                // Don't advertise a Markdown alternate for a noindex entry —
+                // its .md URL 404s.
+                if ($this->seoService->isNoindex($element)) {
+                    return;
+                }
+
+                // The home page's alternate is /llms.txt — there is no `.md`
+                // for the bare home page, since the catch-all rule matches
+                // `.+`. So with llms.txt off the home page has no Markdown
+                // alternate to advertise at all.
+                $isHome = $element->uri === '__home__';
+                if ($isHome && !$settings->enableLlmsTxt) {
+                    return;
+                }
+
+                $alternateUrl = $isHome
                     ? rtrim($url, '/') . '/llms.txt'
                     : rtrim($url, '/') . '.md';
 
