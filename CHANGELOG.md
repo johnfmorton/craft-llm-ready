@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **"AI Bot User-Agent Detection" now defaults to off.** Serving Markdown on the *canonical* URL based on the request's `User-Agent` is what made cache poisoning possible in the first place: the response varies by a header shared caches don't key on, so a bot request could be stored and replayed to real visitors as raw Markdown. Declaring `Vary: User-Agent` is the correct fix on paper but unusable in practice — the header has effectively unbounded cardinality, so honouring it would give every browser build its own cache entry, which is exactly why Cloudflare and others ignore `Vary` for HTML. Cache-correct and cache-efficient can't both hold, so the canonical URL now keeps a single representation by default.
+
+  Crawlers are unaffected in the ways that matter: `/llms.txt` lists every entry's `.md` URL, and every HTML page still carries the `<link rel="alternate">` tag and the `Link` header pointing at its Markdown alternate. Each of those is its own URL whose response never varies, so all of it stays cacheable. `Accept: text/markdown` content negotiation is unchanged and still on.
+
+  **Existing installs keep their current behaviour.** An upgrade migration writes `enableUserAgentDetection: true` explicitly for any install that was relying on the old default, so nothing changes for you until you turn it off deliberately; if you had already set it either way, your choice is left alone. Only fresh installs get the new default. Turning it back on is a single switch and is perfectly safe for sites served straight from their origin with no CDN or shared cache in front — see "Why User-Agent detection is off by default" in DOCUMENTATION.md. Follow-up to the cache-poisoning report in ([#24](https://github.com/johnfmorton/craft-llm-ready/issues/24))
+
 ## [1.5.3] - 2026-07-09
 
 ### Security
