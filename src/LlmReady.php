@@ -21,15 +21,18 @@ use craft\models\Site;
 use craft\services\Dashboard;
 use craft\services\Sites;
 use craft\services\UserPermissions;
+use craft\services\Utilities;
 use craft\web\UrlManager;
 use craft\web\View;
 use johnfmorton\llmready\models\Settings;
 use johnfmorton\llmready\records\SectionSettingRecord;
 use johnfmorton\llmready\services\AnalyticsService;
+use johnfmorton\llmready\services\CacheDetectionService;
 use johnfmorton\llmready\services\DetectionService;
 use johnfmorton\llmready\services\LlmsTxtService;
 use johnfmorton\llmready\services\MarkdownService;
 use johnfmorton\llmready\services\SeoService;
+use johnfmorton\llmready\utilities\CacheCheckUtility;
 use johnfmorton\llmready\widgets\AnalyticsWidget;
 use yii\base\ActionEvent;
 use yii\base\Event;
@@ -44,6 +47,7 @@ use yii\base\Event;
  * @property-read MarkdownService $markdownService
  * @property-read LlmsTxtService $llmsTxtService
  * @property-read DetectionService $detectionService
+ * @property-read CacheDetectionService $cacheDetectionService
  * @property-read AnalyticsService $analyticsService
  * @property-read SeoService $seoService
  */
@@ -54,7 +58,7 @@ class LlmReady extends Plugin
     public const PERMISSION_VIEW_ANALYTICS = 'llm-ready:viewAnalytics';
     public const PERMISSION_PURGE_ANALYTICS = 'llm-ready:purgeAnalytics';
 
-    public string $schemaVersion = '1.3.0';
+    public string $schemaVersion = '1.4.0';
     public bool $hasCpSettings = true;
     public bool $hasCpSection = true;
 
@@ -65,6 +69,7 @@ class LlmReady extends Plugin
                 'markdownService' => MarkdownService::class,
                 'llmsTxtService' => LlmsTxtService::class,
                 'detectionService' => DetectionService::class,
+                'cacheDetectionService' => CacheDetectionService::class,
                 'analyticsService' => AnalyticsService::class,
                 'seoService' => SeoService::class,
             ],
@@ -88,6 +93,7 @@ class LlmReady extends Plugin
 
         $this->registerUserPermissions();
         $this->registerDashboardWidget();
+        $this->registerUtilities();
         $this->registerCacheInvalidation();
         $this->registerProjectConfigListeners();
         $this->registerSiteListeners();
@@ -167,6 +173,7 @@ class LlmReady extends Plugin
         return Craft::$app->getView()->renderTemplate('llm-ready/settings/index', [
             'settings' => $this->getSettings(),
             'sectionData' => $sectionData,
+            'cacheCheck' => $this->cacheDetectionService->getCheckData(),
         ]);
     }
 
@@ -278,6 +285,25 @@ class LlmReady extends Plugin
             Dashboard::EVENT_REGISTER_WIDGET_TYPES,
             function(RegisterComponentTypesEvent $event) {
                 $event->types[] = AnalyticsWidget::class;
+            },
+        );
+    }
+
+    /**
+     * Register the cache check utility.
+     *
+     * The utility matters most in production, where `allowAdminChanges` is
+     * typically off and the Settings section (with the same summary) is
+     * hidden entirely — opening the utility there is what records that
+     * environment's result for other environments to see.
+     */
+    private function registerUtilities(): void
+    {
+        Event::on(
+            Utilities::class,
+            Utilities::EVENT_REGISTER_UTILITIES,
+            function(RegisterComponentTypesEvent $event) {
+                $event->types[] = CacheCheckUtility::class;
             },
         );
     }

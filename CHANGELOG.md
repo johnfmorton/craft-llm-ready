@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The plugin now detects whether a shared cache sits in front of the site, and says so right where the decision is made.** 1.6.0 turned "AI Bot User-Agent Detection" off by default because it is unsafe behind a caching edge — but left the site owner to work out for themselves which kind of site they have. Most of that evidence is available to the plugin, so it now gathers it in three tiers ([#33](https://github.com/johnfmorton/craft-llm-ready/issues/33)):
+
+  - **Request-header inspection (automatic).** A proxying edge stamps identifying headers on its way to the origin — `CF-Ray` (Cloudflare in proxied mode), `Fastly-Client-IP`, `X-Varnish`, `True-Client-IP` (Akamai), `Via`, `Surrogate-Capability`, `CDN-Loop` — and the settings page now reports what it sees, directly below the toggle. This cleanly separates DNS-only Cloudflare (no `CF-*` headers, safe) from orange-cloud proxying (always stamped, unsafe), so a site that is safe today starts warning the moment the proxy is switched on.
+  - **In-Craft page-cache inspection (automatic).** Cache headers never reach a page cache running inside Craft, so Blitz's configuration is read directly: a warning when `cacheNonHtmlResponses` is enabled (the documented setting that removes Blitz's incidental protection, see [#30](https://github.com/johnfmorton/craft-llm-ready/issues/30)), an informational note when Blitz is caching HTML.
+  - **An active probe (behind a button).** Requests a URL twice with a browser User-Agent — never a bot one, which would push Markdown into the very caches the check exists to protect — and inspects the second response for `Age`, `X-Cache: HIT`, or `CF-Cache-Status: HIT`. A hit is proof. The probe defaults to the current site's URL but accepts any URL, which is what bridges the dev/prod gap: the setting is usually decided from a local copy of the site, and pointing the probe at the production URL reads the live edge's response headers from anywhere.
+
+  Results are persisted per `CRAFT_ENVIRONMENT` (in a new `llmready_cache_checks` table — never project config, since environment state must not sync), so the settings page also shows what the last check found in other environments. A new **LLM Ready Cache Check** utility surfaces the same summary where `allowAdminChanges` hides plugin settings — production, typically — and viewing it there is what records that environment's result.
+
+  The wording is deliberately asymmetric. A positive detection is confident: a shared cache is in front, keep the setting off. A negative one only ever says "nothing detected" — an nginx `proxy_cache` or a Varnish configured not to announce itself is invisible to every tier, so the check never claims a site is safe.
+
 ## [1.6.0] - 2026-08-02
 
 ### Added

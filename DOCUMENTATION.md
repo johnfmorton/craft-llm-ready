@@ -22,13 +22,27 @@ Methods 2 and 3 change the response *on the canonical URL* based on a request he
 
 The standards answer is to declare `Vary: User-Agent`. That is correct but unusable — `User-Agent` has effectively unbounded cardinality, so honouring it would give every browser build its own cache entry and destroy the hit ratio. That is precisely why Cloudflare, among others, ignores `Vary` for HTML. Correct and cache-efficient are mutually exclusive here, so the setting defaults to off and the canonical URL keeps a single representation.
 
-**Turn it on if nothing caches in front of your site.** Served straight from the origin, it works exactly as before with no downside. Behind Cloudflare, Fastly, Varnish, or a platform edge such as Servd, leave it off and let `.md` plus discovery do the work.
+**Turn it on if nothing caches in front of your site.** Served straight from the origin, it works exactly as before with no downside. Behind Cloudflare, Fastly, Varnish, or a platform edge such as Servd, leave it off and let `.md` plus discovery do the work. You don't have to work out which of those you are on your own — see [Shared-cache detection](#shared-cache-detection) below.
 
 Markdown served on the canonical URL — by either method — carries `Cache-Control: private, no-store` and `Vary: User-Agent, Accept` so that it is never stored by a shared cache. The `.md` URLs are unaffected and remain fully cacheable.
 
 > **Upgrading from 1.5.x or earlier?** This setting used to default to on. An upgrade migration pins it to on for your site, so the upgrade itself changes nothing — the migration won't switch a working feature off behind your back. Fresh installs get the new default of off.
 >
 > **You should still make the change yourself if anything caches in front of your site.** Turn AI Bot User-Agent Detection off in the plugin settings. That removes the variation on the canonical URL rather than only neutralising it with cache headers, and your crawlers keep working through `.md`, `/llms.txt`, and the discovery tag and header. Origin-only sites can leave it on.
+
+### Shared-cache detection
+
+Whether the setting is safe for *your* site depends on whether a shared cache sits in front of it — and the plugin now works most of that out for you rather than sending you off to check. A shared-cache check appears directly below the AI Bot User-Agent Detection toggle on the settings page, and the same summary lives at **Utilities → LLM Ready Cache Check**. It gathers three tiers of evidence:
+
+1. **Request headers (automatic).** A proxying edge stamps identifying headers on requests it forwards to the origin: `CF-Ray` and friends for Cloudflare in proxied mode, `Fastly-Client-IP` for Fastly, `X-Varnish` or a `Via: … varnish` for Varnish, `True-Client-IP` for Akamai, plus the generic `Via`, `Surrogate-Capability` and `CDN-Loop` signals. This cleanly separates the two Cloudflare modes, which is the distinction that matters most in practice: DNS-only Cloudflare never touches their edge and sends no `CF-*` headers, while orange-cloud proxying always does — so a site that is safe today starts warning the moment the proxy is switched on.
+2. **Page caches running inside Craft (automatic).** An in-Craft page cache never sees the response's cache headers, so its configuration is read directly instead. If Blitz is installed with caching on, the check reports it — as a warning when `cacheNonHtmlResponses` is enabled (the documented Blitz setting that removes the incidental protection around non-HTML responses), or as an informational note otherwise.
+3. **Active probe (behind a button).** **Run cache probe** requests a URL twice and inspects the second response for cache-hit evidence (`Age`, `X-Cache: HIT`, `CF-Cache-Status: HIT`). A hit is the one result that constitutes proof. The probe always sends a browser User-Agent, never a bot one — a bot-UA probe would push the very Markdown response this feature exists to keep out of shared caches into them.
+
+The first two tiers can only see the environment they run in — which matters, because this setting is usually decided from a local copy of the site, where the local URL says nothing about production. The probe is how you cross that gap: it defaults to the current site's URL, but **point it at your production URL and it reads the live edge from wherever you are**, since all of its evidence comes from the probed server's response headers. Even without a cache hit, a `CF-Cache-Status`, `Server: cloudflare` or `Via` on the response proves a proxy fronts that site.
+
+Results are stored per `CRAFT_ENVIRONMENT` (in the database, never project config — this is environment-specific state that must not sync), so the settings page in dev also shows what the last passive check found in production, and vice versa. On production, where `allowAdminChanges` is typically off and plugin settings are hidden, open the utility instead: viewing it is what records that environment's result.
+
+**The check's one hard limit: absence of evidence is not absence of a cache.** An nginx `proxy_cache`, or a Varnish configured not to announce itself, is invisible to every tier. A positive detection is confident; a negative one only ever says "nothing detected". If you know a cache sits in front of your site, trust that knowledge over the check.
 
 ## Quick start
 
