@@ -29,6 +29,7 @@ use johnfmorton\llmready\services\AnalyticsService;
 use johnfmorton\llmready\services\DetectionService;
 use johnfmorton\llmready\services\LlmsTxtService;
 use johnfmorton\llmready\services\MarkdownService;
+use johnfmorton\llmready\services\SeoService;
 use johnfmorton\llmready\widgets\AnalyticsWidget;
 use yii\base\ActionEvent;
 use yii\base\Event;
@@ -44,6 +45,7 @@ use yii\base\Event;
  * @property-read LlmsTxtService $llmsTxtService
  * @property-read DetectionService $detectionService
  * @property-read AnalyticsService $analyticsService
+ * @property-read SeoService $seoService
  */
 class LlmReady extends Plugin
 {
@@ -64,6 +66,7 @@ class LlmReady extends Plugin
                 'llmsTxtService' => LlmsTxtService::class,
                 'detectionService' => DetectionService::class,
                 'analyticsService' => AnalyticsService::class,
+                'seoService' => SeoService::class,
             ],
         ];
     }
@@ -340,6 +343,12 @@ class LlmReady extends Plugin
                             return;
                         }
 
+                        // A noindex entry falls through to the normal HTML
+                        // response rather than being negotiated into Markdown.
+                        if ($this->seoService->isNoindex($element)) {
+                            return;
+                        }
+
                         $content = $this->markdownService->renderMarkdown($element, $site);
 
                         $response = Craft::$app->getResponse();
@@ -421,6 +430,12 @@ class LlmReady extends Plugin
 
                 $url = $element->getUrl();
                 if (!$url) {
+                    return;
+                }
+
+                // Don't advertise a Markdown alternate for a noindex entry —
+                // its .md URL 404s.
+                if ($this->seoService->isNoindex($element)) {
                     return;
                 }
 
