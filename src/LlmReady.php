@@ -368,6 +368,10 @@ class LlmReady extends Plugin
 
                         $response->data = $content;
 
+                        // Cache headers don't reach a page cache running
+                        // inside Craft itself, so ask it directly.
+                        $this->preventPageCaching();
+
                         if ($settings->enableAnalytics) {
                             $this->analyticsService->logRequest(
                                 $site->id,
@@ -384,6 +388,48 @@ class LlmReady extends Plugin
                 }
             },
         );
+    }
+
+    /**
+     * Stop an in-Craft page cache from storing the Markdown response that was
+     * just built for the canonical URL.
+     *
+     * `Cache-Control: private, no-store` handles shared caches sitting in
+     * front of the site, but a page cache running inside Craft never sees
+     * those headers. Blitz decides what to store from the response *format*
+     * plus its own URI patterns — `getIsCacheableResponse()` does not look at
+     * `Cache-Control` at all. Its default of `cacheNonHtmlResponses = false`
+     * happens to spare us, since this response is `FORMAT_RAW` rather than
+     * `FORMAT_HTML`, but that is incidental: turning that documented setting
+     * on is enough for Blitz to store Markdown under the canonical URI and
+     * serve it to every subsequent visitor — under `Content-Type: text/html`,
+     * so browsers try to render it as a page.
+     *
+     * So opt out through Blitz's own API rather than relying on a header it
+     * never reads. The `.md` URLs and `/llms.txt` are deliberately left
+     * cacheable: each is its own URL with a single representation.
+     */
+    private function preventPageCaching(): void
+    {
+        $blitzClass = '\putyourlightson\blitz\Blitz';
+
+        if (!class_exists($blitzClass) || !Craft::$app->getPlugins()->isPluginEnabled('blitz')) {
+            return;
+        }
+
+        try {
+            $blitzClass::$plugin->generateCache->options->cachingEnabled = false;
+            // PHPStan resolves nothing through the dynamic class string and so
+            // sees no throw above, but Yii's __get() raises
+            // UnknownPropertyException for a component that isn't defined —
+            // exactly the Blitz API change this guards against.
+            // @phpstan-ignore catch.neverThrown
+        } catch (\Throwable $e) {
+            Craft::warning(
+                "LLM Ready: could not opt out of Blitz page caching: {$e->getMessage()}",
+                __METHOD__,
+            );
+        }
     }
 
     /**
