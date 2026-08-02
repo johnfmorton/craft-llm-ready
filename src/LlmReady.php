@@ -54,7 +54,7 @@ class LlmReady extends Plugin
     public const PERMISSION_VIEW_ANALYTICS = 'llm-ready:viewAnalytics';
     public const PERMISSION_PURGE_ANALYTICS = 'llm-ready:purgeAnalytics';
 
-    public string $schemaVersion = '1.2.0';
+    public string $schemaVersion = '1.3.0';
     public bool $hasCpSettings = true;
     public bool $hasCpSection = true;
 

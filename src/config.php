@@ -37,9 +37,21 @@ return [
     // `Accept: text/markdown` header
     'enableContentNegotiation' => true,
 
-    // Whether to automatically serve Markdown to known AI crawlers
-    // (GPTBot, ClaudeBot, PerplexityBot, etc.)
-    'enableUserAgentDetection' => true,
+    // Whether to serve Markdown on the *canonical* URL to known AI crawlers
+    // (GPTBot, ClaudeBot, PerplexityBot, etc.). Off by default.
+    //
+    // Varying the canonical URL's response by User-Agent can't be made both
+    // cache-correct and cache-efficient: `Vary: User-Agent` is the correct
+    // declaration but has effectively unbounded cardinality, so shared caches
+    // — Cloudflare included — ignore it for HTML. That's what allowed a bot
+    // request to be cached and replayed to real browsers as raw Markdown.
+    //
+    // Crawlers are served through the `.md` URL, `/llms.txt`, and the
+    // discovery tag/header instead. Each is its own URL, so nothing varies
+    // and everything stays cacheable.
+    //
+    // Safe to turn on if no shared cache sits in front of this site.
+    'enableUserAgentDetection' => false,
 
     // Additional bot user-agent strings to detect, appended to the built-in
     // list. Example: ['MyCustomBot', 'InternalCrawler/1.0']

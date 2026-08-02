@@ -29,8 +29,23 @@ class Settings extends Model
     /** @var bool Whether to serve /llms.txt and /.well-known/llms.txt */
     public bool $enableLlmsTxt = true;
 
-    /** @var bool Whether to serve markdown to known AI bot user agents */
-    public bool $enableUserAgentDetection = true;
+    /**
+     * Whether to serve Markdown on the canonical URL to known AI bot
+     * user-agents.
+     *
+     * Defaults to false: varying the canonical URL's response by User-Agent
+     * cannot be made both cache-correct and cache-efficient. Declaring
+     * `Vary: User-Agent` would be correct but has effectively unbounded
+     * cardinality, so shared caches (Cloudflare among them) ignore it for
+     * HTML — which is what made this a cache-poisoning vector. Crawlers are
+     * served through the `.md` URL and the discovery tag/header instead,
+     * each of which is its own cacheable URL.
+     *
+     * Safe to turn on for origin-only sites with no shared cache in front.
+     *
+     * @var bool
+     */
+    public bool $enableUserAgentDetection = false;
 
     /** @var string CSS selectors for smart content extraction (comma-separated) */
     public string $contentSelector = 'main, article, [role="main"], .content, #content';

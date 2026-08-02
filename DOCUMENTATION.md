@@ -8,11 +8,27 @@ LLM Ready serves Markdown versions of your Craft CMS pages to AI crawlers and la
 
 LLM Ready intercepts requests for Markdown content using three detection methods:
 
-1. **`.md` URL suffix** — Append `.md` to any entry URL (e.g., `/blog/my-post.md`). This is the primary method used by AI crawlers in practice.
+1. **`.md` URL suffix** — Append `.md` to any entry URL (e.g., `/blog/my-post.md`). This is the primary method used by AI crawlers in practice, and the one to rely on.
 2. **Content negotiation** — Requests with an `Accept: text/markdown` header receive Markdown instead of HTML.
-3. **AI bot user-agent detection** — Known AI crawlers (GPTBot, ClaudeBot, etc.) automatically receive Markdown responses.
+3. **AI bot user-agent detection** — Known AI crawlers (GPTBot, ClaudeBot, etc.) receive Markdown on the canonical URL. **Off by default** — see below.
 
 When a Markdown request is detected, LLM Ready resolves the entry from the URL, converts its content to Markdown, and serves it with appropriate headers.
+
+Crawlers find the `.md` URLs on their own: `/llms.txt` lists every one of them, and each HTML page carries a `<link rel="alternate">` tag and an HTTP `Link` header pointing at its Markdown alternate. Every one of those is a distinct URL whose response never varies, so the whole thing stays cacheable.
+
+### Why User-Agent detection is off by default
+
+Methods 2 and 3 change the response *on the canonical URL* based on a request header. Method 3 is the risky one: a shared cache that stores the page under the URL alone cannot tell the two representations apart, so a single AI-bot request can be cached and then replayed to every subsequent visitor as raw Markdown.
+
+The standards answer is to declare `Vary: User-Agent`. That is correct but unusable — `User-Agent` has effectively unbounded cardinality, so honouring it would give every browser build its own cache entry and destroy the hit ratio. That is precisely why Cloudflare, among others, ignores `Vary` for HTML. Correct and cache-efficient are mutually exclusive here, so the setting defaults to off and the canonical URL keeps a single representation.
+
+**Turn it on if nothing caches in front of your site.** Served straight from the origin, it works exactly as before with no downside. Behind Cloudflare, Fastly, Varnish, or a platform edge such as Servd, leave it off and let `.md` plus discovery do the work.
+
+Markdown served on the canonical URL — by either method — carries `Cache-Control: private, no-store` and `Vary: User-Agent, Accept` so that it is never stored by a shared cache. The `.md` URLs are unaffected and remain fully cacheable.
+
+> **Upgrading from 1.5.x or earlier?** This setting used to default to on. An upgrade migration pins it to on for your site, so the upgrade itself changes nothing — the migration won't switch a working feature off behind your back. Fresh installs get the new default of off.
+>
+> **You should still make the change yourself if anything caches in front of your site.** Turn AI Bot User-Agent Detection off in the plugin settings. That removes the variation on the canonical URL rather than only neutralising it with cache headers, and your crawlers keep working through `.md`, `/llms.txt`, and the discovery tag and header. Origin-only sites can leave it on.
 
 ## Quick start
 
@@ -233,7 +249,7 @@ Configure LLM Ready from **Settings > Plugins > LLM Ready** in the Craft control
 |---------|---------|-------------|
 | Enabled | `true` | Master switch for the entire plugin |
 | Content Negotiation | `true` | Serve Markdown for `Accept: text/markdown` requests |
-| AI Bot User-Agent Detection | `true` | Serve Markdown to known AI crawlers |
+| AI Bot User-Agent Detection | `false` | Serve Markdown to known AI crawlers **on the canonical URL**. Off by default because the response then varies by `User-Agent`, which shared caches don't key on. Safe to enable for origin-only sites — see [Why User-Agent detection is off by default](#why-user-agent-detection-is-off-by-default) |
 | Additional Bot User-Agents | `[]` | Custom user-agent strings to detect as AI bots |
 | Content Selector | `main, article, [role="main"], .content, #content` | CSS selectors for extracting main content from HTML |
 | Exclude Selector | `""` | CSS selectors for elements to strip before Markdown conversion (e.g. `.carousel, [data-nosnippet]`) |
