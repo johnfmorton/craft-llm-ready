@@ -342,6 +342,11 @@ class LlmReady extends Plugin
                         $response->format = \yii\web\Response::FORMAT_RAW;
                         $response->getHeaders()->set('Content-Type', 'text/markdown; charset=utf-8');
 
+                        // Markdown on the canonical URL varies by UA/Accept;
+                        // keep it out of shared caches to avoid poisoning (#24).
+                        $response->getHeaders()->set('Cache-Control', 'private, no-store');
+                        $response->getHeaders()->set('Vary', 'User-Agent, Accept');
+
                         if ($settings->noindexHeader) {
                             $response->getHeaders()->set('X-Robots-Tag', 'noindex');
                         }
