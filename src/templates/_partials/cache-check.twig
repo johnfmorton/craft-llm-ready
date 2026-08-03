@@ -208,14 +208,21 @@
     padding: 0 4px;
     font-size: 11px;
 }
+/* Meta line and the how-it-works disclosure stack vertically — the probe
+   status line is block-level on its own line. The empty meta span (no
+   probe yet) is dropped so it doesn't leave a stray gap. */
 .llm-ready-probe-footer {
     display: flex;
-    align-items: baseline;
-    gap: 14px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
 }
 .llm-ready-probe-meta {
     font-size: 12px;
     color: var(--gray-350);
+}
+.llm-ready-probe-meta:empty {
+    display: none;
 }
 .llm-ready-details {
     font-size: 12px;
