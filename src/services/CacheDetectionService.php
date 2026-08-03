@@ -429,13 +429,15 @@ class CacheDetectionService extends Component
             $evidence[] = "Age: {$age} — the response had been sitting in a cache for {$age} seconds.";
         }
 
-        $xCache = $response->getHeaderLine('X-Cache');
-        if ($xCache !== '') {
-            if (stripos($xCache, 'hit') !== false) {
-                $hit = true;
-                $evidence[] = "X-Cache: {$xCache} — a cache reported serving this response.";
-            } else {
-                $evidence[] = "X-Cache: {$xCache} — a cache layer is present.";
+        foreach (['X-Cache', 'X-Page-Cache'] as $name) {
+            $value = $response->getHeaderLine($name);
+            if ($value !== '') {
+                if (stripos($value, 'hit') !== false) {
+                    $hit = true;
+                    $evidence[] = "{$name}: {$value} — a cache reported serving this response.";
+                } else {
+                    $evidence[] = "{$name}: {$value} — a cache layer is present.";
+                }
             }
         }
 
@@ -465,6 +467,22 @@ class CacheDetectionService extends Component
             if ($value !== '') {
                 $evidence[] = "{$name}: " . $this->truncate($value) . ' — a proxy or cache identified itself.';
             }
+        }
+
+        // An in-Craft page cache on the *probed* site is invisible to Tier 2
+        // (which reads local plugin config), but Blitz announces itself by
+        // appending to X-Powered-By — the one place it is visible remotely.
+        $poweredBy = $response->getHeaderLine('X-Powered-By');
+        if (stripos($poweredBy, 'blitz') !== false) {
+            $evidence[] = 'X-Powered-By: ' . $this->truncate($poweredBy) . ' — the Blitz page cache is active on the probed site, serving cached HTML on canonical URLs.';
+        }
+
+        // s-maxage only ever addresses shared caches, so its presence means
+        // the site is built to have one storing its HTML — even when the
+        // cache itself stays silent.
+        $cacheControl = $response->getHeaderLine('Cache-Control');
+        if (stripos($cacheControl, 's-maxage') !== false) {
+            $evidence[] = 'Cache-Control: ' . $this->truncate($cacheControl) . ' — the page declares itself cacheable by shared caches (s-maxage), a directive that only exists for a cache in front.';
         }
 
         $status = $response->getStatusCode();
