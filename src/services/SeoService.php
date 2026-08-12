@@ -115,37 +115,8 @@ class SeoService extends Component
      */
     private function seomaticIsNoindex(Entry $entry): bool
     {
-        $seomaticClass = '\nystudio107\seomatic\Seomatic';
-
-        if (!class_exists($seomaticClass)) {
-            return false;
-        }
-        if (!Craft::$app->getPlugins()->isPluginEnabled('seomatic')) {
-            return false;
-        }
-
-        $uri = $entry->uri;
-        if (!is_string($uri) || $uri === '') {
-            return false;
-        }
-
         try {
-            // Drop the early-return guard inside previewMetaContainers so we
-            // get fresh resolution even when SEOmatic has already run for
-            // the outer /llms.txt or .md request.
-            $seomaticClass::$previewingMetaContainers = false;
-
-            $plugin = $seomaticClass::$plugin;
-            $plugin->metaContainers->previewMetaContainers(
-                $uri,
-                (int) $entry->siteId,
-                true,
-                true,
-                $entry,
-            );
-            $plugin->metaContainers->parseGlobalVars();
-
-            $meta = $seomaticClass::$seomaticVariable?->meta;
+            $meta = $this->previewSeomaticMeta($entry);
             if ($meta === null) {
                 return false;
             }
@@ -164,6 +135,132 @@ class SeoService extends Component
 
             return false;
         }
+    }
+
+    /**
+     * Resolve an entry's SEOmatic meta variables without disturbing the meta
+     * SEOmatic renders for the page itself.
+     *
+     * SEOmatic's `previewMetaContainers()` is destructive: it replaces the
+     * `MetaContainers` service state with containers built for the previewed
+     * entry — deliberately skipping the `DynamicMeta` pass (breadcrumbs,
+     * hreflang, `sameAs`, the homepage name override) — and flips
+     * `Seomatic::$previewingMetaContainers` / creates
+     * `Seomatic::$seomaticVariable` as side effects. SEOmatic only builds the
+     * real page's containers once, from its Twig extension's `getGlobals()`,
+     * and only while both statics are still empty, so a preview that leaks
+     * any of this state into the page render silently strips the page's
+     * dynamic meta (#34).
+     *
+     * So: for the entry the current site request is rendering — the discovery
+     * tag and content negotiation, which run just before the page template —
+     * don't preview at all. Trigger the same normal, cached container load
+     * `getGlobals()` would perform and read the resolved value from it. It is
+     * the same value SEOmatic will emit in the page's own `robots` tag, and
+     * it leaves SEOmatic exactly in its natural post-load state.
+     *
+     * Previews remain for foreign entries (`/llms.txt` loops, `.md` routes),
+     * where no HTML page render follows. Even there the two statics are
+     * saved and restored — the way SEOmatic's own `MetaBundle` does around
+     * its internal preview calls — so that whatever renders afterwards (a
+     * 404 template, for instance) still gets a normal SEOmatic load.
+     *
+     * Returns SEOmatic's parsed `MetaGlobalVars`, or null when SEOmatic isn't
+     * installed/enabled or the entry has no URI. SEOmatic failures propagate:
+     * each caller catches and logs with the context of its own lookup, and
+     * fails open.
+     */
+    public function previewSeomaticMeta(Entry $entry): mixed
+    {
+        $seomaticClass = '\nystudio107\seomatic\Seomatic';
+
+        if (!class_exists($seomaticClass)) {
+            return null;
+        }
+        if (!Craft::$app->getPlugins()->isPluginEnabled('seomatic')) {
+            return null;
+        }
+
+        $uri = $entry->uri;
+        if (!is_string($uri) || $uri === '') {
+            return null;
+        }
+
+        if ($this->isCurrentRequestEntry($entry)) {
+            return $this->currentRequestSeomaticMeta($seomaticClass);
+        }
+
+        $previousPreviewing = $seomaticClass::$previewingMetaContainers;
+        $previousVariable = $seomaticClass::$seomaticVariable;
+
+        try {
+            // Drop the early-return guard inside previewMetaContainers so we
+            // get fresh resolution even when SEOmatic has already run for
+            // the outer /llms.txt or .md request.
+            $seomaticClass::$previewingMetaContainers = false;
+
+            $plugin = $seomaticClass::$plugin;
+            $plugin->metaContainers->previewMetaContainers(
+                $uri,
+                (int) $entry->siteId,
+                true,
+                true,
+                $entry,
+            );
+            $plugin->metaContainers->parseGlobalVars();
+
+            return $seomaticClass::$seomaticVariable?->meta;
+        } finally {
+            $seomaticClass::$previewingMetaContainers = $previousPreviewing;
+            $seomaticClass::$seomaticVariable = $previousVariable;
+        }
+    }
+
+    /**
+     * Whether this entry is the one the current site request resolves to —
+     * the case where SEOmatic's own meta for the request answers the lookup.
+     */
+    private function isCurrentRequestEntry(Entry $entry): bool
+    {
+        $request = Craft::$app->getRequest();
+        if (!$request instanceof \craft\web\Request || !$request->getIsSiteRequest()) {
+            return false;
+        }
+
+        try {
+            $path = $request->getPathInfo();
+        } catch (\Throwable) {
+            return false;
+        }
+
+        return $entry->uri === ($path === '' ? Entry::HOMEPAGE_URI : $path)
+            && (int) $entry->siteId === (int) Craft::$app->getSites()->getCurrentSite()->id;
+    }
+
+    /**
+     * The meta SEOmatic resolves for the current request, loading it the way
+     * SEOmatic's own Twig extension does if nothing has loaded it yet. The
+     * guard mirrors `SeomaticTwigExtension::getGlobals()` exactly, so at
+     * render time SEOmatic finds the load already done and does not repeat
+     * it — the page renders with these very containers.
+     *
+     * @param class-string $seomaticClass
+     */
+    private function currentRequestSeomaticMeta(string $seomaticClass): mixed
+    {
+        if (!$seomaticClass::$seomaticVariable && !$seomaticClass::$previewingMetaContainers) {
+            $variableClass = '\nystudio107\seomatic\variables\SeomaticVariable';
+            if (!class_exists($variableClass)) {
+                return null;
+            }
+            $seomaticClass::$seomaticVariable = new $variableClass();
+            $seomaticClass::$plugin->metaContainers->loadMetaContainers(
+                Craft::$app->getRequest()->getPathInfo(),
+                null,
+            );
+        }
+
+        return $seomaticClass::$seomaticVariable?->meta;
     }
 
     /**

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- SEOmatic sites no longer lose their dynamic meta — breadcrumbs JSON-LD, hreflang `<link>` tags, `sameAs`, the homepage name override, everything SEOmatic's `DynamicMeta` pass adds — on pages rendered while LLM Ready is enabled. Reading an entry's resolved `robots` value for the `noindex` handling introduced in 1.6.0 went through SEOmatic's `previewMetaContainers()`, which is destructive in two ways: it flips SEOmatic into a request-wide "previewing" state that LLM Ready never switched back, and it replaces SEOmatic's already-built meta containers with throwaway preview ones that deliberately omit the dynamic-meta pass. Since the lookup runs just before Craft renders each page (to decide whether to advertise the Markdown alternate), SEOmatic then skipped its own meta-container load for the page and rendered the preview leftovers instead.
+
+  The fix removes the preview from that path entirely. For the entry the current request is rendering — the discovery tag and content-negotiation checks — LLM Ready now triggers the same normal, cached container load SEOmatic's own Twig extension performs and reads `robots` from it: the identical value SEOmatic emits in the page's own robots tag, at zero extra cost, with no state to corrupt. Previews remain only for foreign entries (`/llms.txt` listings, `.md` lookups), where no HTML page render follows, and even there SEOmatic's static state is now saved and restored around the call — mirroring what SEOmatic's own `MetaBundle` does internally — so anything rendered afterwards, such as a 404 template, still gets a normal SEOmatic load. One narrow caveat remains, inherent to SEOmatic's preview API: a foreign-entry preview still rebuilds SEOmatic's container state, so if third-party code both forces SEOmatic to load early *and* renders a page after such a lookup in the same request, that page's dynamic meta can still be stale — a sequence LLM Ready itself never produces. Thanks to [@MGxpwr](https://github.com/MGxpwr) for the report and the diagnosis of the state leak ([#34](https://github.com/johnfmorton/craft-llm-ready/issues/34))
+
 ## [1.6.0] - 2026-08-02
 
 ### Added
