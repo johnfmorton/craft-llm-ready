@@ -593,36 +593,8 @@ class MarkdownService extends Component
             return null;
         }
 
-        $seomaticClass = '\nystudio107\seomatic\Seomatic';
-        if (!class_exists($seomaticClass)) {
-            return null;
-        }
-        if (!Craft::$app->getPlugins()->isPluginEnabled('seomatic')) {
-            return null;
-        }
-
-        $uri = $entry->uri;
-        if (!is_string($uri) || $uri === '') {
-            return null;
-        }
-
         try {
-            // Drop the early-return guard inside previewMetaContainers so we
-            // get fresh resolution even when SEOmatic has already run for
-            // the outer /llms.txt or .md request.
-            $seomaticClass::$previewingMetaContainers = false;
-
-            $plugin = $seomaticClass::$plugin;
-            $plugin->metaContainers->previewMetaContainers(
-                $uri,
-                (int) $entry->siteId,
-                true,
-                true,
-                $entry,
-            );
-            $plugin->metaContainers->parseGlobalVars();
-
-            $meta = $seomaticClass::$seomaticVariable?->meta;
+            $meta = LlmReady::getInstance()->seoService->previewSeomaticMeta($entry);
             if ($meta === null) {
                 return null;
             }
