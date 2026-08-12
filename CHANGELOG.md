@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-08-12
+
 ### Fixed
 
 - SEOmatic sites no longer lose their dynamic meta — breadcrumbs JSON-LD, hreflang `<link>` tags, `sameAs`, the homepage name override, everything SEOmatic's `DynamicMeta` pass adds — on pages rendered while LLM Ready is enabled. Reading an entry's resolved `robots` value for the `noindex` handling introduced in 1.6.0 went through SEOmatic's `previewMetaContainers()`, which is destructive in two ways: it flips SEOmatic into a request-wide "previewing" state that LLM Ready never switched back, and it replaces SEOmatic's already-built meta containers with throwaway preview ones that deliberately omit the dynamic-meta pass. Since the lookup runs just before Craft renders each page (to decide whether to advertise the Markdown alternate), SEOmatic then skipped its own meta-container load for the page and rendered the preview leftovers instead.
@@ -235,7 +237,8 @@ _These fixes were surfaced by an independent security review of the plugin. Than
 - Permission checks on all Markdown endpoints — logged-in users without view permission receive a 403
 - Template path traversal protection and XPath injection prevention
 
-[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.6.1...HEAD
+[1.6.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.3...v1.6.0
 [1.5.3]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.2...v1.5.3
 [1.5.2]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.1...v1.5.2
