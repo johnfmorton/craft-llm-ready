@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-09-07
+
+### Added
+
+- **Title Field** and **Author Override** now accept Craft object templates — the same `{{ ... }}` syntax as an entry type's Title Format or a section's URI format — with the entry available as `entry`. A value with no `{` behaves exactly as before (a field path for Title Field, a fixed name for Author Override), so existing settings are untouched. This covers the two requests the fixed override added in 1.4.0 couldn't: showing authors in some sections only (`{% if entry.section.handle in ['blog', 'news'] %}{{ entry.authors|map(a => a.fullName ?: a.username)|join(', ') }}{% endif %}`) and combining several fields into one value (`{{ entry.externalAuthors ?: entry.entryAuthors.all()|map(a => a.title)|join(', ') }}`). The result is reduced to plain text and escaped for YAML by the plugin, so the template outputs only the value; a template that throws logs a warning and is treated as empty rather than breaking the response. See "Customizing the title and author" in DOCUMENTATION.md. Thanks to [@Mathew-WD](https://github.com/Mathew-WD) and [@john-henry](https://github.com/john-henry) for the requests ([#6](https://github.com/johnfmorton/craft-llm-ready/issues/6))
+- New `MarkdownService::EVENT_DEFINE_FRONT_MATTER` event for modules and plugins. It fires after LLM Ready has resolved its own front matter keys (`title`, `date`, `author`, `canonical_url`, `section`) and before they are written out, carrying the entry, the site and the keys in output order. Handlers can add, change or remove any key: a string becomes a YAML scalar, a list of strings becomes a YAML sequence (an `authors:` list, say), and `null` or an empty value drops the key. See "Extending the front matter from a module" in DOCUMENTATION.md.
+
+### Changed
+
+- Entries with more than one author (Craft 5's multi-author support) now list every author in the front matter, comma-separated in the order they're set on the entry: `author: "Jane Doe, Bob Smith"`. Previously only the primary author was written and co-authors were silently dropped. Single-author entries are unchanged.
+- The Description Field, Title Field, Author Override and per-section LLM Template inputs on the settings page now span the full width instead of a fixed 40 characters, so a longer object template or field path is readable while you edit it.
+- The `author:` line is now omitted when an Author Override template renders to nothing. A fixed Author Override name and an entry's own author are written exactly as before.
+
+### Fixed
+
+- Front matter values containing a backslash, a newline or a tab are now escaped correctly inside YAML double quotes. Previously a title such as `C:\path` was quoted (because of the colon) but its backslash was left bare, which strict YAML parsers reject. Values starting with `-` are now quoted as well.
+
 ## [1.6.1] - 2026-08-12
 
 ### Fixed
@@ -237,7 +254,8 @@ _These fixes were surfaced by an independent security review of the plugin. Than
 - Permission checks on all Markdown endpoints — logged-in users without view permission receive a 403
 - Template path traversal protection and XPath injection prevention
 
-[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.6.1...HEAD
+[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.6.1...v1.7.0
 [1.6.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.3...v1.6.0
 [1.5.3]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.2...v1.5.3

@@ -20,7 +20,7 @@ For complete documentation, see the [LLM Ready Documentation](DOCUMENTATION.md) 
 * Auto-generates a `/llms.txt` site index following the [llms.txt specification](https://llmstxt.org/) — and it can be switched off independently if you only want the `.md` URLs.
 * **Listing page support** — append `.md` to a section's base URL to get a Markdown index of entries.
 * **Built-in analytics** — an opt-in dashboard shows which AI bots visit your site, what they read, and how often, with per-site breakdowns, a CP widget, and configurable data retention.
-* YAML front matter with entry metadata (title, date, author, canonical URL, section) — with settings to source the title, description, and author from any field, including SEOmatic's resolved meta description.
+* YAML front matter with entry metadata (title, date, author, canonical URL, section) — with settings to source the title, description, and author from any field or a Twig expression (show the author in some sections only, combine several author fields), including SEOmatic's resolved meta description, plus an event for adding keys of your own.
 * **Project config support** — per-section settings are stored in Craft's project config for version control and multi-environment sync.
 * Per-section enable/disable control from the plugin settings page.
 * Caches Markdown output with automatic invalidation when entries are saved.

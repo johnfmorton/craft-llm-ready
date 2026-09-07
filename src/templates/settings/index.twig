@@ -138,7 +138,6 @@
     name: 'descriptionField',
     value: settings.descriptionField,
     placeholder: 'e.g., summary or seo.seoDescription',
-    size: 40,
 }) }}
 
 <hr>
@@ -149,22 +148,20 @@
 
 {{ forms.textField({
     label: 'Title Field',
-    instructions: 'Optional field handle used for the front-matter <code>title:</code> value. Supports the same syntax as Description Field (dot notation, <code>()</code> method calls, Generated Field handles, and <code>seomatic:title</code>). Leave blank to use the entry\'s native title. If set but the field resolves to an empty value, falls back to the entry\'s native title — every Markdown response always has a title.',
+    instructions: 'Optional field handle used for the front-matter <code>title:</code> value. Supports the same syntax as Description Field (dot notation, <code>()</code> method calls, Generated Field handles, and <code>seomatic:title</code>), or a Craft object template for custom logic with the entry available as <code>entry</code> — e.g. <code>{{ entry.longTitle ?: entry.title }}</code>. Leave blank to use the entry\'s native title. If set but resolving to an empty value, falls back to the entry\'s native title — every Markdown response always has a title. See <a href="https://github.com/johnfmorton/craft-llm-ready/blob/main/DOCUMENTATION.md#customizing-the-title-and-author">Customizing the title and author</a> for examples.',
     id: 'titleField',
     name: 'titleField',
     value: settings.titleField,
     placeholder: 'e.g., longTitle or seomatic:title',
-    size: 40,
 }) }}
 
 {{ forms.textField({
     label: 'Author Override',
-    instructions: 'Optional fixed author name written to every entry\'s front matter. Useful when you want a single authoritative byline (e.g., an editorial team name) instead of leaking individual editor names. Leave blank to use each entry\'s own author.',
+    instructions: 'Leave blank to use each entry\'s own authors (all of them, comma-separated, on multi-author entries). Enter a fixed name, such as an editorial team, to use it on every entry instead of individual editor names. For per-entry logic, enter a Craft object template with the entry available as <code>entry</code> — e.g. <code>{% if entry.section.handle == \'blog\' %}{{ entry.authors|map(a =&gt; a.fullName ?: a.username)|join(\', \') }}{% endif %}</code> shows the authors in the blog section only. A template that renders to nothing omits the <code>author:</code> line. See <a href="https://github.com/johnfmorton/craft-llm-ready/blob/main/DOCUMENTATION.md#customizing-the-title-and-author">Customizing the title and author</a> for more examples, including combining several author fields.',
     id: 'authorOverride',
     name: 'authorOverride',
     value: settings.authorOverride,
     placeholder: 'e.g., Acme Editorial Team',
-    size: 40,
 }) }}
 
 <hr>
@@ -200,10 +197,13 @@
 
     <table class="data fullwidth">
         <thead>
+            {# Explicit widths keep every section's table aligned — each is a
+               separate <table>, so without them the browser would size the
+               columns from the site names in that table alone. #}
             <tr>
-                <th>Site</th>
-                <th>Enabled</th>
-                <th>LLM Template</th>
+                <th style="width: 30%;">Site</th>
+                <th style="width: 15%;">Enabled</th>
+                <th style="width: 55%;">LLM Template</th>
             </tr>
         </thead>
         <tbody>
@@ -226,8 +226,7 @@
                             name: templateName,
                             value: siteInfo.llmTemplate,
                             placeholder: 'e.g., _llm/blog',
-                            size: 40,
-                        }) }}
+                                                }) }}
                     </td>
                 </tr>
             {% endfor %}
