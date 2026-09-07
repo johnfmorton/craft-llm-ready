@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-09-07
+
+### Added
+
+- The analytics dashboard now warns when requests in the selected range arrived with the User-Agent `Amazon CloudFront`. That is the value CloudFront substitutes for the viewer's header unless the distribution's origin request policy forwards it, so none of those requests can be matched to a bot, and until now they were indistinguishable from any other `direct` traffic. The warning links to a new Troubleshooting entry with the CloudFront fix. Thanks to [@strandofgenius](https://github.com/strandofgenius) for the report ([#36](https://github.com/johnfmorton/craft-llm-ready/issues/36))
+
+### Changed
+
+- Requests carrying the User-Agent `Amazon CloudFront` are logged under that name instead of `direct`, so the bot breakdown shows how much traffic is affected. Rows logged before this release are unchanged.
+- DOCUMENTATION.md now explains what the `direct` label covers, and the new Troubleshooting entry for an all-`direct` dashboard covers CloudFront's origin request policy (and why `User-Agent` must stay out of the cache policy), the `Accept` header caveat behind CloudFront, other proxies that rewrite the header, and Blitz's cache generator.
+
 ## [1.7.0] - 2026-09-07
 
 ### Added

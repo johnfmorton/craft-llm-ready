@@ -19,6 +19,15 @@ use yii\base\Component;
 class AnalyticsService extends Component
 {
     /**
+     * The User-Agent Amazon CloudFront substitutes for the viewer's when a
+     * distribution's origin request policy doesn't forward the header. A
+     * request carrying exactly this value says nothing about the client, so
+     * it's logged under its own name rather than `direct` and the dashboard
+     * can point at the misconfiguration.
+     */
+    public const BOT_CLOUDFRONT = 'Amazon CloudFront';
+
+    /**
      * Log a request to the analytics table
      */
     public function logRequest(int $siteId, ?int $entryId, string $requestType, string $botName, string $requestPath): void
@@ -43,9 +52,16 @@ class AnalyticsService extends Component
      */
     public function identifyBot(Request $request): string
     {
-        $userAgent = $request->getUserAgent() ?? '';
+        $userAgent = trim($request->getUserAgent() ?? '');
         if ($userAgent === '') {
             return 'direct';
+        }
+
+        // CloudFront replaces the viewer's User-Agent with this literal unless
+        // told to forward it. Without a distinct label every such request
+        // collapses into `direct` and the dashboard can't say why.
+        if (strcasecmp($userAgent, self::BOT_CLOUDFRONT) === 0) {
+            return self::BOT_CLOUDFRONT;
         }
 
         $botAgents = LlmReady::getInstance()->detectionService->getEffectiveBotUserAgents();
@@ -57,6 +73,24 @@ class AnalyticsService extends Component
         }
 
         return 'direct';
+    }
+
+    /**
+     * Number of requests in a bot breakdown that arrived with CloudFront's
+     * substitute User-Agent (see BOT_CLOUDFRONT). Non-zero means the CDN in
+     * front of the site isn't forwarding the viewer's header.
+     *
+     * @param array<int, array{botName: string, count: int|string}> $botBreakdown
+     */
+    public function getCloudFrontRequestCount(array $botBreakdown): int
+    {
+        foreach ($botBreakdown as $row) {
+            if ($row['botName'] === self::BOT_CLOUDFRONT) {
+                return (int) $row['count'];
+            }
+        }
+
+        return 0;
     }
 
     /**
