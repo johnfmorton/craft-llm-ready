@@ -430,6 +430,12 @@ The analytics dashboard groups requests into four types:
 | **llmstxt** | A request for the `/llms.txt` site index file. |
 | **negotiated** | A request for a normal URL where the client sent an `Accept: text/markdown` HTTP header, and the plugin responded with Markdown instead of HTML. Some AI tools use this approach rather than appending `.md` to URLs. |
 
+### What `direct` means
+
+The bot breakdown labels a request `direct` when the `User-Agent` header that reached Craft was either empty or contained none of the strings in the effective bot list (see [Known AI bot user-agents](#known-ai-bot-user-agents)). It is a catch-all for "not a bot we recognise", not "a person typed the URL into a browser". Monitoring tools, scrapers and newer AI fetchers that aren't in the list all land here. If `direct` dominates your dashboard, your web server's access log filtered to `.md` and `llms.txt` requests shows the real user-agents, and any you want named can be added with `additionalBotUserAgents`.
+
+One user-agent gets its own label. Requests that arrive as `Amazon CloudFront` are logged under that name rather than `direct`, because that value means CloudFront replaced the real user-agent before the request reached your origin. The dashboard shows a warning whenever the selected date range contains them. See [Every request is labeled `direct`, or the dashboard shows `Amazon CloudFront`](#every-request-is-labeled-direct-or-the-dashboard-shows-amazon-cloudfront) under Troubleshooting for the fix.
+
 ### Data retention
 
 Analytics data is retained for a configurable number of days (default 90). You can purge old data manually from the dashboard or automatically via the console command:
@@ -492,3 +498,33 @@ LLM Ready invalidates cache automatically on entry save. If you see stale conten
 ```bash
 ./craft clear-caches/data
 ```
+
+### Every request is labeled `direct`, or the dashboard shows `Amazon CloudFront`
+
+`direct` means the `User-Agent` that reached Craft matched nothing in the bot list (see [What `direct` means](#what-direct-means)). When *every* request is `direct`, or a bot called `Amazon CloudFront` appears in the breakdown, something between the visitor and Craft is replacing the header and the plugin never sees the real one.
+
+**Amazon CloudFront** is the usual cause. Unless a cache behavior is told to forward `User-Agent`, CloudFront removes the viewer's header and sends `User-Agent: Amazon CloudFront` to the origin ([AWS docs](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/RequestAndResponseBehaviorCustomOrigin.html#request-custom-user-agent-header)). LLM Ready logs those requests under the name `Amazon CloudFront` and shows a warning on the dashboard. The fix is to forward the header in the distribution's **origin request policy**, not its cache policy:
+
+1. In the CloudFront console open your distribution, go to **Behaviors** and edit each behavior that serves the site.
+2. Under **Cache key and origin requests**, choose **Cache policy and origin request policy** rather than **Legacy cache settings**.
+3. Set **Origin request policy** to the managed **UserAgentRefererHeaders** policy (ID `acba4595-bd28-49b8-b9fe-13317c0390fa`), which forwards only `User-Agent` and `Referer`. **AllViewer** (`216adef6-5c7f-47e4-b989-5492eafa07d3`) also works if you already forward everything. See [managed origin request policies](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-origin-request-policies.html).
+4. Leave `User-Agent` out of the **cache policy**. There it becomes part of the cache key and every user-agent gets its own cached copy. An origin request policy forwards the header without that.
+
+Legacy cache settings have no separate origin request policy. Whitelisting `User-Agent` there does put it in the cache key, so migrate to the policy pair instead.
+
+To confirm the fix, send a request with a bot user-agent and a throwaway query string so it passes the CDN and any page cache, then reload the dashboard with a range that includes today:
+
+```bash
+curl -s -o /dev/null -A "GPTBot/1.0" "https://example.com/some-entry.md?llmready=$(date +%s)"
+```
+
+It should appear as `GPTBot`. Before the fix the same request appears as `Amazon CloudFront`, and your origin's access log shows that literal value in the user-agent column.
+
+Two related points for CloudFront sites:
+
+- CloudFront also strips the `Accept` header by default, so `Accept: text/markdown` content negotiation never reaches Craft. Don't fix that by forwarding `Accept`. CloudFront keys its cache only on the cache policy and ignores the plugin's `Vary` header, so negotiated Markdown for a canonical URL would be cached at the edge and served to browsers. Behind CloudFront, rely on the `.md` URLs and `/llms.txt`, which have their own cache keys.
+- Bots that hit a `.md` URL already cached at the edge never reach Craft, so the dashboard counts origin fetches, not total bot traffic.
+
+**Other proxies.** Any reverse proxy or WAF that sets its own `User-Agent` (an nginx `proxy_set_header User-Agent ...` rule, for example) has the same effect. The access log on the Craft server shows what actually arrives.
+
+**Blitz.** If Blitz's `cacheNonHtmlResponses` setting is on, its cache generator regenerates `.md` URLs itself. The Local Generator sends no user-agent and the HTTP Generator sends `amphp/http-client`, so both are logged as `direct`. The default (`false`) avoids this.

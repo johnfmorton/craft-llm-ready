@@ -155,10 +155,29 @@
 
     function updateDashboard(data) {
         updateStats(data);
+        updateCloudFrontNotice(data);
         renderChart();
         updateBotTable(data.botBreakdown);
         updateTypeTable(data.requestTypeBreakdown);
         updatePagesTable(data.mostAccessedPages);
+    }
+
+    // The notice describes the whole date range, so it's refreshed with the
+    // unfiltered data only and left alone while a legend filter is active.
+    function updateCloudFrontNotice(data) {
+        var el = document.getElementById('cloudfrontNotice');
+        if (!el) return;
+
+        var count = parseInt(data.cloudfrontRequests, 10) || 0;
+        var countEl = document.getElementById('cloudfrontNoticeCount');
+        if (countEl) {
+            countEl.textContent = count.toLocaleString();
+        }
+        var nounEl = document.getElementById('cloudfrontNoticeNoun');
+        if (nounEl) {
+            nounEl.textContent = count === 1 ? 'request' : 'requests';
+        }
+        el.hidden = count === 0;
     }
 
     function updateStats(data) {
