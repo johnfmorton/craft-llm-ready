@@ -142,6 +142,68 @@ section: "Blog"
 ---
 ```
 
+On a Craft 5 entry with more than one author, `author:` lists all of them: `author: "John Morton, Jane Doe"`.
+
+### Customizing the title and author
+
+Two settings under **Front Matter** control the `title:` and `author:` values. Each accepts a plain value or a Craft object template — the same `{{ ... }}` syntax as an entry type's Title Format or a section's URI format.
+
+**Title Field** — blank uses the entry's native title. A field handle or path (`longTitle`, `seo.title`, `metaData.getTitle()`, `seomatic:title`) resolves that field, with the same syntax as Description Field. A value containing `{` is rendered as an object template. Either way, an empty result falls back to the entry's native title, so every response has one.
+
+```twig
+{# Title: prefer a longer marketing title when it's filled in #}
+{{ entry.longTitle ?: entry.title }}
+```
+
+**Author Override** — blank uses each entry's own authors: every author set on the entry, comma-separated, in the order they appear in the control panel (`Jane Doe, Bob Smith`). A fixed name (`Acme Editorial Team`) is written to every entry. A value containing `{` is rendered as an object template per entry; when it renders to nothing, the `author:` line is omitted.
+
+Inside a template the entry is available as `entry` (and as Craft's usual `object`). Some examples:
+
+```twig
+{# Show authors only in the blog and news sections. Inside those sections this
+   mirrors the default: every author, comma-separated, falling back to the
+   username for users who haven't entered a name #}
+{% if entry.section.handle in ['blog', 'news'] %}{{ entry.authors|map(a => a.fullName ?: a.username)|join(', ') }}{% endif %}
+
+{# A plain-text "external authors" field, falling back to related author entries #}
+{{ entry.externalAuthors ?: entry.entryAuthors.all()|map(a => a.title)|join(', ') }}
+
+{# Omit the author line on every entry #}
+{{ '' }}
+```
+
+The result is reduced to plain text (tags stripped, entities decoded, whitespace collapsed) and escaped for YAML by the plugin, so the template outputs only the value — not the `author:` key, and no quoting. A template that throws logs a warning and is treated as empty, so a typo in a setting can't break every Markdown response. Object templates come from plugin settings, which need an admin (or `config/llm-ready.php`) to change — the same trust boundary as Craft's own title and URI formats.
+
+### Extending the front matter from a module
+
+For anything beyond a single value — extra keys, a YAML list of authors, per-section rules written in PHP — listen for `MarkdownService::EVENT_DEFINE_FRONT_MATTER`. The event carries the entry, the site and the plugin's resolved keys in output order; handlers can add, change or remove any of them.
+
+```php
+use johnfmorton\llmready\events\DefineFrontMatterEvent;
+use johnfmorton\llmready\services\MarkdownService;
+use yii\base\Event;
+
+Event::on(
+    MarkdownService::class,
+    MarkdownService::EVENT_DEFINE_FRONT_MATTER,
+    function(DefineFrontMatterEvent $event) {
+        $entry = $event->entry;
+
+        // Replace the scalar author with a YAML list of related author entries
+        $authors = $entry->entryAuthors->collect()->pluck('title')->all();
+        if ($authors) {
+            unset($event->frontMatter['author']);
+            $event->frontMatter['authors'] = $authors;
+        }
+
+        // Add a key of your own
+        $event->frontMatter['reading_time'] = $entry->readingTime . ' min';
+    }
+);
+```
+
+A string value becomes a scalar, a list of strings becomes a sequence, and `null` or an empty value drops the key. Values are escaped by the plugin, so pass plain text. Keys must match `[A-Za-z_][A-Za-z0-9_-]*`; anything else is skipped with a warning. The output is cached for **Cache TTL** seconds like the rest of the Markdown, so a change to something a handler reads from outside the entry itself (a related author's title, say) shows up when the cache expires or the entry is resaved.
+
 ## /llms.txt
 
 LLM Ready auto-generates a `/llms.txt` file following the [llms.txt specification](https://llmstxt.org/). This file serves as a site index for LLMs, listing all enabled sections with links to each entry's Markdown version.
@@ -260,8 +322,8 @@ Configure LLM Ready from **Settings > Plugins > LLM Ready** in the Craft control
 | Enable llms.txt | `true` | Serve `/llms.txt` and `/.well-known/llms.txt`. Turn off to 404 the route — and stop the home page advertising it — while leaving `.md` URLs, content negotiation and discovery tags working |
 | Site Description | `""` | Introduction text for the `/llms.txt` blockquote |
 | Description Field | `""` | Field handle to use for entry descriptions in `/llms.txt` and listing pages. Supports dot notation (e.g. `seo.seoDescription`), `()` method-call syntax (e.g. `metaData.getMetaDescription()`), Generated Field handles, and a native SEOmatic resolver via `seomatic:description`. See [SEO-PLUGINS.md](SEO-PLUGINS.md) for SEOmatic / Ether SEO / SEOmate / SEO Fields recipes. When set, the configured field is authoritative — no auto-extract fallback runs if it resolves to nothing. |
-| Title Field | `""` | Optional field handle for the front-matter `title:` value. Supports the same syntax as Description Field (dot notation, `()` method calls, Generated Field handles, `seomatic:title`). Falls back to the entry's native title when blank or unresolved. |
-| Author Override | `""` | Fixed author name written to every entry's front matter. Set to a team or company name to avoid leaking individual editor names. Blank uses each entry's own author. |
+| Title Field | `""` | Optional field handle for the front-matter `title:` value. Supports the same syntax as Description Field (dot notation, `()` method calls, Generated Field handles, `seomatic:title`), or a Craft object template such as `{{ entry.longTitle ?: entry.title }}`. Falls back to the entry's native title when blank or unresolved. See [Customizing the title and author](#customizing-the-title-and-author). |
+| Author Override | `""` | Author written to each entry's front matter. A fixed name (a team or company, say) replaces individual editor names on every entry. A Craft object template such as `{% if entry.section.handle == 'blog' %}{{ entry.authors\|map(a => a.fullName ?: a.username)\|join(', ') }}{% endif %}` is rendered per entry, and the `author:` line is omitted when it renders to nothing. Blank uses each entry's own authors, comma-separated on multi-author entries. See [Customizing the title and author](#customizing-the-title-and-author). |
 
 ### Section settings
 
