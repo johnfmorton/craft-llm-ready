@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-09-07
+
 ### Added
 
 - **Title Field** and **Author Override** now accept Craft object templates — the same `{{ ... }}` syntax as an entry type's Title Format or a section's URI format — with the entry available as `entry`. A value with no `{` behaves exactly as before (a field path for Title Field, a fixed name for Author Override), so existing settings are untouched. This covers the two requests the fixed override added in 1.4.0 couldn't: showing authors in some sections only (`{% if entry.section.handle in ['blog', 'news'] %}{{ entry.authors|map(a => a.fullName ?: a.username)|join(', ') }}{% endif %}`) and combining several fields into one value (`{{ entry.externalAuthors ?: entry.entryAuthors.all()|map(a => a.title)|join(', ') }}`). The result is reduced to plain text and escaped for YAML by the plugin, so the template outputs only the value; a template that throws logs a warning and is treated as empty rather than breaking the response. See "Customizing the title and author" in DOCUMENTATION.md. Thanks to [@Mathew-WD](https://github.com/Mathew-WD) and [@john-henry](https://github.com/john-henry) for the requests ([#6](https://github.com/johnfmorton/craft-llm-ready/issues/6))
@@ -252,7 +254,8 @@ _These fixes were surfaced by an independent security review of the plugin. Than
 - Permission checks on all Markdown endpoints — logged-in users without view permission receive a 403
 - Template path traversal protection and XPath injection prevention
 
-[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.6.1...HEAD
+[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.6.1...v1.7.0
 [1.6.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.3...v1.6.0
 [1.5.3]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.2...v1.5.3
