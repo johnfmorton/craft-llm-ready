@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-09-07
+
 ### Added
 
 - The analytics dashboard now warns when requests in the selected range arrived with the User-Agent `Amazon CloudFront`. That is the value CloudFront substitutes for the viewer's header unless the distribution's origin request policy forwards it, so none of those requests can be matched to a bot, and until now they were indistinguishable from any other `direct` traffic. The warning links to a new Troubleshooting entry with the CloudFront fix. Thanks to [@strandofgenius](https://github.com/strandofgenius) for the report ([#36](https://github.com/johnfmorton/craft-llm-ready/issues/36))
