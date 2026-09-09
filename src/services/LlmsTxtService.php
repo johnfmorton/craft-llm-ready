@@ -35,8 +35,8 @@ class LlmsTxtService extends Component
         $seoService = LlmReady::getInstance()->seoService;
         $lines = [];
 
-        // H1: Site name
-        $siteName = $site->getName();
+        // H1: Site title (or site name)
+        $siteName = $settings->llmsTxtTitle ?: $site->getName();
         $lines[] = "# {$siteName}";
         $lines[] = '';
 

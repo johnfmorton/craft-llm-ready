@@ -122,6 +122,15 @@
     on: settings.enableLlmsTxt,
 }) }}
 
+{{ forms.textField({
+    label: 'Site Title',
+    instructions: 'Title used for the <code>/llms.txt</code> H1 heading. Leave blank to use the site\'s name.',
+    id: 'llmsTxtTitle',
+    name: 'llmsTxtTitle',
+    value: settings.llmsTxtTitle,
+    placeholder: 'e.g., SuperGeekery Docs',
+}) }}
+
 {{ forms.textareaField({
     label: 'Site Description',
     instructions: 'Introduction text for the <code>/llms.txt</code> file. Appears as a blockquote below the site name.',

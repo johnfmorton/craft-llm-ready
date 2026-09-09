@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Site Title** setting to override the `/llms.txt` H1 heading, which otherwise defaults to the site's name.
+
 ## [1.7.1] - 2026-09-07
 
 ### Added

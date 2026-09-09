@@ -132,6 +132,10 @@ return [
     // page stops advertising an `llms.txt` alternate.
     'enableLlmsTxt' => true,
 
+    // Title used for the `/llms.txt` H1 heading. Leave empty to use the
+    // site's name. Example: 'SuperGeekery Docs'
+    'llmsTxtTitle' => '',
+
     // Introduction text for the `/llms.txt` file. Appears as a blockquote
     // below the site name. Helps LLMs understand what the site is about.
     // Example: 'SuperGeekery is a technical blog covering Craft CMS and web development.'
