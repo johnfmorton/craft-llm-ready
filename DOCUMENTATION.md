@@ -245,6 +245,20 @@ Either of Craft's homes for site-wide content works. Add a Plain Text or rich-te
 
 The `?? ''` keeps the setting quiet if the Single has no live entry for the site. A field on the home page Single works the same way with `section('home')`.
 
+Because the setting is a full Twig expression, the fallback can be as long as your site structure needs. A multi-site install that keeps one settings Single per site, both sharing an entry type, can chain them and end with a literal default:
+
+```twig
+{{ craft.entries.section('globalSettingsSite1').site(site).one().llmDescription
+   ?? craft.entries.section('globalSettingsSite2').site(site).one().llmDescription
+   ?? 'This is the default description.' }}
+```
+
+Each step resolves to `null` when it has nothing to offer, and `??` moves on to the next: `.site(site)` limits each query to the site being served, so a Single that isn't enabled for that site returns no entry; a Single whose field the editor left blank returns `null` too, since Craft normalizes an empty Plain Text field to `null`; and the closing string is what every site gets until someone fills the field in. Use `??` rather than `?:` for these guards — Craft's Twig runs in strict mode, and `??` is what lets `.one().llmDescription` on a missing entry resolve quietly instead of throwing. When the Singles share an entry type, the same chain collapses to one query by type:
+
+```twig
+{{ craft.entries.type('globalSettings').site(site).one().llmDescription ?? 'This is the default description.' }}
+```
+
 **A global set** — available by handle exactly as in a site template:
 
 ```twig
