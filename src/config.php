@@ -156,6 +156,17 @@ return [
     'cacheTtl' => 3600,
 
     // -----------------------------------------------------------------------
+    // WebMCP (Phase 0 prototype)
+    // -----------------------------------------------------------------------
+
+    // Whether to inject the WebMCP tool script on enabled entry pages,
+    // registering a read-only `get-page-content` tool for in-browser AI
+    // agents. PROTOTYPE: the WebMCP API is in origin trial — testing requires
+    // Chrome 149+ with the `about:flags#enable-webmcp-testing` flag. Config
+    // file only; there is deliberately no control panel setting yet.
+    // 'enableWebMcpPrototype' => false,
+
+    // -----------------------------------------------------------------------
     // Analytics
     // -----------------------------------------------------------------------
 

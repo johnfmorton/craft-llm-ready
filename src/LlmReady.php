@@ -17,6 +17,7 @@ use craft\events\RegisterComponentTypesEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
 use craft\events\TemplateEvent;
+use craft\helpers\Json;
 use craft\models\Site;
 use craft\services\Dashboard;
 use craft\services\Sites;
@@ -30,6 +31,7 @@ use johnfmorton\llmready\services\DetectionService;
 use johnfmorton\llmready\services\LlmsTxtService;
 use johnfmorton\llmready\services\MarkdownService;
 use johnfmorton\llmready\services\SeoService;
+use johnfmorton\llmready\web\assets\webmcp\WebMcpAsset;
 use johnfmorton\llmready\widgets\AnalyticsWidget;
 use yii\base\ActionEvent;
 use yii\base\Event;
@@ -80,6 +82,7 @@ class LlmReady extends Plugin
             $this->registerUrlRules();
             $this->registerContentNegotiationHandler();
             $this->registerDiscoveryTagInjection();
+            $this->registerWebMcpInjection();
         }
 
         if (Craft::$app->getRequest()->getIsCpRequest()) {
@@ -514,6 +517,77 @@ class LlmReady extends Plugin
                         "<{$alternateUrl}>; rel=\"alternate\"; type=\"text/markdown\"",
                     );
                 }
+            },
+        );
+    }
+
+    /**
+     * Inject the WebMCP tool bootstrap on enabled entry pages (Phase 0
+     * prototype, config-only flag — see WEBMCP-PLAN.md).
+     *
+     * The visibility rules are deliberately the same as the discovery tag's:
+     * a page only registers the `get-page-content` tool when its `.md` URL
+     * would actually serve — enabled section, live entry with a URL, not
+     * noindex. The tool itself fetches that `.md` URL, so an in-browser
+     * agent can never reach content the crawler surface hides.
+     */
+    private function registerWebMcpInjection(): void
+    {
+        Event::on(
+            View::class,
+            View::EVENT_BEFORE_RENDER_PAGE_TEMPLATE,
+            function(TemplateEvent $event) {
+                $settings = $this->getSettings();
+                if (!$settings->enabled || !$settings->enableWebMcpPrototype) {
+                    return;
+                }
+
+                $request = Craft::$app->getRequest();
+                if (!$request->getIsGet()) {
+                    return;
+                }
+
+                $path = $request->getPathInfo();
+                $site = Craft::$app->getSites()->getCurrentSite();
+                $element = Craft::$app->getElements()->getElementByUri($path ?: '__home__', $site->id);
+
+                if (!($element instanceof Entry)) {
+                    return;
+                }
+
+                // The bare home page has no .md URL (the catch-all rule
+                // matches `.+`), so it has no page-content tool to offer.
+                if ($element->uri === '__home__') {
+                    return;
+                }
+
+                if (!$this->markdownService->isSectionEnabled($element->sectionId, $site->id)) {
+                    return;
+                }
+
+                $url = $element->getUrl();
+                if (!$url) {
+                    return;
+                }
+
+                if ($this->seoService->isNoindex($element)) {
+                    return;
+                }
+
+                $view = Craft::$app->getView();
+                $view->registerAssetBundle(WebMcpAsset::class);
+
+                // JSON_HEX_TAG keeps a literal `</script>` inside any value
+                // from breaking out of the data island.
+                $view->registerScript(
+                    Json::encode(
+                        ['pageMarkdownUrl' => rtrim($url, '/') . '.md'],
+                        JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG,
+                    ),
+                    View::POS_END,
+                    ['type' => 'application/json', 'id' => 'llm-ready-webmcp'],
+                    'llm-ready-webmcp',
+                );
             },
         );
     }

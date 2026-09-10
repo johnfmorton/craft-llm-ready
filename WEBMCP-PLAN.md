@@ -397,10 +397,11 @@ API is designed with a demanding first customer in mind.
 
 ## 6. Open questions
 
-1. **Chrome's shipped surface vs. spec** — does the 149 OT accept
-   `document.modelContext.registerTool` exactly as specced, and what does
-   `webmcp-types` currently pin? (Phase 0 answers this; npmjs.com was not
-   reachable from the research environment.)
+1. **Chrome's shipped surface vs. spec** — *partly resolved, see §7:*
+   `webmcp-types` 0.1.7 pins `document.modelContext` with
+   `registerTool`/`getTools`/`toolchange` and tool annotations. Still to
+   verify against a real Chrome 149 OT session: whether the shipped
+   implementation matches the types, and how agents actually use the tool.
 2. **Origin trial token ergonomics** — token per origin, multi-site Craft
    installs need per-site tokens; setting should therefore be
    per-site-overridable via `config/llm-ready.php` (the config file already
@@ -415,3 +416,74 @@ API is designed with a demanding first customer in mind.
 5. **Headless/hybrid sites** — sites using Craft as a headless CMS never
    render Twig pages, so injection never fires. Non-goal, but the docs should
    say so.
+
+---
+
+## 7. Phase 0 findings (September 2026)
+
+The spike is built on the planning branch and verified as far as this
+environment allows. What was learned:
+
+### API surface — pinned
+
+`webmcp-types` **0.1.7** (published by Google) settles the surface the
+adapter must target:
+
+- Entry point is **`document.modelContext`** (typed as optional on
+  `Document`). No `navigator.modelContext`, no `provideContext`, and no
+  agent-side `executeTool` in the types. The prototype still feature-detects
+  `navigator.modelContext` as a one-line fallback for older preview builds.
+- `registerTool(tool, { signal?, exposedTo? }) → Promise<void>`;
+  `getTools({ fromOrigins? }) → Promise<RegisteredTool[]>`; a `toolchange`
+  event. Tool names are constrained to 1–128 ASCII `[A-Za-z0-9_.-]` chars.
+- **Tool annotations exist and matter**: `readOnlyHint`,
+  `untrustedContentHint`, `consequentialHint`. This confirms the
+  "annotations and hints" security layer discussed by the Chrome team.
+  Consequence adopted throughout this plan: every tool the plugin ships
+  declares `readOnlyHint: true`, and the Phase 3 docs must cover
+  `consequentialHint` for developer action tools.
+- `execute(input, { signal })` may return anything (`unknown` in the
+  types); the prototype returns the MCP `{ content: [{type, text}] }`
+  shape from the spec's examples, with `isError: true` on failure.
+
+### What was built
+
+- `enableWebMcpPrototype` setting — config-file only, default off, no CP
+  UI (src/models/Settings.php, documented in src/config.php).
+- `WebMcpAsset` + `js/webmcp.js` — the adapter and the hardcoded
+  `get-page-content` tool. **1.3 KB gzipped**, comfortably under the ~2 KB
+  budget. The `execute` fetches the entry's existing `.md` URL; no new
+  server endpoint.
+- Injection in `LlmReady::registerWebMcpInjection()` — mirrors the
+  discovery tag's visibility checks (enabled section, live entry with URL,
+  not noindex, no bare home page), emits the JSON data island with
+  `JSON_HEX_TAG` so a `</script>` in any value can't break out.
+
+### Verified here
+
+- PHPStan level 4 and ECS both clean over the changed code.
+- 13 Playwright assertions in real Chromium against a mocked
+  `document.modelContext`: correct registration shape (name, title,
+  description, schema, `readOnlyHint`), execute happy path returns the
+  served Markdown in the content shape, a 404 yields a graceful
+  `isError` result, a rejected `registerTool` stays silent, and — on
+  stock Chromium, which predates the OT — the script is a no-op with no
+  globals and no errors, which is exactly the path every non-WebMCP
+  browser will take in production.
+
+### Still needs a real Chrome 149 + agent (manual, outside this environment)
+
+- Confirm the shipped OT implementation matches `webmcp-types` 0.1.7.
+- Watch an actual agent surface discover and call `get-page-content`;
+  iterate on the tool description if the agent under-uses it.
+- Try ChatGPT Desktop as a second client.
+- Record the Phase 0 demo video (WEBMCP-DEMO-SCRIPT-PHASE0.md).
+
+### Notes for Phase 1
+
+- The injection handler resolves the element itself, so a page render with
+  both discovery and WebMCP handlers active performs the URI lookup twice.
+  Harmless behind a default-off flag; consolidate the two handlers' element
+  resolution when Phase 1 makes this a shipped setting.
+- The tool description is the agent-facing UX and will need tuning against
+  real agents — treat it as copy, not code.

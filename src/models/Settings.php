@@ -92,13 +92,24 @@ class Settings extends Model
     /** @var bool Whether to enable analytics logging */
     public bool $enableAnalytics = false;
 
+    /**
+     * Phase 0 prototype flag: inject the WebMCP tool script on enabled entry
+     * pages, registering a read-only `get-page-content` tool for in-browser
+     * AI agents. Config-file only (config/llm-ready.php) — deliberately
+     * absent from the control panel while the WebMCP API is behind a browser
+     * flag / origin trial. See WEBMCP-PLAN.md.
+     *
+     * @var bool
+     */
+    public bool $enableWebMcpPrototype = false;
+
     /** @var int Number of days to retain analytics data */
     public int $analyticsRetentionDays = 90;
 
     public function rules(): array
     {
         return [
-            [['enabled', 'noindexHeader', 'autoInjectDiscoveryTag', 'autoInjectLinkHeader', 'enableContentNegotiation', 'enableUserAgentDetection', 'enableAnalytics'], 'boolean'],
+            [['enabled', 'noindexHeader', 'autoInjectDiscoveryTag', 'autoInjectLinkHeader', 'enableContentNegotiation', 'enableUserAgentDetection', 'enableAnalytics', 'enableWebMcpPrototype'], 'boolean'],
             [['contentSelector', 'excludeSelector', 'llmsTxtIntro', 'descriptionField', 'titleField', 'authorOverride'], 'string'],
             ['cacheTtl', 'integer', 'min' => 0],
             ['analyticsRetentionDays', 'integer', 'min' => 1],
