@@ -4,6 +4,11 @@ Before/after demo showing what WebMCP support adds to a site already running
 LLM Ready. Target length: **4–5 minutes**. Companion to
 [WEBMCP-PLAN.md](WEBMCP-PLAN.md).
 
+> **Prerequisite:** this script targets the **Phase 2** feature set — Beat 3
+> depends on the `search-entries` tool, which doesn't exist until the Phase 2
+> JSON endpoints ship. For an early video of the Phase 0 spike, use
+> [WEBMCP-DEMO-SCRIPT-PHASE0.md](WEBMCP-DEMO-SCRIPT-PHASE0.md) instead.
+
 The structure is a fair fight: the "before" site already has LLM Ready doing
 everything it does today, so the contrast isolates exactly what the new
 feature adds — the difference between an agent *scraping* the page and an
