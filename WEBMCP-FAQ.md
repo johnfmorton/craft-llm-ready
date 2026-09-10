@@ -63,7 +63,8 @@ No. Every tool the plugin ships is read-only — a structured way of reading
 content that is already public. The plugin registers nothing that submits
 forms, writes data, or acts on the visitor's behalf. (A later release will
 let *your own* modules register custom tools, which could include actions —
-but that's code you write and a responsibility the docs are explicit about.)
+but that's code you write and a responsibility the docs are explicit about.
+See "Can I add my own tools?" below.)
 
 ### Could this expose drafts, disabled entries, or noindex pages?
 
@@ -146,9 +147,37 @@ through the existing `.md` URLs and are counted there.
 That's the Phase 3 extensibility layer: a PHP event where your module
 registers tool descriptors (backed by a controller action URL or your own
 JavaScript handler), plus a JS-side adapter (`window.llmReady.modelContext`)
-so custom tools share the plugin's feature detection. If you have a tool in
-mind — store hours, product filtering, booking availability — that use case
-is wanted now, while the API is being designed.
+so custom tools share the plugin's feature detection.
+
+This is arguably where WebMCP gets most interesting. The plugin's own tools
+cover reading content — but the best custom-tool candidates are pages whose
+value is *computed or interactive* data that no scraper (and no content
+tool) can reach: an availability calendar, a store-locator map, a shipping
+estimator, a product configurator. One tool call exposes what's otherwise
+locked inside a JavaScript widget.
+
+For tools that act rather than read, the pattern the docs will recommend is
+**prepare, human commits**: the tool prefills a complex form (a quote
+request, a booking) from the agent conversation but never submits — your
+visitor reviews and clicks send. Most of the value of an action tool, almost
+none of the risk. Fully mutating tools remain possible but are your code,
+your CSRF handling, and your call.
+
+If you have a tool in mind — store hours, product filtering, booking
+availability — that use case is wanted now, while the API is being designed.
+
+### What about e-commerce — could an agent manage a cart on a Craft Commerce site?
+
+That's the scenario we think shows WebMCP at its best, and it's on the
+roadmap as a possible Craft Commerce tool pack after the extensibility
+layer ships: checking variant availability, reading the cart, adding to it,
+estimating shipping, and prefilling checkout — with safe defaults (reads
+and prefills on by default, cart writes an explicit opt-in, payment always
+completed by the human). Because the tools run in the visitor's own browser
+session, the cart the agent builds is the visitor's actual cart, updating
+in the page they're watching — they delegate the tedious middle and still
+personally click Pay. If you run Commerce sites and want this, say so:
+demand is what moves it up the list.
 
 ### Does enabling WebMCP cost anything or require an account?
 
