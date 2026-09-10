@@ -140,10 +140,47 @@ plus wrapping in the `{ content: [...] }` shape.
 
 ### Tier 3 — extensibility (developer-facing)
 
-- A way for **site developers** to register their own tools alongside ours
-  (add-to-cart, submit a form, filter listings…). The plugin's role here is
-  plumbing: consistent registration, enable/disable, and analytics — not
-  guessing site-specific actions. See §3.4.
+A way for **site developers** to register their own tools alongside ours.
+The plugin's role here is plumbing: consistent registration, enable/disable,
+and analytics — not guessing site-specific actions. See §3.4.
+
+Tier 3 deserves more weight than "extensibility layer" suggests, because
+**interactive tools are where WebMCP's deepest value sits** — it's the
+headline use case in the spec's own examples and in the Chrome team's
+framing (e-commerce, complex UIs). Two reasons:
+
+1. **Acting is what agents can't fake.** Reading a page can be approximated
+   by scraping — our read-only tools win on speed, cost, and accuracy, an
+   efficiency story. Driving a page (a checkout, a booking flow) through the
+   DOM is where agents currently fail outright: slow, brittle, broken by any
+   markup change. A tool turns a twenty-click flow into two calls. And
+   because the tool runs in the **visitor's own session**, the cart the
+   agent builds *is* the user's cart, updating in the UI they're watching —
+   the user delegates the tedious middle and still personally clicks Pay.
+   Human-in-the-loop falls out of the architecture rather than being bolted
+   on. A backend commerce API can't offer that without re-implementing auth
+   and losing the shared screen.
+
+2. **Widget-locked data.** Scraping fails hardest not on articles but on
+   data that isn't in the HTML at all: a store-locator map, an availability
+   calendar, a product configurator, a mortgage calculator. The answer lives
+   behind JavaScript state or an XHR the agent can't see — content tools
+   (ours included) can never reach it, and a WebMCP tool exposes it in one
+   function. Pages whose value is *computed or interactive* data are the
+   best Tier 3 candidates: `check-availability(date)`,
+   `find-nearest-location(zip)`, `estimate-payment(price, term)`.
+
+A pattern the Phase 3 docs should teach as the recommended middle ground:
+**prepare, human commits** — a tool that *prefills* a complex form (a quote
+request, an application) from the agent conversation but never submits; the
+human reviews and clicks send. The agent writes to UI state, not to the
+server: most of the value of a mutating tool with almost none of its risk,
+and the safety posture we want developers to copy.
+
+(Further out, and colliding deliberately with our v1 anonymous-view rule:
+tools over **logged-in session data** — "when does my membership renew?" —
+which no crawler can ever answer. That would be a developer's explicit
+Phase 3 opt-in with its own security review, never plugin default.)
 
 ### Explicitly out of scope for now
 
@@ -331,13 +368,30 @@ analytics `source = webmcp`; per-tool settings toggles.
 
 **Phase 3 — Extensibility.**
 `RegisterWebMcpToolsEvent` + `window.llmReady.modelContext` escape hatch +
-docs and examples (including the "mutating tools are on you" security
-guidance).
+docs and examples. This is not a nice-to-have layer: it is the point where
+the plugin becomes the plumbing for WebMCP's most valuable scenarios
+(interactive and transactional tools — see Tier 3 in §2) while site
+developers own the actions and their risk. The docs must lead with a
+worked **prepare-human-commits** example (form prefill, no submit) as the
+pattern to copy, alongside the "mutating tools are on you" security
+guidance.
 
 **Phase 4 — Track the standard.**
 Re-check spec/OT status each release; when Chrome ships unflagged, consider
 default-on, drop the token machinery, and revisit declarative/form-based tools
 if that part of the proposal lands.
+
+**Future direction — Craft Commerce tool pack.**
+The strongest concrete instance of Tier 3 is a Craft Commerce store:
+`check-variant-availability`, `get-cart`, `add-to-cart`,
+`estimate-shipping`, and a prepare-human-commits checkout prefill. Rather
+than leaving every agency to invent these (and their safety posture) from
+the raw Phase 3 event, ship them as a first-party module or companion
+plugin with safe defaults: cart *reads* and form *prefills* on by default,
+cart *writes* an explicit opt-in, payment always human-committed. Depends
+on Phase 3 being solid and on real demand from Commerce sites — validate
+via the Phase 3 feedback ask before building. Tracked here so the Phase 3
+API is designed with a demanding first customer in mind.
 
 ---
 
