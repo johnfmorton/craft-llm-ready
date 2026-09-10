@@ -78,10 +78,6 @@ Companion to [WEBMCP-PLAN.md](WEBMCP-PLAN.md).
 - **vs. llms.txt/`.md` alone:** those serve the crawl-time world and remain
   the workhorses. WebMCP adds the visit-time world. You want both; they share
   one configuration.
-- **first-mover angle:** no other Craft plugin occupies this spot yet.
-  Agencies get a concrete, demoable answer to "what's our AI story?" —
-  open the site in Chrome, ask the agent a question, watch it use the
-  site's own tools.
 
 ## For the "why should I care now?" skeptic
 
