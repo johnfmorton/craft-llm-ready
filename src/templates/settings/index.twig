@@ -124,7 +124,7 @@
 
 {{ forms.textareaField({
     label: 'Site Description',
-    instructions: 'Introduction text for the <code>/llms.txt</code> file. Appears as a blockquote below the site name. To let content editors manage it, enter a Craft object template that reads a global set field, e.g. <code>{{ siteInfo.llmDescription }}</code> — the value then lives in content, outside project config, and can differ per site. The site is available as <code>site</code>. Rich text is reduced to plain text with paragraph breaks kept. See <a href="https://github.com/johnfmorton/craft-llm-ready/blob/main/DOCUMENTATION.md#letting-editors-manage-the-site-description">Letting editors manage the site description</a>.',
+    instructions: 'Introduction text for the <code>/llms.txt</code> file. Appears as a blockquote below the site name. To let content editors manage it, enter a Craft object template that reads a field they can edit — on a Single, e.g. <code>{{ craft.entries.section(\'siteInfo\').site(site).one().llmDescription ?? \'\' }}</code>, or on a global set, e.g. <code>{{ siteInfo.llmDescription }}</code>. The value then lives in content, outside project config, and can differ per site. The site is available as <code>site</code>. Rich text is reduced to plain text with paragraph breaks kept. See <a href="https://github.com/johnfmorton/craft-llm-ready/blob/main/DOCUMENTATION.md#letting-editors-manage-the-site-description">Letting editors manage the site description</a>.',
     id: 'llmsTxtIntro',
     name: 'llmsTxtIntro',
     value: settings.llmsTxtIntro,

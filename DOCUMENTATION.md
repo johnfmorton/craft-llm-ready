@@ -211,7 +211,7 @@ LLM Ready auto-generates a `/llms.txt` file following the [llms.txt specificatio
 The generated file includes:
 
 - **H1**: Your site name
-- **Blockquote**: An optional site description (configured in plugin settings, or handed to editors through a global set field — see [Letting editors manage the site description](#letting-editors-manage-the-site-description))
+- **Blockquote**: An optional site description (configured in plugin settings, or handed to editors through a field on a Single or a global set — see [Letting editors manage the site description](#letting-editors-manage-the-site-description))
 - **H2 sections**: One per enabled Craft section, with a list of entry links
 
 Example output:
@@ -235,19 +235,25 @@ Example output:
 
 The **Site Description** setting is a plugin setting, so it is stored in project config and can only be changed by an admin, and not at all in production when `allowAdminChanges` is off. If content editors should own that text, point the setting at content instead: a value containing `{` is rendered as a Craft object template, the same `{{ ... }}` syntax **Title Field** and **Author Override** accept, with the site available as `site` (and as Craft's usual `object`).
 
-The natural source is a global set. Add a Plain Text or rich-text field such as `llmDescription` to a global set with the handle `siteInfo`, give editors permission to edit that global set, then set Site Description to:
+Either of Craft's homes for site-wide content works. Add a Plain Text or rich-text field such as `llmDescription` to a Single or a global set that editors can edit, then point the setting at it.
+
+**A Single** (the [entrification](https://craftcms.com/blog/entrification) route, and what `craft entrify/global-set` produces from a former global set) — query it by section handle:
+
+```twig
+{{ craft.entries.section('siteInfo').site(site).one().llmDescription ?? '' }}
+```
+
+The `?? ''` keeps the setting quiet if the Single has no live entry for the site. A field on the home page Single works the same way with `section('home')`.
+
+**A global set** — available by handle exactly as in a site template:
 
 ```twig
 {{ siteInfo.llmDescription }}
 ```
 
-Global sets are available by handle exactly as in a site template, and the value editors enter is content, not project config, so it deploys with the database and can differ per site. The same works for a field on a Single:
+Either way the value editors enter is content, not project config, so it deploys with the database and can differ per site.
 
-```twig
-{{ craft.entries.section('home').site(site).one().summary ?? '' }}
-```
-
-Rich-text output is reduced to plain text: tags are stripped, entities decoded, and each paragraph or line break becomes its own line of the blockquote, so a two-paragraph description stays two paragraphs. A template that renders to nothing omits the blockquote; one that throws logs a warning and omits it too, so a typo in the setting can't take down `/llms.txt`. The cached file is dropped whenever a global set or entry is saved, so an editor's change is live on the next request. Object templates come from plugin settings, which need an admin (or `config/llm-ready.php`) to change — the same trust boundary as Craft's own title and URI formats.
+Rich-text output is reduced to plain text: tags are stripped, entities decoded, and each paragraph or line break becomes its own line of the blockquote, so a two-paragraph description stays two paragraphs. A template that renders to nothing omits the blockquote; one that throws logs a warning and omits it too, so a typo in the setting can't take down `/llms.txt`. The cached file is dropped whenever an entry or a global set is saved, so an editor's change is live on the next request. Object templates come from plugin settings, which need an admin (or `config/llm-ready.php`) to change — the same trust boundary as Craft's own title and URI formats.
 
 ## Listing pages
 
@@ -338,7 +344,7 @@ Configure LLM Ready from **Settings > Plugins > LLM Ready** in the Craft control
 | Auto-inject Link Header | `true` | Add an HTTP `Link` response header (RFC 8288) pointing at the Markdown alternate. Useful for crawlers that inspect headers without parsing HTML |
 | Cache TTL (seconds) | `3600` | How long to cache Markdown output (`0` to disable) |
 | Enable llms.txt | `true` | Serve `/llms.txt` and `/.well-known/llms.txt`. Turn off to 404 the route — and stop the home page advertising it — while leaving `.md` URLs, content negotiation and discovery tags working |
-| Site Description | `""` | Introduction text for the `/llms.txt` blockquote. A value containing `{` is rendered as a Craft object template with the site as `site`, so it can read a global set field (`{{ siteInfo.llmDescription }}`) that content editors manage outside project config. See [Letting editors manage the site description](#letting-editors-manage-the-site-description). |
+| Site Description | `""` | Introduction text for the `/llms.txt` blockquote. A value containing `{` is rendered as a Craft object template with the site as `site`, so it can read a field on a Single (`{{ craft.entries.section('siteInfo').site(site).one().llmDescription ?? '' }}`) or a global set (`{{ siteInfo.llmDescription }}`) that content editors manage outside project config. See [Letting editors manage the site description](#letting-editors-manage-the-site-description). |
 | Description Field | `""` | Field handle to use for entry descriptions in `/llms.txt` and listing pages. Supports dot notation (e.g. `seo.seoDescription`), `()` method-call syntax (e.g. `metaData.getMetaDescription()`), Generated Field handles, and a native SEOmatic resolver via `seomatic:description`. See [SEO-PLUGINS.md](SEO-PLUGINS.md) for SEOmatic / Ether SEO / SEOmate / SEO Fields recipes. When set, the configured field is authoritative — no auto-extract fallback runs if it resolves to nothing. |
 | Title Field | `""` | Optional field handle for the front-matter `title:` value. Supports the same syntax as Description Field (dot notation, `()` method calls, Generated Field handles, `seomatic:title`), or a Craft object template such as `{{ entry.longTitle ?: entry.title }}`. Falls back to the entry's native title when blank or unresolved. See [Customizing the title and author](#customizing-the-title-and-author). |
 | Author Override | `""` | Author written to each entry's front matter. A fixed name (a team or company, say) replaces individual editor names on every entry. A Craft object template such as `{% if entry.section.handle == 'blog' %}{{ entry.authors\|map(a => a.fullName ?: a.username)\|join(', ') }}{% endif %}` is rendered per entry, and the `author:` line is omitted when it renders to nothing. Blank uses each entry's own authors, comma-separated on multi-author entries. See [Customizing the title and author](#customizing-the-title-and-author). |
@@ -488,7 +494,7 @@ LLM Ready respects Craft's content access rules:
 
 ## Multi-site support
 
-LLM Ready supports Craft's multi-site feature. Each section can be independently enabled or disabled per site, and each site can have its own dedicated LLM template. The `/llms.txt` file is generated per-site, listing only entries belonging to the current site; a Site Description sourced from a global set field is per-site too.
+LLM Ready supports Craft's multi-site feature. Each section can be independently enabled or disabled per site, and each site can have its own dedicated LLM template. The `/llms.txt` file is generated per-site, listing only entries belonging to the current site; a Site Description sourced from a Single or global set field is per-site too.
 
 ## Troubleshooting
 
