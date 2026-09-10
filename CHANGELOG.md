@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-09-10
+
+### Added
+
+- **Site Description** now accepts a Craft object template, the same `{{ ... }}` syntax Title Field and Author Override take, with the site available as `site`. Set it to `{{ craft.entries.section('siteInfo').site(site).one().llmDescription ?? '' }}` (a Single, as entrification produces) or `{{ siteInfo.llmDescription }}` (a global set) and the `/llms.txt` blockquote comes from a field that content editors can edit, outside project config and per site — until now the text lived in plugin settings, which only an admin can change and which are read-only in production under `allowAdminChanges: false`. A value with no `{` is plain text as before, so existing settings are untouched. Rich-text fields are reduced to plain text with paragraph breaks kept, a template that renders to nothing or throws omits the blockquote (with a warning logged for the latter), and the cached file is dropped whenever an entry or global set is saved so edits are live immediately. See "Letting editors manage the site description" in DOCUMENTATION.md. Thanks to [@ssmithGT](https://github.com/ssmithGT) for the request ([#40](https://github.com/johnfmorton/craft-llm-ready/issues/40))
+
+### Changed
+
+- Blank lines in a plain-text Site Description are now collapsed to a single paragraph break, and leading and trailing blank lines are dropped, instead of each producing an empty `>` line.
+
 ## [1.7.1] - 2026-09-07
 
 ### Added
