@@ -17,7 +17,7 @@ For complete documentation, see the [LLM Ready Documentation](DOCUMENTATION.md) 
 * **Smart HTML-to-Markdown conversion** extracts main content and strips navigation, footers, scripts, and other non-content elements — no template tags to add.
 * Optionally assign dedicated Twig templates per section that output raw Markdown for full control.
 * **Real-time rendering** — Markdown is generated on demand and cached, so content is always up to date without queue jobs or batch generation.
-* Auto-generates a `/llms.txt` site index following the [llms.txt specification](https://llmstxt.org/) — and it can be switched off independently if you only want the `.md` URLs.
+* Auto-generates a `/llms.txt` site index following the [llms.txt specification](https://llmstxt.org/) — and it can be switched off independently if you only want the `.md` URLs. Its site description can be plain text in the settings or sourced from a global set field so content editors own it.
 * **Listing page support** — append `.md` to a section's base URL to get a Markdown index of entries.
 * **Built-in analytics** — an opt-in dashboard shows which AI bots visit your site, what they read, and how often, with per-site breakdowns, a CP widget, and configurable data retention.
 * YAML front matter with entry metadata (title, date, author, canonical URL, section) — with settings to source the title, description, and author from any field or a Twig expression (show the author in some sections only, combine several author fields), including SEOmatic's resolved meta description, plus an event for adding keys of your own.
