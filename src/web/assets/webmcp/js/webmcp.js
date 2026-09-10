@@ -1,9 +1,10 @@
 /**
- * LLM Ready — WebMCP prototype (Phase 0).
+ * LLM Ready — WebMCP tools.
  *
- * Registers a read-only `get-page-content` tool for in-browser AI agents via
- * the WebMCP API, handing them the same Markdown rendering the entry's `.md`
- * URL serves. A silent no-op on browsers without the API.
+ * Registers read-only tools for in-browser AI agents via the WebMCP API:
+ * `get-page-content` (the current page's Markdown, from its `.md` URL) and
+ * `get-site-overview` (the site index, from /llms.txt). A silent no-op on
+ * browsers without the API.
  *
  * See WEBMCP-PLAN.md in the plugin repo for the design this implements.
  */
@@ -30,58 +31,86 @@
     } catch (e) {
         return;
     }
-    if (!config || typeof config.pageMarkdownUrl !== 'string') {
+    if (!config) {
         return;
     }
 
-    var tool = {
-        name: 'get-page-content',
-        title: 'Get page content',
-        description: 'Get the current page\'s main content as clean Markdown ' +
-            'with YAML front matter (title, date, author, canonical URL). ' +
-            'Prefer this over reading the rendered HTML: it is the authored ' +
-            'content without navigation, footers, or other page furniture.',
-        inputSchema: {
-            type: 'object',
-            properties: {},
-        },
-        annotations: {
-            readOnlyHint: true,
-        },
-        execute: function(input, options) {
-            return fetch(config.pageMarkdownUrl, {
-                signal: options && options.signal,
-                headers: { 'Accept': 'text/markdown' },
-            })
-                .then(function(response) {
-                    if (!response.ok) {
-                        throw new Error('HTTP ' + response.status);
-                    }
-                    return response.text();
+    /**
+     * Register a read-only tool whose result is the text served at `url`.
+     */
+    function registerFetchTool(name, title, description, url) {
+        var tool = {
+            name: name,
+            title: title,
+            description: description,
+            inputSchema: {
+                type: 'object',
+                properties: {},
+            },
+            annotations: {
+                readOnlyHint: true,
+            },
+            execute: function(input, options) {
+                return fetch(url, {
+                    signal: options && options.signal,
+                    headers: { 'Accept': 'text/markdown' },
                 })
-                .then(function(text) {
-                    return { content: [{ type: 'text', text: text }] };
-                })
-                .catch(function(error) {
-                    return {
-                        content: [{
-                            type: 'text',
-                            text: 'Could not load this page\'s Markdown (' +
-                                error.message + '). It is served at ' +
-                                config.pageMarkdownUrl + '.',
-                        }],
-                        isError: true,
-                    };
-                });
-        },
-    };
+                    .then(function(response) {
+                        if (!response.ok) {
+                            throw new Error('HTTP ' + response.status);
+                        }
+                        return response.text();
+                    })
+                    .then(function(text) {
+                        return { content: [{ type: 'text', text: text }] };
+                    })
+                    .catch(function(error) {
+                        return {
+                            content: [{
+                                type: 'text',
+                                text: 'Could not load ' + url + ' (' +
+                                    error.message + ').',
+                            }],
+                            isError: true,
+                        };
+                    });
+            },
+        };
 
-    // registerTool returns a promise per the spec, but the surface is
-    // origin-trial-stage: guard both a sync throw and a rejection (e.g. the
-    // permissions policy refusing the document) without breaking the page.
-    try {
-        Promise.resolve(context.registerTool(tool)).catch(function() {});
-    } catch (e) {
-        // Silent: the page must behave identically when registration fails.
+        // registerTool returns a promise per the spec, but the surface is
+        // origin-trial-stage: guard both a sync throw and a rejection (e.g.
+        // the permissions policy refusing the document) without breaking
+        // the page.
+        try {
+            Promise.resolve(context.registerTool(tool)).catch(function() {});
+        } catch (e) {
+            // Silent: the page must behave identically when registration fails.
+        }
+    }
+
+    if (typeof config.pageMarkdownUrl === 'string') {
+        registerFetchTool(
+            'get-page-content',
+            'Get page content',
+            'Get the current page\'s main content as clean Markdown with ' +
+                'YAML front matter (title, date, author, canonical URL). ' +
+                'Prefer this over reading the rendered HTML: it is the ' +
+                'authored content without navigation, footers, or other ' +
+                'page furniture.',
+            config.pageMarkdownUrl,
+        );
+    }
+
+    if (typeof config.llmsTxtUrl === 'string') {
+        registerFetchTool(
+            'get-site-overview',
+            'Get site overview',
+            'Get an index of this entire website as Markdown: what the site ' +
+                'is about and its content sections, with a link to a ' +
+                'Markdown version of every page. Use it to find content ' +
+                'beyond the current page, then fetch a listed .md URL to ' +
+                'read a specific page.',
+            config.llmsTxtUrl,
+        );
     }
 })();

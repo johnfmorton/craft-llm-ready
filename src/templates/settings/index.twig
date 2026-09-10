@@ -166,6 +166,29 @@
 
 <hr>
 
+<h2>WebMCP</h2>
+
+<p class="light">WebMCP is an emerging web standard (in origin trial in Chrome 149+ and Edge 150+) that lets pages offer tools to AI agents running in the visitor's browser. LLM Ready registers read-only tools serving the same content as your <code>.md</code> URLs and <code>/llms.txt</code>. Browsers without the API are unaffected. See the <a href="https://github.com/johnfmorton/craft-llm-ready/blob/main/DOCUMENTATION.md#webmcp-tools">WebMCP documentation</a>.</p>
+
+{{ forms.lightswitchField({
+    label: 'Enable WebMCP Tools',
+    instructions: 'Inject a small script (~1.5 KB) on site pages that registers <code>get-page-content</code> and <code>get-site-overview</code> tools for in-browser AI agents. All tools are read-only and expose only content your public Markdown URLs already serve.',
+    id: 'enableWebMcp',
+    name: 'enableWebMcp',
+    on: settings.enableWebMcp,
+}) }}
+
+{{ forms.textField({
+    label: 'Origin Trial Token',
+    instructions: 'While the WebMCP API is in origin trial, real visitors\' browsers only enable it when the site serves a token, injected here as a <code>&lt;meta http-equiv="origin-trial"&gt;</code> tag. Register your origin at <a href="https://developer.chrome.com/origintrials/">Chrome\'s origin trials console</a> to get one (free; tokens are per-origin and expire). Leave empty for local testing with the <code>about:flags#enable-webmcp-testing</code> browser flag.',
+    id: 'webMcpOriginTrialToken',
+    name: 'webMcpOriginTrialToken',
+    value: settings.webMcpOriginTrialToken,
+    placeholder: 'A0x…',
+}) }}
+
+<hr>
+
 <h2>Analytics</h2>
 
 {{ forms.lightswitchField({

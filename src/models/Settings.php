@@ -93,15 +93,31 @@ class Settings extends Model
     public bool $enableAnalytics = false;
 
     /**
-     * Phase 0 prototype flag: inject the WebMCP tool script on enabled entry
-     * pages, registering a read-only `get-page-content` tool for in-browser
-     * AI agents. Config-file only (config/llm-ready.php) — deliberately
-     * absent from the control panel while the WebMCP API is behind a browser
-     * flag / origin trial. See WEBMCP-PLAN.md.
+     * Whether to inject the WebMCP tool script on site pages, registering
+     * read-only tools (`get-page-content`, `get-site-overview`) for
+     * in-browser AI agents.
+     *
+     * Off by default while the WebMCP API is in origin trial: real visitors
+     * need the site to serve an origin trial token (see
+     * $webMcpOriginTrialToken), and local testing needs Chrome 149+ with the
+     * `about:flags#enable-webmcp-testing` flag. Browsers without the API are
+     * unaffected either way — the script is a silent no-op there.
      *
      * @var bool
      */
-    public bool $enableWebMcpPrototype = false;
+    public bool $enableWebMcp = false;
+
+    /**
+     * Chrome/Edge Origin Trial token for the WebMCP API, injected as a
+     * `<meta http-equiv="origin-trial">` tag on pages that carry the tool
+     * script. Tokens are issued per origin at
+     * https://developer.chrome.com/origintrials/ — multi-site installs on
+     * different domains need one per site (override per site in
+     * config/llm-ready.php). Leave empty for flag-based local testing.
+     *
+     * @var string
+     */
+    public string $webMcpOriginTrialToken = '';
 
     /** @var int Number of days to retain analytics data */
     public int $analyticsRetentionDays = 90;
@@ -109,8 +125,8 @@ class Settings extends Model
     public function rules(): array
     {
         return [
-            [['enabled', 'noindexHeader', 'autoInjectDiscoveryTag', 'autoInjectLinkHeader', 'enableContentNegotiation', 'enableUserAgentDetection', 'enableAnalytics', 'enableWebMcpPrototype'], 'boolean'],
-            [['contentSelector', 'excludeSelector', 'llmsTxtIntro', 'descriptionField', 'titleField', 'authorOverride'], 'string'],
+            [['enabled', 'noindexHeader', 'autoInjectDiscoveryTag', 'autoInjectLinkHeader', 'enableContentNegotiation', 'enableUserAgentDetection', 'enableAnalytics', 'enableWebMcp'], 'boolean'],
+            [['contentSelector', 'excludeSelector', 'llmsTxtIntro', 'descriptionField', 'titleField', 'authorOverride', 'webMcpOriginTrialToken'], 'string'],
             ['cacheTtl', 'integer', 'min' => 0],
             ['analyticsRetentionDays', 'integer', 'min' => 1],
             [['additionalBotUserAgents', 'botUserAgents', 'excludeBotUserAgents'], 'each', 'rule' => ['string']],

@@ -355,12 +355,15 @@ Prototype on a test site with the Chrome 149 flag: adapter + hardcoded
 the spec (§1.1 churn), measure script cost, try ChatGPT Desktop as a second
 client. Output: a short findings note appended to this document.
 
-**Phase 1 — MVP release (minor version).**
+**Phase 1 — MVP release (minor version).** *Built on this branch (September
+2026); release gated on the §7 manual validation checklist.*
 `enableWebMcp` setting (default off) + origin-trial token setting +
 `WebMcpAsset` bootstrap + `get-page-content` and `get-site-overview` tools +
 documentation (a WebMCP section in DOCUMENTATION.md explaining tokens, flags,
 and which agents can use it). No new endpoints — both tools fetch existing
-URLs.
+URLs. Note: `get-site-overview` registers on *every* rendered page (when
+llms.txt is enabled), not just entry pages, so even non-entry routes offer
+the site's scope to an agent.
 
 **Phase 2 — Site tools.**
 `WebMcpController` JSON endpoints; `search-entries` and `list-entries` tools;
@@ -481,9 +484,23 @@ adapter must target:
 
 ### Notes for Phase 1
 
-- The injection handler resolves the element itself, so a page render with
-  both discovery and WebMCP handlers active performs the URI lookup twice.
-  Harmless behind a default-off flag; consolidate the two handlers' element
-  resolution when Phase 1 makes this a shipped setting.
+- ~~The injection handler resolves the element itself, so a page render with
+  both discovery and WebMCP handlers active performs the URI lookup twice.~~
+  *Done in the Phase 1 build: both handlers share a memoized
+  `resolvePageEntry()`, one URI lookup per request.*
 - The tool description is the agent-facing UX and will need tuning against
   real agents — treat it as copy, not code.
+
+### Phase 1 build status (September 2026)
+
+Phase 1 as scoped in §5 is implemented on this branch: the
+`enableWebMcp` + `webMcpOriginTrialToken` settings (model, CP template,
+config template), the `get-site-overview` tool (site-wide, gated on
+`enableLlmsTxt`), the origin-trial meta tag injection, the shared element
+resolution, and the user docs (DOCUMENTATION.md "WebMCP tools" section,
+README highlight). Script cost is 1.5 KB gzipped with both tools. All
+Phase 0 verification re-run and green: PHPStan level 4, ECS, and 11
+Playwright assertions now covering both tools, the llms.txt-only page
+case, 404 handling, rejected registration, and the no-API no-op.
+**Release remains gated** on the manual checklist above (real Chrome 149
+OT session, agent behavior, ChatGPT Desktop).

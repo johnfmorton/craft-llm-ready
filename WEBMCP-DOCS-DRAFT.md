@@ -1,10 +1,11 @@
 # WebMCP — draft documentation
 
-> **Status: draft.** This is the documentation as it would appear in
-> DOCUMENTATION.md once WebMCP support ships (Phases 1–2 of
-> [WEBMCP-PLAN.md](WEBMCP-PLAN.md)). It exists now so the feature can be
-> evaluated in the form users will actually meet it. Phase markers show
-> which parts ship when.
+> **Status: partially landed.** The Phase 1 portions of this draft are now
+> real documentation — see the "WebMCP tools" section of
+> [DOCUMENTATION.md](DOCUMENTATION.md#webmcp-tools), which supersedes this
+> file for everything Phase 1 ships. This draft remains the reference for
+> the Phase 2 sections (search/listing tools, analytics) and Phase 3
+> (extensibility) that haven't landed yet.
 
 ---
 

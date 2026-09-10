@@ -263,6 +263,56 @@ Link: <https://example.com/blog/my-post.md>; rel="alternate"; type="text/markdow
 
 This is controlled by the **Auto-inject Link Header** setting (on by default). It is emitted on both `GET` and `HEAD` requests, so header-only clients (uptime monitors, link checkers, `curl -I`) can discover the alternate too.
 
+## WebMCP tools
+
+LLM Ready can expose your content as **WebMCP tools** — actions that an AI agent running in your visitor's browser can discover and call on the page itself. Where the rest of the plugin serves your content to AI *crawlers* fetching URLs from the outside, WebMCP serves the agent sitting next to your visitor: the browser's built-in assistant, ChatGPT Desktop's browser, or an agentic browser.
+
+With **Enable WebMCP Tools** turned on, pages register these tools:
+
+| Tool | Registered on | What the agent gets |
+|------|---------------|---------------------|
+| `get-page-content` | Entry pages | The current page as clean Markdown — the same output as the page's `.md` URL, without the agent having to find that URL or scrape the HTML |
+| `get-site-overview` | Every page (when llms.txt is enabled) | Your `/llms.txt` site index: what the site is, its sections, and a Markdown link for every page — so the agent can answer questions about content *beyond* the page the visitor is on |
+
+Both tools are **read-only** and fetch existing public URLs — no new server endpoints. They enforce exactly the rules `.md` serving enforces: enabled sections only, live entries only, `noindex` respected. If a URL wouldn't serve Markdown to a crawler, no tool hands its content to an agent. Each tool declares the WebMCP `readOnlyHint` annotation so agents know it changes nothing.
+
+A live search tool (`search-entries`) and per-tool analytics are planned for a future release.
+
+### Requirements
+
+WebMCP is an emerging web standard, currently in **origin trial** — an opt-in preview period browsers use for new APIs:
+
+- **Chrome 149+ / Edge 150+** with an origin trial token (see below), or the `about:flags#enable-webmcp-testing` flag for local testing.
+- **ChatGPT Desktop** supports page tools in its built-in browser; **Brave** has experimental support in Leo.
+- Firefox and Safari have not shipped the API.
+
+Visitors without a capable browser are unaffected: the injected script (~1.5 KB gzipped, deferred) checks for the API once and does nothing when it's absent. Because the API is still in trial, **the setting is off by default** — enabling it is safe on any site, but it is a deliberate opt-in while the standard settles.
+
+### Setup
+
+1. Turn on **Enable WebMCP Tools** in the plugin settings.
+2. For real visitors, register your origin for the WebMCP origin trial at [Chrome's origin trials console](https://developer.chrome.com/origintrials/) and paste the token into **Origin Trial Token**. Tokens are free, per-origin, and expire — multi-site installs on different domains need one per site, settable per site in `config/llm-ready.php`. Skip this for local testing with the browser flag.
+
+To verify without an agent, open the browser console on an enabled page:
+
+```js
+const tools = await document.modelContext.getTools();
+console.log(tools.map(t => t.name));
+// → ["get-page-content", "get-site-overview"]
+```
+
+### What gets added to your pages
+
+On pages where at least one tool applies, LLM Ready injects a small deferred script (from the plugin's asset bundle), a `<script type="application/json">` configuration block, and — when a token is set — the `<meta http-equiv="origin-trial">` tag. Nothing about the page varies by visitor, so the injection is fully compatible with Blitz, Cloudflare, and other full-page caches. Your templates need a `<head>` element (same requirement as the discovery tag), and a strict Content-Security-Policy must allow the plugin's asset bundle URL in `script-src` — there is no inline JavaScript.
+
+Tools run in the visitor's browser with the visitor's session, but they fetch the same public `.md` and `/llms.txt` URLs any anonymous visitor gets — drafts and pending changes are never exposed.
+
+### Troubleshooting WebMCP
+
+- **`document.modelContext` is undefined** — the browser doesn't have WebMCP enabled. Check the browser version, the origin trial token (per-origin, and tokens expire), or enable the testing flag locally.
+- **No tools on a page** — the same rules as the discovery tag apply. Check the page source for the `llm-ready-webmcp` JSON block: absent means the server decided not to register tools here (disabled section, `noindex`, llms.txt off on a non-entry page); present means the issue is browser-side.
+- **The agent ignores the tools** — registration working (verify via `getTools()`) doesn't guarantee a given agent *uses* them; agent behavior varies by product. This is the newest part of the ecosystem.
+
 ## Respecting SEO `noindex`
 
 `noindex` is an explicit "don't surface this URL" signal, so LLM Ready honours it the same way a search engine would. If an entry is marked `noindex`, then:
@@ -320,6 +370,8 @@ Configure LLM Ready from **Settings > Plugins > LLM Ready** in the Craft control
 | Auto-inject Link Header | `true` | Add an HTTP `Link` response header (RFC 8288) pointing at the Markdown alternate. Useful for crawlers that inspect headers without parsing HTML |
 | Cache TTL (seconds) | `3600` | How long to cache Markdown output (`0` to disable) |
 | Enable llms.txt | `true` | Serve `/llms.txt` and `/.well-known/llms.txt`. Turn off to 404 the route — and stop the home page advertising it — while leaving `.md` URLs, content negotiation and discovery tags working |
+| Enable WebMCP Tools | `false` | Inject a small script registering read-only WebMCP tools (`get-page-content`, `get-site-overview`) for in-browser AI agents. See [WebMCP tools](#webmcp-tools) |
+| Origin Trial Token | `""` | Chrome/Edge origin trial token for the WebMCP API, injected as a `<meta http-equiv="origin-trial">` tag. Per-origin; leave empty for flag-based local testing |
 | Site Description | `""` | Introduction text for the `/llms.txt` blockquote |
 | Description Field | `""` | Field handle to use for entry descriptions in `/llms.txt` and listing pages. Supports dot notation (e.g. `seo.seoDescription`), `()` method-call syntax (e.g. `metaData.getMetaDescription()`), Generated Field handles, and a native SEOmatic resolver via `seomatic:description`. See [SEO-PLUGINS.md](SEO-PLUGINS.md) for SEOmatic / Ether SEO / SEOmate / SEO Fields recipes. When set, the configured field is authoritative — no auto-extract fallback runs if it resolves to nothing. |
 | Title Field | `""` | Optional field handle for the front-matter `title:` value. Supports the same syntax as Description Field (dot notation, `()` method calls, Generated Field handles, `seomatic:title`), or a Craft object template such as `{{ entry.longTitle ?: entry.title }}`. Falls back to the entry's native title when blank or unresolved. See [Customizing the title and author](#customizing-the-title-and-author). |

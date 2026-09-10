@@ -156,15 +156,24 @@ return [
     'cacheTtl' => 3600,
 
     // -----------------------------------------------------------------------
-    // WebMCP (Phase 0 prototype)
+    // WebMCP
     // -----------------------------------------------------------------------
 
-    // Whether to inject the WebMCP tool script on enabled entry pages,
-    // registering a read-only `get-page-content` tool for in-browser AI
-    // agents. PROTOTYPE: the WebMCP API is in origin trial — testing requires
-    // Chrome 149+ with the `about:flags#enable-webmcp-testing` flag. Config
-    // file only; there is deliberately no control panel setting yet.
-    // 'enableWebMcpPrototype' => false,
+    // Whether to inject the WebMCP tool script on site pages, registering
+    // read-only tools (`get-page-content`, `get-site-overview`) for AI agents
+    // running in the visitor's browser. Off by default while the WebMCP API
+    // is in origin trial (Chrome 149+/Edge 150+). Browsers without the API
+    // are unaffected — the script is a silent no-op there.
+    'enableWebMcp' => false,
+
+    // Chrome/Edge Origin Trial token for the WebMCP API, injected as a
+    // `<meta http-equiv="origin-trial">` tag on pages carrying the tool
+    // script. Register your origin at https://developer.chrome.com/origintrials/
+    // to get one. Tokens are per-origin, so multi-site installs on different
+    // domains need one per site — use a multi-environment config or
+    // per-site override here. Leave empty for local testing with the
+    // `about:flags#enable-webmcp-testing` browser flag.
+    'webMcpOriginTrialToken' => '',
 
     // -----------------------------------------------------------------------
     // Analytics

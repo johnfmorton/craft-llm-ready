@@ -60,6 +60,14 @@ class LlmReady extends Plugin
     public bool $hasCpSettings = true;
     public bool $hasCpSection = true;
 
+    /**
+     * Memoized result of resolving the current request's path to an Entry.
+     * `null` = not resolved yet; `false` = resolved, no entry. Shared by the
+     * discovery-tag and WebMCP injection handlers so a page render performs
+     * the URI lookup once.
+     */
+    private Entry|false|null $resolvedPageEntry = null;
+
     public static function config(): array
     {
         return [
@@ -464,11 +472,10 @@ class LlmReady extends Plugin
                 }
 
                 // Find the matched element
-                $path = $request->getPathInfo();
                 $site = Craft::$app->getSites()->getCurrentSite();
-                $element = Craft::$app->getElements()->getElementByUri($path ?: '__home__', $site->id);
+                $element = $this->resolvePageEntry();
 
-                if (!($element instanceof Entry)) {
+                if ($element === null) {
                     return;
                 }
 
@@ -522,14 +529,32 @@ class LlmReady extends Plugin
     }
 
     /**
-     * Inject the WebMCP tool bootstrap on enabled entry pages (Phase 0
-     * prototype, config-only flag — see WEBMCP-PLAN.md).
+     * Resolve the current request's path to an Entry, once per request.
+     */
+    private function resolvePageEntry(): ?Entry
+    {
+        if ($this->resolvedPageEntry === null) {
+            $path = Craft::$app->getRequest()->getPathInfo();
+            $site = Craft::$app->getSites()->getCurrentSite();
+            $element = Craft::$app->getElements()->getElementByUri($path ?: '__home__', $site->id);
+
+            $this->resolvedPageEntry = $element instanceof Entry ? $element : false;
+        }
+
+        return $this->resolvedPageEntry ?: null;
+    }
+
+    /**
+     * Inject the WebMCP tool bootstrap on site pages.
      *
-     * The visibility rules are deliberately the same as the discovery tag's:
-     * a page only registers the `get-page-content` tool when its `.md` URL
-     * would actually serve — enabled section, live entry with a URL, not
-     * noindex. The tool itself fetches that `.md` URL, so an in-browser
-     * agent can never reach content the crawler surface hides.
+     * Registers read-only tools for in-browser AI agents: a site-wide
+     * `get-site-overview` (backed by /llms.txt) on every rendered page, and
+     * `get-page-content` on entry pages. The page tool's visibility rules
+     * are deliberately the same as the discovery tag's — it only registers
+     * when the entry's `.md` URL would actually serve (enabled section, live
+     * entry with a URL, not noindex) — and both tools fetch existing public
+     * URLs, so an in-browser agent can never reach content the crawler
+     * surface hides.
      */
     private function registerWebMcpInjection(): void
     {
@@ -538,50 +563,61 @@ class LlmReady extends Plugin
             View::EVENT_BEFORE_RENDER_PAGE_TEMPLATE,
             function(TemplateEvent $event) {
                 $settings = $this->getSettings();
-                if (!$settings->enabled || !$settings->enableWebMcpPrototype) {
+                if (!$settings->enabled || !$settings->enableWebMcp) {
                     return;
                 }
 
-                $request = Craft::$app->getRequest();
-                if (!$request->getIsGet()) {
+                if (!Craft::$app->getRequest()->getIsGet()) {
                     return;
                 }
 
-                $path = $request->getPathInfo();
                 $site = Craft::$app->getSites()->getCurrentSite();
-                $element = Craft::$app->getElements()->getElementByUri($path ?: '__home__', $site->id);
+                $config = [];
 
-                if (!($element instanceof Entry)) {
-                    return;
+                // Site overview tool — any rendered page, when llms.txt serves
+                if ($settings->enableLlmsTxt) {
+                    $baseUrl = $site->getBaseUrl();
+                    if ($baseUrl) {
+                        $config['llmsTxtUrl'] = rtrim($baseUrl, '/') . '/llms.txt';
+                    }
                 }
 
+                // Page content tool — entry pages whose .md URL would serve.
                 // The bare home page has no .md URL (the catch-all rule
-                // matches `.+`), so it has no page-content tool to offer.
-                if ($element->uri === '__home__') {
-                    return;
+                // matches `.+`), so it offers no page tool.
+                $element = $this->resolvePageEntry();
+                if (
+                    $element !== null
+                    && $element->uri !== '__home__'
+                    && $this->markdownService->isSectionEnabled($element->sectionId, $site->id)
+                    && !$this->seoService->isNoindex($element)
+                ) {
+                    $url = $element->getUrl();
+                    if ($url) {
+                        $config['pageMarkdownUrl'] = rtrim($url, '/') . '.md';
+                    }
                 }
 
-                if (!$this->markdownService->isSectionEnabled($element->sectionId, $site->id)) {
-                    return;
-                }
-
-                $url = $element->getUrl();
-                if (!$url) {
-                    return;
-                }
-
-                if ($this->seoService->isNoindex($element)) {
+                if ($config === []) {
                     return;
                 }
 
                 $view = Craft::$app->getView();
+
+                if ($settings->webMcpOriginTrialToken !== '') {
+                    $view->registerMetaTag([
+                        'http-equiv' => 'origin-trial',
+                        'content' => $settings->webMcpOriginTrialToken,
+                    ], 'llm-ready-webmcp-ot');
+                }
+
                 $view->registerAssetBundle(WebMcpAsset::class);
 
                 // JSON_HEX_TAG keeps a literal `</script>` inside any value
                 // from breaking out of the data island.
                 $view->registerScript(
                     Json::encode(
-                        ['pageMarkdownUrl' => rtrim($url, '/') . '.md'],
+                        $config,
                         JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG,
                     ),
                     View::POS_END,
