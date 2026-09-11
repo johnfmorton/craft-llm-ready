@@ -210,8 +210,8 @@ LLM Ready auto-generates a `/llms.txt` file following the [llms.txt specificatio
 
 The generated file includes:
 
-- **H1**: Your site name, or a custom title (configured in plugin settings, or handed to editors the same way as the description)
-- **Blockquote**: An optional site description (configured in plugin settings, or handed to editors through a field on a Single or a global set — see [Letting editors manage the site description](#letting-editors-manage-the-site-description))
+- **H1**: Your site name, or a custom title (configured in plugin settings, or handed to editors through a field on a Single or a global set — see [Letting editors manage the site title and description](#letting-editors-manage-the-site-title-and-description))
+- **Blockquote**: An optional site description (configured the same way)
 - **H2 sections**: One per enabled Craft section, with a list of entry links
 
 Example output:
@@ -231,19 +231,25 @@ Example output:
 - [Big Announcement](https://example.com/news/big-announcement.md)
 ```
 
-### Letting editors manage the site description
+### Letting editors manage the site title and description
 
-The **Site Description** setting is a plugin setting, so it is stored in project config and can only be changed by an admin, and not at all in production when `allowAdminChanges` is off. If content editors should own that text, point the setting at content instead: a value containing `{` is rendered as a Craft object template, the same `{{ ... }}` syntax **Title Field** and **Author Override** accept, with the site available as `site` (and as Craft's usual `object`).
+The **Site Title** and **Site Description** settings are plugin settings, so they are stored in project config and can only be changed by an admin, and not at all in production when `allowAdminChanges` is off. If content editors should own that text, point either setting at content instead: a value containing `{` is rendered as a Craft object template, the same `{{ ... }}` syntax **Title Field** and **Author Override** accept, with the site available as `site` (and as Craft's usual `object`). Both settings work the same way, so the examples below show them side by side.
 
-Either of Craft's homes for site-wide content works. Add a Plain Text or rich-text field such as `llmDescription` to a Single or a global set that editors can edit, then point the setting at it.
+Either of Craft's homes for site-wide content works. Add a Plain Text field such as `llmTitle` and a Plain Text or rich-text field such as `llmDescription` to a Single or a global set that editors can edit, then point each setting at its field. You can hand over just one of them — leave the other setting as plain text, or blank.
 
-**A Single** (the [entrification](https://craftcms.com/blog/entrification) route, and what `craft entrify/global-set` produces from a former global set) — query it by section handle:
+**A Single** (the [entrification](https://craftcms.com/blog/entrification) route, and what `craft entrify/global-set` produces from a former global set) — query it by section handle. Site Title:
+
+```twig
+{{ craft.entries.section('siteInfo').site(site).one().llmTitle ?? '' }}
+```
+
+Site Description:
 
 ```twig
 {{ craft.entries.section('siteInfo').site(site).one().llmDescription ?? '' }}
 ```
 
-The `?? ''` keeps the setting quiet if the Single has no live entry for the site. A field on the home page Single works the same way with `section('home')`.
+The `?? ''` keeps the setting quiet if the Single has no live entry for the site: the blockquote is omitted and the H1 falls back to the site's name. A field on the home page Single works the same way with `section('home')`.
 
 Because the setting is a full Twig expression, the fallback can be as long as your site structure needs. A multi-site install that keeps one settings Single per site, both sharing an entry type, can chain them and end with a literal default:
 
@@ -259,17 +265,23 @@ Each step resolves to `null` when it has nothing to offer, and `??` moves on to 
 {{ craft.entries.type('globalSettings').site(site).one().llmDescription ?? 'This is the default description.' }}
 ```
 
-**A global set** — available by handle exactly as in a site template:
+The same chain works for the title with `llmTitle` in place of `llmDescription`. End it with `?? site.name` to make the fallback explicit, or `?? ''`, which the plugin turns into the site's name anyway.
+
+**A global set** — available by handle exactly as in a site template. Site Title:
+
+```twig
+{{ siteInfo.llmTitle }}
+```
+
+Site Description:
 
 ```twig
 {{ siteInfo.llmDescription }}
 ```
 
-Either way the value editors enter is content, not project config, so it deploys with the database and can differ per site.
+Either way the value editors enter is content, not project config, so it deploys with the database and can differ per site. That per-site point is the main reason to template the title: the default H1 is the site's name, which already differs per site, while a fixed Site Title replaces it on every site.
 
-Rich-text output is reduced to plain text: tags are stripped, entities decoded, and each paragraph or line break becomes its own line of the blockquote, so a two-paragraph description stays two paragraphs. A template that renders to nothing omits the blockquote; one that throws logs a warning and omits it too, so a typo in the setting can't take down `/llms.txt`. The cached file is dropped whenever an entry or a global set is saved, so an editor's change is live on the next request. Object templates come from plugin settings, which need an admin (or `config/llm-ready.php`) to change — the same trust boundary as Craft's own title and URI formats.
-
-**The H1 too.** The **Site Title** setting takes the same object templates, so the heading can come from a field beside the description (`{{ siteInfo.llmTitle }}`, say). That matters in a multi-site install: the default H1 is the site's name, which is already per site, while a fixed Site Title replaces it on every site. A template keeps the heading per site. The rendered title is collapsed to a single line, since a line break would end the heading, and one that renders to nothing (or throws) falls back to the site's name.
+Rich-text output is reduced to plain text: tags are stripped, entities decoded, and each paragraph or line break becomes its own line of the blockquote, so a two-paragraph description stays two paragraphs. The title is collapsed to a single line instead, since a line break would end the heading. A template that renders to nothing omits the blockquote, or falls back to the site's name for the H1; one that throws logs a warning and does the same, so a typo in a setting can't take down `/llms.txt`. The cached file is dropped whenever an entry or a global set is saved, so an editor's change is live on the next request. Object templates come from plugin settings, which need an admin (or `config/llm-ready.php`) to change — the same trust boundary as Craft's own title and URI formats.
 
 ## Listing pages
 
@@ -360,8 +372,8 @@ Configure LLM Ready from **Settings > Plugins > LLM Ready** in the Craft control
 | Auto-inject Link Header | `true` | Add an HTTP `Link` response header (RFC 8288) pointing at the Markdown alternate. Useful for crawlers that inspect headers without parsing HTML |
 | Cache TTL (seconds) | `3600` | How long to cache Markdown output (`0` to disable) |
 | Enable llms.txt | `true` | Serve `/llms.txt` and `/.well-known/llms.txt`. Turn off to 404 the route — and stop the home page advertising it — while leaving `.md` URLs, content negotiation and discovery tags working |
-| Site Title | `""` | Title used for the `/llms.txt` H1 heading. Falls back to the site's name when blank. Accepts a Craft object template exactly as Site Description does (`{{ siteInfo.llmTitle }}`), collapsed to one line, so editors can set it per site; a fixed title applies to every site. See [Letting editors manage the site description](#letting-editors-manage-the-site-description). |
-| Site Description | `""` | Introduction text for the `/llms.txt` blockquote. A value containing `{` is rendered as a Craft object template with the site as `site`, so it can read a field on a Single (`{{ craft.entries.section('siteInfo').site(site).one().llmDescription ?? '' }}`) or a global set (`{{ siteInfo.llmDescription }}`) that content editors manage outside project config. See [Letting editors manage the site description](#letting-editors-manage-the-site-description). |
+| Site Title | `""` | Title used for the `/llms.txt` H1 heading. Falls back to the site's name when blank. A value containing `{` is rendered as a Craft object template with the site as `site`, so it can read a field on a Single (`{{ craft.entries.section('siteInfo').site(site).one().llmTitle ?? '' }}`) or a global set (`{{ siteInfo.llmTitle }}`) that content editors manage outside project config, and stay per site where a fixed title applies to every site. Collapsed to one line. See [Letting editors manage the site title and description](#letting-editors-manage-the-site-title-and-description). |
+| Site Description | `""` | Introduction text for the `/llms.txt` blockquote. A value containing `{` is rendered as a Craft object template with the site as `site`, so it can read a field on a Single (`{{ craft.entries.section('siteInfo').site(site).one().llmDescription ?? '' }}`) or a global set (`{{ siteInfo.llmDescription }}`) that content editors manage outside project config. See [Letting editors manage the site title and description](#letting-editors-manage-the-site-title-and-description). |
 | Description Field | `""` | Field handle to use for entry descriptions in `/llms.txt` and listing pages. Supports dot notation (e.g. `seo.seoDescription`), `()` method-call syntax (e.g. `metaData.getMetaDescription()`), Generated Field handles, and a native SEOmatic resolver via `seomatic:description`. See [SEO-PLUGINS.md](SEO-PLUGINS.md) for SEOmatic / Ether SEO / SEOmate / SEO Fields recipes. When set, the configured field is authoritative — no auto-extract fallback runs if it resolves to nothing. |
 | Title Field | `""` | Optional field handle for the front-matter `title:` value. Supports the same syntax as Description Field (dot notation, `()` method calls, Generated Field handles, `seomatic:title`), or a Craft object template such as `{{ entry.longTitle ?: entry.title }}`. Falls back to the entry's native title when blank or unresolved. See [Customizing the title and author](#customizing-the-title-and-author). |
 | Author Override | `""` | Author written to each entry's front matter. A fixed name (a team or company, say) replaces individual editor names on every entry. A Craft object template such as `{% if entry.section.handle == 'blog' %}{{ entry.authors\|map(a => a.fullName ?: a.username)\|join(', ') }}{% endif %}` is rendered per entry, and the `author:` line is omitted when it renders to nothing. Blank uses each entry's own authors, comma-separated on multi-author entries. See [Customizing the title and author](#customizing-the-title-and-author). |
@@ -491,7 +503,7 @@ Markdown output is cached using Craft's cache component (Redis, database, or fil
 
 - An entry is saved
 - An entry is deleted
-- A global set is saved (the `/llms.txt` cache only, since its Site Description can read one)
+- A global set is saved (the `/llms.txt` cache only, since its Site Title and Site Description can read one)
 
 The cache TTL is configurable in the plugin settings. Set to `0` to disable caching entirely.
 
@@ -511,7 +523,7 @@ LLM Ready respects Craft's content access rules:
 
 ## Multi-site support
 
-LLM Ready supports Craft's multi-site feature. Each section can be independently enabled or disabled per site, and each site can have its own dedicated LLM template. The `/llms.txt` file is generated per-site, listing only entries belonging to the current site; a Site Description sourced from a Single or global set field is per-site too.
+LLM Ready supports Craft's multi-site feature. Each section can be independently enabled or disabled per site, and each site can have its own dedicated LLM template. The `/llms.txt` file is generated per-site, listing only entries belonging to the current site; a Site Title or Site Description sourced from a Single or global set field is per-site too.
 
 ## Troubleshooting
 
