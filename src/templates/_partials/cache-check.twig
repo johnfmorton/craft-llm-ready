@@ -1,0 +1,289 @@
+{# The "Cache check" inset pane (issue #33, design 2a).
+   Wrapper (footer layout per design 4b): the pane element plus its styles and script. The header and
+   body live in cache-check-inner, which cache-check/probe re-renders whole
+   for the AJAX response (the header switches between a quiet row and a
+   warning banner depending on the result). Included below the AI Bot
+   User-Agent Detection toggle on the settings page, and by the LLM Ready
+   Cache Check utility.
+
+   Colours and sizes are the design handoff's values, not Craft's CSS
+   variables. Craft's own `.text` and `.btn` classes are used for the
+   input and button, which the design draws as CP-native controls.
+
+   Variables: see cache-check-inner. #}
+
+<div class="llm-ready-cache-pane">
+    {% include 'llm-ready/_partials/cache-check-inner' with _context only %}
+</div>
+
+{% css %}
+.llm-ready-cache-pane {
+    margin-top: 20px;
+    border: 1px solid #dbe3ec;
+    border-radius: 5px;
+    background: #f9fbfd;
+    overflow: hidden;
+}
+
+/* Quiet header: nothing found. */
+.llm-ready-cache-pane__header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e4eaf1;
+}
+.llm-ready-cache-pane__title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #758391;
+}
+.llm-ready-cache-pane__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #596673;
+    margin-left: auto;
+    text-align: right;
+}
+.llm-ready-status-dot {
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #9aa5b1;
+}
+
+/* Warning banner: evidence or a proxy found. */
+.llm-ready-cache-pane__banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    background: #fdf3e3;
+    border-bottom: 1px solid #f0dcb8;
+}
+.llm-ready-cache-pane__banner-icon {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #cf783a;
+    color: #fff;
+    font: 700 14px/22px system-ui, -apple-system, "Segoe UI", sans-serif;
+    text-align: center;
+}
+.llm-ready-cache-pane__banner-text {
+    min-width: 0;
+}
+.llm-ready-cache-pane__banner-title {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: #8a5a24;
+}
+.llm-ready-cache-pane__banner-detail {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #8a5a24;
+    margin-top: 2px;
+}
+.llm-ready-cache-pane__pill {
+    margin-left: auto;
+    flex: none;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #8a5a24;
+    background: rgba(207, 120, 58, .16);
+    border-radius: 10px;
+    padding: 3px 9px;
+}
+
+/* Body. Spacing is on divs, not <p> — p margins get zeroed in this CP. */
+.llm-ready-cache-pane__body {
+    padding: 14px 16px 16px;
+}
+.llm-ready-probe-row {
+    display: flex;
+    gap: 8px;
+}
+.has-evidence .llm-ready-probe-row {
+    margin-bottom: 14px;
+}
+.llm-ready-probe-row .llm-ready-probe-url {
+    flex: 1;
+}
+.llm-ready-probe-row .llm-ready-probe-btn {
+    flex: none;
+}
+.llm-ready-evidence__label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #758391;
+    margin-bottom: 8px;
+}
+.llm-ready-evidence__list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.llm-ready-evidence__row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+.llm-ready-evidence__icon {
+    flex: none;
+    box-sizing: content-box;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fdf3e3;
+    border: 1px solid #f0dcb8;
+    color: #cf783a;
+    font: 700 10px/15px system-ui, -apple-system, "Segoe UI", sans-serif;
+    text-align: center;
+}
+.llm-ready-evidence__text {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #3f4d5a;
+}
+.llm-ready-evidence__text code {
+    background: #e4e8ed;
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 11.5px;
+}
+.llm-ready-probe-message {
+    margin-top: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #596673;
+}
+.llm-ready-probe-message.is-caveat {
+    margin-top: 12px;
+    font-size: 12.5px;
+    color: #8b96a2;
+}
+.llm-ready-probe-message.is-error {
+    color: #cf1124;
+}
+.llm-ready-probe-footer {
+    margin-top: 10px;
+}
+.has-evidence .llm-ready-probe-footer {
+    margin-top: 12px;
+}
+.llm-ready-probe-meta {
+    display: block;
+    font-size: 12px;
+    color: #8b96a2;
+}
+/* Stacked: meta, then the two disclosures (8px after the meta line, 6px
+   between them). */
+.llm-ready-details {
+    font-size: 12px;
+    color: #596673;
+    margin-top: 6px;
+}
+.llm-ready-probe-meta + .llm-ready-details {
+    margin-top: 8px;
+}
+.llm-ready-probe-footer > :first-child {
+    margin-top: 0;
+}
+.llm-ready-details > summary {
+    cursor: pointer;
+    list-style: none;
+    color: #1f5f9e;
+}
+.llm-ready-details > summary::-webkit-details-marker {
+    display: none;
+}
+.llm-ready-details > summary:hover {
+    color: #12437a;
+    text-decoration: underline;
+}
+.llm-ready-caret {
+    display: inline-block;
+    font-size: 9px;
+    transition: transform .15s;
+}
+.llm-ready-details[open] > summary .llm-ready-caret {
+    transform: rotate(90deg);
+}
+.llm-ready-details > p {
+    margin: 8px 0 0;
+    line-height: 1.5;
+    max-width: 560px;
+}
+.llm-ready-details > p code {
+    background: #e4e8ed;
+    border-radius: 3px;
+    padding: 0 4px;
+    font-size: 11px;
+}
+.llm-ready-other-envs {
+    margin: 8px 0 0;
+    padding-left: 18px;
+    line-height: 1.5;
+    max-width: 560px;
+}
+.llm-ready-other-envs li {
+    list-style: disc;
+    margin-bottom: 4px;
+}
+{% endcss %}
+
+{% js %}
+(function() {
+    var pane = document.querySelector('.llm-ready-cache-pane');
+    if (!pane) {
+        return;
+    }
+
+    // Handlers are delegated to the pane because a probe replaces its
+    // entire contents (the header can change state).
+    function runProbe() {
+        var btn = pane.querySelector('.llm-ready-probe-btn');
+        var urlInput = pane.querySelector('.llm-ready-probe-url');
+        if (!btn || !urlInput || btn.classList.contains('loading')) {
+            return;
+        }
+        btn.classList.add('loading');
+
+        Craft.sendActionRequest('POST', 'llm-ready/cache-check/probe', {
+            data: {url: urlInput.value},
+        })
+            .then(function(response) {
+                pane.innerHTML = response.data.html;
+            })
+            .catch(function() {
+                Craft.cp.displayError({{ 'The cache probe failed to run.'|t('llm-ready')|json_encode|raw }});
+                btn.classList.remove('loading');
+            });
+    }
+
+    pane.addEventListener('click', function(event) {
+        if (event.target.closest('.llm-ready-probe-btn')) {
+            runProbe();
+        }
+    });
+
+    // Enter in the URL field probes; on the settings page it would
+    // otherwise submit the whole settings form.
+    pane.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter' && event.target.closest('.llm-ready-probe-url')) {
+            event.preventDefault();
+            runProbe();
+        }
+    });
+})();
+{% endjs %}

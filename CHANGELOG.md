@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-09-11
+
+### Added
+
+- **The plugin now detects whether a shared cache sits in front of the site, and says so right where the decision is made.** 1.6.0 turned "AI Bot User-Agent Detection" off by default because it is unsafe behind a caching edge — but left the site owner to work out for themselves which kind of site they have. Most of that evidence is available to the plugin, so it now gathers it in three tiers ([#33](https://github.com/johnfmorton/craft-llm-ready/issues/33)):
+
+  - **Request-header inspection (automatic).** A proxying edge stamps identifying headers on its way to the origin — `CF-Ray` (Cloudflare in proxied mode), `Fastly-Client-IP`, `X-Varnish`, `True-Client-IP` (Akamai), `X-Azure-FDID` (Azure Front Door), `Via`, `Surrogate-Capability`, `CDN-Loop` — and the settings page now reports what it sees, directly below the toggle. This cleanly separates DNS-only Cloudflare (no `CF-*` headers, safe) from orange-cloud proxying (always stamped, unsafe), so a site that is safe today starts warning the moment the proxy is switched on.
+  - **In-Craft page-cache inspection (automatic).** Cache headers never reach a page cache running inside Craft, so Blitz's configuration is read directly: a warning when `cacheNonHtmlResponses` is enabled (the documented setting that removes Blitz's incidental protection, see [#30](https://github.com/johnfmorton/craft-llm-ready/issues/30)), an informational note when Blitz is caching HTML.
+  - **An active probe (behind a button).** Requests a URL twice with a browser User-Agent — never a bot one, which would push Markdown into the very caches the check exists to protect — and inspects the second response for `Age`, `X-Cache`/`X-Page-Cache: HIT`, or `CF-Cache-Status: HIT`. A hit is proof. Azure Front Door's `X-Cache` vocabulary is read for what it means — `TCP_HIT` is a hit, `TCP_MISS` means the route caches, `CONFIG_NOCACHE` means caching is off on the route serving that URL. The probe defaults to the current site's URL but accepts any URL, which is what bridges the dev/prod gap: the setting is usually decided from a local copy of the site, and pointing the probe at the production URL reads the live edge's response headers from anywhere. The probe also reports page-cache evidence the passive tiers can't see on a remote site: Blitz announcing itself in `X-Powered-By`, an nginx-style `X-Page-Cache` layer, and a `Cache-Control: s-maxage` directive — which only ever addresses shared caches, so its presence means the site is built to have one storing its HTML.
+
+  Results are persisted per `CRAFT_ENVIRONMENT` (in a new `llmready_cache_checks` table — never project config, since environment state must not sync), so the settings page also shows what the last check found in other environments. A new **LLM Ready Cache Check** utility surfaces the same summary where `allowAdminChanges` hides plugin settings — production, typically — and viewing it there is what records that environment's result.
+
+  The wording is deliberately asymmetric. A positive detection is confident: a shared cache is in front, keep the setting off. A negative one only ever says "nothing detected" — an nginx `proxy_cache` or a Varnish configured not to announce itself is invisible to every tier, so the check never claims a site is safe.
+
+  The result is stated where it can't be missed. When evidence is found, the Cache check pane's header becomes a warning banner that names what was found and where ("Shared cache detected on the probed site", "Proxy detected in this environment (dev)") and carries the recommendation itself — keep AI Bot User-Agent Detection off — followed by an "Evidence · N findings" list. A site that runs a page cache or declares its HTML shared-cacheable (`s-maxage`) is reported with the same confidence as a cache hit, since the configuration is the evidence even when two probe requests happen to miss. The pane also says which site each line is about: the passive tier's own note ("this environment: nothing detected") lives in a collapsed "About this environment" disclosure, and outside production that note asks for the production URL, because a CDN or page cache usually exists only there and a local check says little about the live site.
+
+- **Settings overridden in `config/llm-ready.php` are now flagged on the settings page.** Each such field shows "This is being overridden by the `…` setting in config/llm-ready.php" and is disabled, mirroring Craft's treatment of its own config overrides, so nobody flips a switch that has no effect. The config-only bot list options (`botUserAgents`, `excludeBotUserAgents`) are reported under Additional Bot User-Agents, since they change what that field does.
+- The shipped `config.php` template and DOCUMENTATION.md now show how to make AI Bot User-Agent Detection follow the environment — on in dev, off behind the production CDN — either from a `.env` variable via `App::parseBooleanEnv()` or with a multi-environment config keyed on `CRAFT_ENVIRONMENT`.
+- **Site Title** setting to override the `/llms.txt` H1 heading, which otherwise defaults to the site's name. Like Site Description, a value containing `{` is rendered as a Craft object template with the site as `site`, so `{{ siteInfo.llmTitle }}` hands the heading to content editors and keeps it per site, where a fixed title applies to every site. The result is collapsed to one line, and a template that renders to nothing or throws falls back to the site's name. See "Letting editors manage the site title and description" in DOCUMENTATION.md (the section that covered the description alone). Thanks to [@DigitaleJungle](https://github.com/DigitaleJungle) for the contribution ([#39](https://github.com/johnfmorton/craft-llm-ready/pull/39))
+
+### Changed
+
+- The AI Bot User-Agent Detection field on the settings page is reorganised. Its instructions now carry the warning ("Off by default — and keep it off behind a shared cache or CDN, where cached Markdown can reach real visitors"), the explanation of why sits behind a collapsed "When is it unsafe? (Cloudflare, Fastly, Varnish, Servd…)" disclosure instead of a callout, and the toggle is labelled "Serve Markdown to known AI bots".
+
+## [1.8.0] - 2026-09-10
+
+### Added
+
+- **Site Description** now accepts a Craft object template, the same `{{ ... }}` syntax Title Field and Author Override take, with the site available as `site`. Set it to `{{ craft.entries.section('siteInfo').site(site).one().llmDescription ?? '' }}` (a Single, as entrification produces) or `{{ siteInfo.llmDescription }}` (a global set) and the `/llms.txt` blockquote comes from a field that content editors can edit, outside project config and per site — until now the text lived in plugin settings, which only an admin can change and which are read-only in production under `allowAdminChanges: false`. A value with no `{` is plain text as before, so existing settings are untouched. Rich-text fields are reduced to plain text with paragraph breaks kept, a template that renders to nothing or throws omits the blockquote (with a warning logged for the latter), and the cached file is dropped whenever an entry or global set is saved so edits are live immediately. See "Letting editors manage the site description" in DOCUMENTATION.md. Thanks to [@ssmithGT](https://github.com/ssmithGT) for the request ([#40](https://github.com/johnfmorton/craft-llm-ready/issues/40))
+
+### Changed
+
+- Blank lines in a plain-text Site Description are now collapsed to a single paragraph break, and leading and trailing blank lines are dropped, instead of each producing an empty `>` line.
+
 ## [1.7.1] - 2026-09-07
 
 ### Added

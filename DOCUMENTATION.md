@@ -22,13 +22,27 @@ Methods 2 and 3 change the response *on the canonical URL* based on a request he
 
 The standards answer is to declare `Vary: User-Agent`. That is correct but unusable — `User-Agent` has effectively unbounded cardinality, so honouring it would give every browser build its own cache entry and destroy the hit ratio. That is precisely why Cloudflare, among others, ignores `Vary` for HTML. Correct and cache-efficient are mutually exclusive here, so the setting defaults to off and the canonical URL keeps a single representation.
 
-**Turn it on if nothing caches in front of your site.** Served straight from the origin, it works exactly as before with no downside. Behind Cloudflare, Fastly, Varnish, or a platform edge such as Servd, leave it off and let `.md` plus discovery do the work.
+**Turn it on if nothing caches in front of your site.** Served straight from the origin, it works exactly as before with no downside. Behind Cloudflare, Fastly, Varnish, Azure Front Door, or a platform edge such as Servd, leave it off and let `.md` plus discovery do the work. You don't have to work out which of those you are on your own — see [Shared-cache detection](#shared-cache-detection) below.
 
 Markdown served on the canonical URL — by either method — carries `Cache-Control: private, no-store` and `Vary: User-Agent, Accept` so that it is never stored by a shared cache. The `.md` URLs are unaffected and remain fully cacheable.
 
 > **Upgrading from 1.5.x or earlier?** This setting used to default to on. An upgrade migration pins it to on for your site, so the upgrade itself changes nothing — the migration won't switch a working feature off behind your back. Fresh installs get the new default of off.
 >
 > **You should still make the change yourself if anything caches in front of your site.** Turn AI Bot User-Agent Detection off in the plugin settings. That removes the variation on the canonical URL rather than only neutralising it with cache headers, and your crawlers keep working through `.md`, `/llms.txt`, and the discovery tag and header. Origin-only sites can leave it on.
+
+### Shared-cache detection
+
+Whether the setting is safe for *your* site depends on whether a shared cache sits in front of it — and the plugin now works most of that out for you rather than sending you off to check. A shared-cache check appears directly below the AI Bot User-Agent Detection toggle on the settings page, and the same summary lives at **Utilities → LLM Ready Cache Check**. It gathers three tiers of evidence:
+
+1. **Request headers (automatic).** A proxying edge stamps identifying headers on requests it forwards to the origin: `CF-Ray` and friends for Cloudflare in proxied mode, `Fastly-Client-IP` for Fastly, `X-Varnish` or a `Via: … varnish` for Varnish, `True-Client-IP` for Akamai, `X-Azure-FDID` and `X-Azure-Ref` for Azure Front Door, plus the generic `Via`, `Surrogate-Capability` and `CDN-Loop` signals. This cleanly separates the two Cloudflare modes, which is the distinction that matters most in practice: DNS-only Cloudflare never touches their edge and sends no `CF-*` headers, while orange-cloud proxying always does — so a site that is safe today starts warning the moment the proxy is switched on.
+2. **Page caches running inside Craft (automatic).** An in-Craft page cache never sees the response's cache headers, so its configuration is read directly instead. If Blitz is installed with caching on, the check reports it — as a warning when `cacheNonHtmlResponses` is enabled (the documented Blitz setting that removes the incidental protection around non-HTML responses), or as an informational note otherwise.
+3. **Active probe (behind a button).** **Run cache probe** requests a URL twice and inspects the second response for cache-hit evidence (`Age`, `X-Cache: HIT`, `CF-Cache-Status: HIT`). A hit is the one result that constitutes proof. Azure Front Door's `X-Cache` values are read for what they mean: `TCP_HIT` is a hit, `TCP_MISS` means the route caches but missed this time, and `CONFIG_NOCACHE` means caching is switched off on the route serving that URL — Front Door is in the path, but not storing HTML. The probe always sends a browser User-Agent, never a bot one — a bot-UA probe would push the very Markdown response this feature exists to keep out of shared caches into them.
+
+The first two tiers can only see the environment they run in — which matters, because this setting is usually decided from a local copy of the site, where the local URL says nothing about production. The probe is how you cross that gap: it defaults to the current site's URL, but **point it at your production URL and it reads the live edge from wherever you are**, since all of its evidence comes from the probed server's response headers. Even without a cache hit, a `CF-Cache-Status`, `Server: cloudflare` or `Via` on the response proves a proxy fronts that site. The probe also spots page-cache evidence the passive tiers can't see remotely: Blitz announces itself in the probed site's `X-Powered-By` header, an `X-Page-Cache` header reveals an nginx-style page cache, and a `Cache-Control: s-maxage` directive means the site is built to have a shared cache storing its HTML.
+
+Results are stored per `CRAFT_ENVIRONMENT` (in the database, never project config — this is environment-specific state that must not sync), so the settings page in dev also shows what the last passive check found in production, and vice versa. On production, where `allowAdminChanges` is typically off and plugin settings are hidden, open the utility instead: viewing it is what records that environment's result.
+
+**The check's one hard limit: absence of evidence is not absence of a cache.** An nginx `proxy_cache`, or a Varnish configured not to announce itself, is invisible to every tier. A positive detection is confident; a negative one only ever says "nothing detected". If you know a cache sits in front of your site, trust that knowledge over the check.
 
 ## Quick start
 
@@ -210,8 +224,8 @@ LLM Ready auto-generates a `/llms.txt` file following the [llms.txt specificatio
 
 The generated file includes:
 
-- **H1**: Your site name
-- **Blockquote**: An optional site description (configured in plugin settings)
+- **H1**: Your site name, or a custom title (configured in plugin settings, or handed to editors through a field on a Single or a global set — see [Letting editors manage the site title and description](#letting-editors-manage-the-site-title-and-description))
+- **Blockquote**: An optional site description (configured the same way)
 - **H2 sections**: One per enabled Craft section, with a list of entry links
 
 Example output:
@@ -230,6 +244,58 @@ Example output:
 
 - [Big Announcement](https://example.com/news/big-announcement.md)
 ```
+
+### Letting editors manage the site title and description
+
+The **Site Title** and **Site Description** settings are plugin settings, so they are stored in project config and can only be changed by an admin, and not at all in production when `allowAdminChanges` is off. If content editors should own that text, point either setting at content instead: a value containing `{` is rendered as a Craft object template, the same `{{ ... }}` syntax **Title Field** and **Author Override** accept, with the site available as `site` (and as Craft's usual `object`). Both settings work the same way, so the examples below show them side by side.
+
+Either of Craft's homes for site-wide content works. Add a Plain Text field such as `llmTitle` and a Plain Text or rich-text field such as `llmDescription` to a Single or a global set that editors can edit, then point each setting at its field. You can hand over just one of them — leave the other setting as plain text, or blank.
+
+**A Single** (the [entrification](https://craftcms.com/blog/entrification) route, and what `craft entrify/global-set` produces from a former global set) — query it by section handle. Site Title:
+
+```twig
+{{ craft.entries.section('siteInfo').site(site).one().llmTitle ?? '' }}
+```
+
+Site Description:
+
+```twig
+{{ craft.entries.section('siteInfo').site(site).one().llmDescription ?? '' }}
+```
+
+The `?? ''` keeps the setting quiet if the Single has no live entry for the site: the blockquote is omitted and the H1 falls back to the site's name. A field on the home page Single works the same way with `section('home')`.
+
+Because the setting is a full Twig expression, the fallback can be as long as your site structure needs. A multi-site install that keeps one settings Single per site, both sharing an entry type, can chain them and end with a literal default:
+
+```twig
+{{ craft.entries.section('globalSettingsSite1').site(site).one().llmDescription
+   ?? craft.entries.section('globalSettingsSite2').site(site).one().llmDescription
+   ?? 'This is the default description.' }}
+```
+
+Each step resolves to `null` when it has nothing to offer, and `??` moves on to the next: `.site(site)` limits each query to the site being served, so a Single that isn't enabled for that site returns no entry; a Single whose field the editor left blank returns `null` too, since Craft normalizes an empty Plain Text field to `null`; and the closing string is what every site gets until someone fills the field in. Use `??` rather than `?:` for these guards — Craft's Twig runs in strict mode, and `??` is what lets `.one().llmDescription` on a missing entry resolve quietly instead of throwing. When the Singles share an entry type, the same chain collapses to one query by type:
+
+```twig
+{{ craft.entries.type('globalSettings').site(site).one().llmDescription ?? 'This is the default description.' }}
+```
+
+The same chain works for the title with `llmTitle` in place of `llmDescription`. End it with `?? site.name` to make the fallback explicit, or `?? ''`, which the plugin turns into the site's name anyway.
+
+**A global set** — available by handle exactly as in a site template. Site Title:
+
+```twig
+{{ siteInfo.llmTitle }}
+```
+
+Site Description:
+
+```twig
+{{ siteInfo.llmDescription }}
+```
+
+Either way the value editors enter is content, not project config, so it deploys with the database and can differ per site. That per-site point is the main reason to template the title: the default H1 is the site's name, which already differs per site, while a fixed Site Title replaces it on every site.
+
+Rich-text output is reduced to plain text: tags are stripped, entities decoded, and each paragraph or line break becomes its own line of the blockquote, so a two-paragraph description stays two paragraphs. The title is collapsed to a single line instead, since a line break would end the heading. A template that renders to nothing omits the blockquote, or falls back to the site's name for the H1; one that throws logs a warning and does the same, so a typo in a setting can't take down `/llms.txt`. The cached file is dropped whenever an entry or a global set is saved, so an editor's change is live on the next request. Object templates come from plugin settings, which need an admin (or `config/llm-ready.php`) to change — the same trust boundary as Craft's own title and URI formats.
 
 ## Listing pages
 
@@ -372,10 +438,47 @@ Configure LLM Ready from **Settings > Plugins > LLM Ready** in the Craft control
 | Enable llms.txt | `true` | Serve `/llms.txt` and `/.well-known/llms.txt`. Turn off to 404 the route — and stop the home page advertising it — while leaving `.md` URLs, content negotiation and discovery tags working |
 | Enable WebMCP Tools | `false` | Inject a small script registering read-only WebMCP tools (`get-page-content`, `get-site-overview`) for in-browser AI agents. See [WebMCP tools](#webmcp-tools) |
 | Origin Trial Token | `""` | Chrome/Edge origin trial token for the WebMCP API, injected as a `<meta http-equiv="origin-trial">` tag. Per-origin; leave empty for flag-based local testing |
-| Site Description | `""` | Introduction text for the `/llms.txt` blockquote |
+| Site Title | `""` | Title used for the `/llms.txt` H1 heading. Falls back to the site's name when blank. A value containing `{` is rendered as a Craft object template with the site as `site`, so it can read a field on a Single (`{{ craft.entries.section('siteInfo').site(site).one().llmTitle ?? '' }}`) or a global set (`{{ siteInfo.llmTitle }}`) that content editors manage outside project config, and stay per site where a fixed title applies to every site. Collapsed to one line. See [Letting editors manage the site title and description](#letting-editors-manage-the-site-title-and-description). |
+| Site Description | `""` | Introduction text for the `/llms.txt` blockquote. A value containing `{` is rendered as a Craft object template with the site as `site`, so it can read a field on a Single (`{{ craft.entries.section('siteInfo').site(site).one().llmDescription ?? '' }}`) or a global set (`{{ siteInfo.llmDescription }}`) that content editors manage outside project config. See [Letting editors manage the site title and description](#letting-editors-manage-the-site-title-and-description). |
 | Description Field | `""` | Field handle to use for entry descriptions in `/llms.txt` and listing pages. Supports dot notation (e.g. `seo.seoDescription`), `()` method-call syntax (e.g. `metaData.getMetaDescription()`), Generated Field handles, and a native SEOmatic resolver via `seomatic:description`. See [SEO-PLUGINS.md](SEO-PLUGINS.md) for SEOmatic / Ether SEO / SEOmate / SEO Fields recipes. When set, the configured field is authoritative — no auto-extract fallback runs if it resolves to nothing. |
 | Title Field | `""` | Optional field handle for the front-matter `title:` value. Supports the same syntax as Description Field (dot notation, `()` method calls, Generated Field handles, `seomatic:title`), or a Craft object template such as `{{ entry.longTitle ?: entry.title }}`. Falls back to the entry's native title when blank or unresolved. See [Customizing the title and author](#customizing-the-title-and-author). |
 | Author Override | `""` | Author written to each entry's front matter. A fixed name (a team or company, say) replaces individual editor names on every entry. A Craft object template such as `{% if entry.section.handle == 'blog' %}{{ entry.authors\|map(a => a.fullName ?: a.username)\|join(', ') }}{% endif %}` is rendered per entry, and the `author:` line is omitted when it renders to nothing. Blank uses each entry's own authors, comma-separated on multi-author entries. See [Customizing the title and author](#customizing-the-title-and-author). |
+
+#### Setting AI Bot User-Agent Detection per environment
+
+Whether this setting is safe depends on what sits in front of the site, which usually differs between a local copy (served straight from its origin) and production (behind a CDN or page cache). Rather than toggling it by hand, let it follow the environment from `config/llm-ready.php`. A value there overrides the control panel.
+
+Read it from `.env`:
+
+```php
+// config/llm-ready.php
+use craft\helpers\App;
+
+return [
+    'enableUserAgentDetection' => App::parseBooleanEnv('$LLM_READY_UA_DETECTION') ?? false,
+];
+```
+
+```
+# .env (dev only)
+LLM_READY_UA_DETECTION=true
+```
+
+Or key the file on `CRAFT_ENVIRONMENT` with a [multi-environment config](https://craftcms.com/docs/5.x/config/#multi-environment-configs):
+
+```php
+// config/llm-ready.php
+return [
+    '*' => [
+        'enableUserAgentDetection' => false,
+    ],
+    'dev' => [
+        'enableUserAgentDetection' => true,
+    ],
+];
+```
+
+Any setting present in `config/llm-ready.php` is flagged on the settings page with a "This is being overridden by the `…` setting in config/llm-ready.php" note, and its input is disabled.
 
 ### Section settings
 
@@ -502,6 +605,7 @@ Markdown output is cached using Craft's cache component (Redis, database, or fil
 
 - An entry is saved
 - An entry is deleted
+- A global set is saved (the `/llms.txt` cache only, since its Site Title and Site Description can read one)
 
 The cache TTL is configurable in the plugin settings. Set to `0` to disable caching entirely.
 
@@ -521,7 +625,7 @@ LLM Ready respects Craft's content access rules:
 
 ## Multi-site support
 
-LLM Ready supports Craft's multi-site feature. Each section can be independently enabled or disabled per site, and each site can have its own dedicated LLM template. The `/llms.txt` file is generated per-site, listing only entries belonging to the current site.
+LLM Ready supports Craft's multi-site feature. Each section can be independently enabled or disabled per site, and each site can have its own dedicated LLM template. The `/llms.txt` file is generated per-site, listing only entries belonging to the current site; a Site Title or Site Description sourced from a Single or global set field is per-site too.
 
 ## Troubleshooting
 

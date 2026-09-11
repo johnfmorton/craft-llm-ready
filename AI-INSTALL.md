@@ -165,6 +165,8 @@ Serving Markdown on the canonical URL means the response varies by `User-Agent`,
 
 If the site is served straight from its origin with no CDN or shared cache in front, the setting can be enabled deliberately in **Settings → Plugins → LLM Ready**, after which this command returns Markdown. Ask the site owner before changing it.
 
+To find out whether a shared cache is in front, use the plugin's built-in check: it appears directly below the toggle on the settings page (and at **Utilities → LLM Ready Cache Check**). It inspects request headers and in-Craft page-cache plugins automatically, and its **Run cache probe** button can be pointed at the production URL to read the live edge from a local install. Treat only positive detections as conclusive — "nothing detected" does not prove there is no cache.
+
 ### 7d. Test `/llms.txt`
 
 ```bash
@@ -394,6 +396,7 @@ If the developer wants to customize the plugin beyond defaults, here are the ava
 | Auto-inject Discovery Tag | On | Add a `<link rel="alternate">` tag to HTML pages |
 | Auto-inject Link Header | On | Also advertise the Markdown alternate via an HTTP `Link` header (sent on GET and HEAD) |
 | Cache TTL | 3600 seconds | How long to cache Markdown output (0 = no cache) |
+| Site Title | (empty) | `/llms.txt` H1 heading; blank uses the site's name |
 | Site Description | (empty) | Intro text for the `/llms.txt` blockquote |
 | Description Field | (empty) | Field/path for entry descriptions in `/llms.txt` and listings. Supports dot notation, `()` method calls, Generated Fields, and `seomatic:description` — see Step 9 and `SEO-PLUGINS.md`. Auto-extracts if blank |
 | Title Field | (empty) | Field/path overriding the front-matter `title:` (same syntax as Description Field). Falls back to the entry title if blank |

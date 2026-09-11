@@ -1,0 +1,18 @@
+{# LLM Ready Cache Check utility.
+
+   The same summary as the settings-page banner, reachable without the
+   Settings section — which matters in production, where allowAdminChanges
+   is typically off and plugin settings pages are hidden. Opening this
+   utility is what records the current environment's result, so other
+   environments can see it from their own settings page. #}
+
+<div class="readable" style="margin-bottom: 16px;">
+    <p>
+        {{ 'Checks whether a shared cache or CDN sits in front of this site. LLM Ready’s "AI Bot User-Agent Detection" setting serves Markdown on canonical URLs based on the request’s User-Agent — safe on a site served straight from its origin, but behind a shared cache that response can be stored and replayed to real visitors as raw Markdown. The evidence below is what the plugin can see from this environment.'|t('llm-ready') }}
+    </p>
+    <p class="light">
+        {{ 'Opening this utility records the result for this environment, so it is also visible from the plugin settings page in other environments. The header and plugin checks below only see this environment — but the probe requests whatever URL you give it, so you can check the production edge from anywhere.'|t('llm-ready') }}
+    </p>
+</div>
+
+{% include 'llm-ready/_partials/cache-check' with cacheCheck only %}

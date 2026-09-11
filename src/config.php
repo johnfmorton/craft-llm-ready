@@ -50,7 +50,23 @@ return [
     // discovery tag/header instead. Each is its own URL, so nothing varies
     // and everything stays cacheable.
     //
-    // Safe to turn on if no shared cache sits in front of this site.
+    // Safe to turn on if no shared cache sits in front of this site — which
+    // usually differs per environment (bare origin in dev, CDN in
+    // production). A value here overrides the control panel, so make it
+    // follow the environment in one of two ways:
+    //
+    //   - read a variable from `.env` (add `use craft\helpers\App;` at the
+    //     top of config/llm-ready.php, and `LLM_READY_UA_DETECTION=true` to
+    //     the dev `.env`):
+    //
+    //       'enableUserAgentDetection' => App::parseBooleanEnv('$LLM_READY_UA_DETECTION') ?? false,
+    //
+    //   - or key the file on CRAFT_ENVIRONMENT (a multi-environment config):
+    //
+    //       return [
+    //           '*'   => ['enableUserAgentDetection' => false],
+    //           'dev' => ['enableUserAgentDetection' => true],
+    //       ];
     'enableUserAgentDetection' => false,
 
     // Additional bot user-agent strings to detect, appended to the built-in
@@ -132,9 +148,27 @@ return [
     // page stops advertising an `llms.txt` alternate.
     'enableLlmsTxt' => true,
 
+    // Title used for the `/llms.txt` H1 heading. Leave empty to use the
+    // site's name. Example: 'Acme Developer Docs'
+    //
+    // Accepts a Craft object template exactly as `llmsTxtIntro` below does,
+    // e.g. '{{ siteInfo.llmTitle }}', so editors can manage it per site — a
+    // fixed string applies to every site. The result is collapsed to one
+    // line; a template that renders to nothing falls back to the site's name.
+    'llmsTxtTitle' => '',
+
     // Introduction text for the `/llms.txt` file. Appears as a blockquote
     // below the site name. Helps LLMs understand what the site is about.
-    // Example: 'SuperGeekery is a technical blog covering Craft CMS and web development.'
+    // Example: 'Acme is a technical blog covering Craft CMS and web development.'
+    //
+    // A value containing `{` is rendered as a Craft object template with the
+    // site available as `site`, so the text can come from content that editors
+    // manage instead of from project config — a global set field, say:
+    //   '{{ siteInfo.llmDescription }}'
+    // or a field on a Single:
+    //   '{{ craft.entries.section("home").site(site).one().summary ?? "" }}'
+    // Rich text is reduced to plain text with paragraph breaks kept, and the
+    // cached file is refreshed whenever a global set or entry is saved.
     'llmsTxtIntro' => '',
 
     // Field handle/path for entry descriptions in `/llms.txt` and listing pages.

@@ -908,9 +908,6 @@ class MarkdownService extends Component
             }
         }
 
-        // Invalidate llms.txt cache
-        foreach ($sites as $site) {
-            $cache->delete("llmready:llmstxt:{$site->id}");
-        }
+        LlmReady::getInstance()->llmsTxtService->invalidateCache();
     }
 }
