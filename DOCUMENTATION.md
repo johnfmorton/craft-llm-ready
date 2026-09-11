@@ -156,6 +156,68 @@ section: "Blog"
 ---
 ```
 
+On a Craft 5 entry with more than one author, `author:` lists all of them: `author: "John Morton, Jane Doe"`.
+
+### Customizing the title and author
+
+Two settings under **Front Matter** control the `title:` and `author:` values. Each accepts a plain value or a Craft object template — the same `{{ ... }}` syntax as an entry type's Title Format or a section's URI format.
+
+**Title Field** — blank uses the entry's native title. A field handle or path (`longTitle`, `seo.title`, `metaData.getTitle()`, `seomatic:title`) resolves that field, with the same syntax as Description Field. A value containing `{` is rendered as an object template. Either way, an empty result falls back to the entry's native title, so every response has one.
+
+```twig
+{# Title: prefer a longer marketing title when it's filled in #}
+{{ entry.longTitle ?: entry.title }}
+```
+
+**Author Override** — blank uses each entry's own authors: every author set on the entry, comma-separated, in the order they appear in the control panel (`Jane Doe, Bob Smith`). A fixed name (`Acme Editorial Team`) is written to every entry. A value containing `{` is rendered as an object template per entry; when it renders to nothing, the `author:` line is omitted.
+
+Inside a template the entry is available as `entry` (and as Craft's usual `object`). Some examples:
+
+```twig
+{# Show authors only in the blog and news sections. Inside those sections this
+   mirrors the default: every author, comma-separated, falling back to the
+   username for users who haven't entered a name #}
+{% if entry.section.handle in ['blog', 'news'] %}{{ entry.authors|map(a => a.fullName ?: a.username)|join(', ') }}{% endif %}
+
+{# A plain-text "external authors" field, falling back to related author entries #}
+{{ entry.externalAuthors ?: entry.entryAuthors.all()|map(a => a.title)|join(', ') }}
+
+{# Omit the author line on every entry #}
+{{ '' }}
+```
+
+The result is reduced to plain text (tags stripped, entities decoded, whitespace collapsed) and escaped for YAML by the plugin, so the template outputs only the value — not the `author:` key, and no quoting. A template that throws logs a warning and is treated as empty, so a typo in a setting can't break every Markdown response. Object templates come from plugin settings, which need an admin (or `config/llm-ready.php`) to change — the same trust boundary as Craft's own title and URI formats.
+
+### Extending the front matter from a module
+
+For anything beyond a single value — extra keys, a YAML list of authors, per-section rules written in PHP — listen for `MarkdownService::EVENT_DEFINE_FRONT_MATTER`. The event carries the entry, the site and the plugin's resolved keys in output order; handlers can add, change or remove any of them.
+
+```php
+use johnfmorton\llmready\events\DefineFrontMatterEvent;
+use johnfmorton\llmready\services\MarkdownService;
+use yii\base\Event;
+
+Event::on(
+    MarkdownService::class,
+    MarkdownService::EVENT_DEFINE_FRONT_MATTER,
+    function(DefineFrontMatterEvent $event) {
+        $entry = $event->entry;
+
+        // Replace the scalar author with a YAML list of related author entries
+        $authors = $entry->entryAuthors->collect()->pluck('title')->all();
+        if ($authors) {
+            unset($event->frontMatter['author']);
+            $event->frontMatter['authors'] = $authors;
+        }
+
+        // Add a key of your own
+        $event->frontMatter['reading_time'] = $entry->readingTime . ' min';
+    }
+);
+```
+
+A string value becomes a scalar, a list of strings becomes a sequence, and `null` or an empty value drops the key. Values are escaped by the plugin, so pass plain text. Keys must match `[A-Za-z_][A-Za-z0-9_-]*`; anything else is skipped with a warning. The output is cached for **Cache TTL** seconds like the rest of the Markdown, so a change to something a handler reads from outside the entry itself (a related author's title, say) shows up when the cache expires or the entry is resaved.
+
 ## /llms.txt
 
 LLM Ready auto-generates a `/llms.txt` file following the [llms.txt specification](https://llmstxt.org/). This file serves as a site index for LLMs, listing all enabled sections with links to each entry's Markdown version.
@@ -163,7 +225,7 @@ LLM Ready auto-generates a `/llms.txt` file following the [llms.txt specificatio
 The generated file includes:
 
 - **H1**: Your site name
-- **Blockquote**: An optional site description (configured in plugin settings)
+- **Blockquote**: An optional site description (configured in plugin settings, or handed to editors through a field on a Single or a global set — see [Letting editors manage the site description](#letting-editors-manage-the-site-description))
 - **H2 sections**: One per enabled Craft section, with a list of entry links
 
 Example output:
@@ -182,6 +244,44 @@ Example output:
 
 - [Big Announcement](https://example.com/news/big-announcement.md)
 ```
+
+### Letting editors manage the site description
+
+The **Site Description** setting is a plugin setting, so it is stored in project config and can only be changed by an admin, and not at all in production when `allowAdminChanges` is off. If content editors should own that text, point the setting at content instead: a value containing `{` is rendered as a Craft object template, the same `{{ ... }}` syntax **Title Field** and **Author Override** accept, with the site available as `site` (and as Craft's usual `object`).
+
+Either of Craft's homes for site-wide content works. Add a Plain Text or rich-text field such as `llmDescription` to a Single or a global set that editors can edit, then point the setting at it.
+
+**A Single** (the [entrification](https://craftcms.com/blog/entrification) route, and what `craft entrify/global-set` produces from a former global set) — query it by section handle:
+
+```twig
+{{ craft.entries.section('siteInfo').site(site).one().llmDescription ?? '' }}
+```
+
+The `?? ''` keeps the setting quiet if the Single has no live entry for the site. A field on the home page Single works the same way with `section('home')`.
+
+Because the setting is a full Twig expression, the fallback can be as long as your site structure needs. A multi-site install that keeps one settings Single per site, both sharing an entry type, can chain them and end with a literal default:
+
+```twig
+{{ craft.entries.section('globalSettingsSite1').site(site).one().llmDescription
+   ?? craft.entries.section('globalSettingsSite2').site(site).one().llmDescription
+   ?? 'This is the default description.' }}
+```
+
+Each step resolves to `null` when it has nothing to offer, and `??` moves on to the next: `.site(site)` limits each query to the site being served, so a Single that isn't enabled for that site returns no entry; a Single whose field the editor left blank returns `null` too, since Craft normalizes an empty Plain Text field to `null`; and the closing string is what every site gets until someone fills the field in. Use `??` rather than `?:` for these guards — Craft's Twig runs in strict mode, and `??` is what lets `.one().llmDescription` on a missing entry resolve quietly instead of throwing. When the Singles share an entry type, the same chain collapses to one query by type:
+
+```twig
+{{ craft.entries.type('globalSettings').site(site).one().llmDescription ?? 'This is the default description.' }}
+```
+
+**A global set** — available by handle exactly as in a site template:
+
+```twig
+{{ siteInfo.llmDescription }}
+```
+
+Either way the value editors enter is content, not project config, so it deploys with the database and can differ per site.
+
+Rich-text output is reduced to plain text: tags are stripped, entities decoded, and each paragraph or line break becomes its own line of the blockquote, so a two-paragraph description stays two paragraphs. A template that renders to nothing omits the blockquote; one that throws logs a warning and omits it too, so a typo in the setting can't take down `/llms.txt`. The cached file is dropped whenever an entry or a global set is saved, so an editor's change is live on the next request. Object templates come from plugin settings, which need an admin (or `config/llm-ready.php`) to change — the same trust boundary as Craft's own title and URI formats.
 
 ## Listing pages
 
@@ -272,10 +372,10 @@ Configure LLM Ready from **Settings > Plugins > LLM Ready** in the Craft control
 | Auto-inject Link Header | `true` | Add an HTTP `Link` response header (RFC 8288) pointing at the Markdown alternate. Useful for crawlers that inspect headers without parsing HTML |
 | Cache TTL (seconds) | `3600` | How long to cache Markdown output (`0` to disable) |
 | Enable llms.txt | `true` | Serve `/llms.txt` and `/.well-known/llms.txt`. Turn off to 404 the route — and stop the home page advertising it — while leaving `.md` URLs, content negotiation and discovery tags working |
-| Site Description | `""` | Introduction text for the `/llms.txt` blockquote |
+| Site Description | `""` | Introduction text for the `/llms.txt` blockquote. A value containing `{` is rendered as a Craft object template with the site as `site`, so it can read a field on a Single (`{{ craft.entries.section('siteInfo').site(site).one().llmDescription ?? '' }}`) or a global set (`{{ siteInfo.llmDescription }}`) that content editors manage outside project config. See [Letting editors manage the site description](#letting-editors-manage-the-site-description). |
 | Description Field | `""` | Field handle to use for entry descriptions in `/llms.txt` and listing pages. Supports dot notation (e.g. `seo.seoDescription`), `()` method-call syntax (e.g. `metaData.getMetaDescription()`), Generated Field handles, and a native SEOmatic resolver via `seomatic:description`. See [SEO-PLUGINS.md](SEO-PLUGINS.md) for SEOmatic / Ether SEO / SEOmate / SEO Fields recipes. When set, the configured field is authoritative — no auto-extract fallback runs if it resolves to nothing. |
-| Title Field | `""` | Optional field handle for the front-matter `title:` value. Supports the same syntax as Description Field (dot notation, `()` method calls, Generated Field handles, `seomatic:title`). Falls back to the entry's native title when blank or unresolved. |
-| Author Override | `""` | Fixed author name written to every entry's front matter. Set to a team or company name to avoid leaking individual editor names. Blank uses each entry's own author. |
+| Title Field | `""` | Optional field handle for the front-matter `title:` value. Supports the same syntax as Description Field (dot notation, `()` method calls, Generated Field handles, `seomatic:title`), or a Craft object template such as `{{ entry.longTitle ?: entry.title }}`. Falls back to the entry's native title when blank or unresolved. See [Customizing the title and author](#customizing-the-title-and-author). |
+| Author Override | `""` | Author written to each entry's front matter. A fixed name (a team or company, say) replaces individual editor names on every entry. A Craft object template such as `{% if entry.section.handle == 'blog' %}{{ entry.authors\|map(a => a.fullName ?: a.username)\|join(', ') }}{% endif %}` is rendered per entry, and the `author:` line is omitted when it renders to nothing. Blank uses each entry's own authors, comma-separated on multi-author entries. See [Customizing the title and author](#customizing-the-title-and-author). |
 
 ### Section settings
 
@@ -382,6 +482,12 @@ The analytics dashboard groups requests into four types:
 | **llmstxt** | A request for the `/llms.txt` site index file. |
 | **negotiated** | A request for a normal URL where the client sent an `Accept: text/markdown` HTTP header, and the plugin responded with Markdown instead of HTML. Some AI tools use this approach rather than appending `.md` to URLs. |
 
+### What `direct` means
+
+The bot breakdown labels a request `direct` when the `User-Agent` header that reached Craft was either empty or contained none of the strings in the effective bot list (see [Known AI bot user-agents](#known-ai-bot-user-agents)). It is a catch-all for "not a bot we recognise", not "a person typed the URL into a browser". Monitoring tools, scrapers and newer AI fetchers that aren't in the list all land here. If `direct` dominates your dashboard, your web server's access log filtered to `.md` and `llms.txt` requests shows the real user-agents, and any you want named can be added with `additionalBotUserAgents`.
+
+One user-agent gets its own label. Requests that arrive as `Amazon CloudFront` are logged under that name rather than `direct`, because that value means CloudFront replaced the real user-agent before the request reached your origin. The dashboard shows a warning whenever the selected date range contains them. See [Every request is labeled `direct`, or the dashboard shows `Amazon CloudFront`](#every-request-is-labeled-direct-or-the-dashboard-shows-amazon-cloudfront) under Troubleshooting for the fix.
+
 ### Data retention
 
 Analytics data is retained for a configurable number of days (default 90). You can purge old data manually from the dashboard or automatically via the console command:
@@ -396,6 +502,7 @@ Markdown output is cached using Craft's cache component (Redis, database, or fil
 
 - An entry is saved
 - An entry is deleted
+- A global set is saved (the `/llms.txt` cache only, since its Site Description can read one)
 
 The cache TTL is configurable in the plugin settings. Set to `0` to disable caching entirely.
 
@@ -415,7 +522,7 @@ LLM Ready respects Craft's content access rules:
 
 ## Multi-site support
 
-LLM Ready supports Craft's multi-site feature. Each section can be independently enabled or disabled per site, and each site can have its own dedicated LLM template. The `/llms.txt` file is generated per-site, listing only entries belonging to the current site.
+LLM Ready supports Craft's multi-site feature. Each section can be independently enabled or disabled per site, and each site can have its own dedicated LLM template. The `/llms.txt` file is generated per-site, listing only entries belonging to the current site; a Site Description sourced from a Single or global set field is per-site too.
 
 ## Troubleshooting
 
@@ -444,3 +551,33 @@ LLM Ready invalidates cache automatically on entry save. If you see stale conten
 ```bash
 ./craft clear-caches/data
 ```
+
+### Every request is labeled `direct`, or the dashboard shows `Amazon CloudFront`
+
+`direct` means the `User-Agent` that reached Craft matched nothing in the bot list (see [What `direct` means](#what-direct-means)). When *every* request is `direct`, or a bot called `Amazon CloudFront` appears in the breakdown, something between the visitor and Craft is replacing the header and the plugin never sees the real one.
+
+**Amazon CloudFront** is the usual cause. Unless a cache behavior is told to forward `User-Agent`, CloudFront removes the viewer's header and sends `User-Agent: Amazon CloudFront` to the origin ([AWS docs](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/RequestAndResponseBehaviorCustomOrigin.html#request-custom-user-agent-header)). LLM Ready logs those requests under the name `Amazon CloudFront` and shows a warning on the dashboard. The fix is to forward the header in the distribution's **origin request policy**, not its cache policy:
+
+1. In the CloudFront console open your distribution, go to **Behaviors** and edit each behavior that serves the site.
+2. Under **Cache key and origin requests**, choose **Cache policy and origin request policy** rather than **Legacy cache settings**.
+3. Set **Origin request policy** to the managed **UserAgentRefererHeaders** policy (ID `acba4595-bd28-49b8-b9fe-13317c0390fa`), which forwards only `User-Agent` and `Referer`. **AllViewer** (`216adef6-5c7f-47e4-b989-5492eafa07d3`) also works if you already forward everything. See [managed origin request policies](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-origin-request-policies.html).
+4. Leave `User-Agent` out of the **cache policy**. There it becomes part of the cache key and every user-agent gets its own cached copy. An origin request policy forwards the header without that.
+
+Legacy cache settings have no separate origin request policy. Whitelisting `User-Agent` there does put it in the cache key, so migrate to the policy pair instead.
+
+To confirm the fix, send a request with a bot user-agent and a throwaway query string so it passes the CDN and any page cache, then reload the dashboard with a range that includes today:
+
+```bash
+curl -s -o /dev/null -A "GPTBot/1.0" "https://example.com/some-entry.md?llmready=$(date +%s)"
+```
+
+It should appear as `GPTBot`. Before the fix the same request appears as `Amazon CloudFront`, and your origin's access log shows that literal value in the user-agent column.
+
+Two related points for CloudFront sites:
+
+- CloudFront also strips the `Accept` header by default, so `Accept: text/markdown` content negotiation never reaches Craft. Don't fix that by forwarding `Accept`. CloudFront keys its cache only on the cache policy and ignores the plugin's `Vary` header, so negotiated Markdown for a canonical URL would be cached at the edge and served to browsers. Behind CloudFront, rely on the `.md` URLs and `/llms.txt`, which have their own cache keys.
+- Bots that hit a `.md` URL already cached at the edge never reach Craft, so the dashboard counts origin fetches, not total bot traffic.
+
+**Other proxies.** Any reverse proxy or WAF that sets its own `User-Agent` (an nginx `proxy_set_header User-Agent ...` rule, for example) has the same effect. The access log on the Craft server shows what actually arrives.
+
+**Blitz.** If Blitz's `cacheNonHtmlResponses` setting is on, its cache generator regenerates `.md` URLs itself. The Local Generator sends no user-agent and the HTTP Generator sends `amphp/http-client`, so both are logged as `direct`. The default (`false`) avoids this.

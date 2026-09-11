@@ -19,6 +19,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   The wording is deliberately asymmetric. A positive detection is confident: a shared cache is in front, keep the setting off. A negative one only ever says "nothing detected" — an nginx `proxy_cache` or a Varnish configured not to announce itself is invisible to every tier, so the check never claims a site is safe.
 
+## [1.8.0] - 2026-09-10
+
+### Added
+
+- **Site Description** now accepts a Craft object template, the same `{{ ... }}` syntax Title Field and Author Override take, with the site available as `site`. Set it to `{{ craft.entries.section('siteInfo').site(site).one().llmDescription ?? '' }}` (a Single, as entrification produces) or `{{ siteInfo.llmDescription }}` (a global set) and the `/llms.txt` blockquote comes from a field that content editors can edit, outside project config and per site — until now the text lived in plugin settings, which only an admin can change and which are read-only in production under `allowAdminChanges: false`. A value with no `{` is plain text as before, so existing settings are untouched. Rich-text fields are reduced to plain text with paragraph breaks kept, a template that renders to nothing or throws omits the blockquote (with a warning logged for the latter), and the cached file is dropped whenever an entry or global set is saved so edits are live immediately. See "Letting editors manage the site description" in DOCUMENTATION.md. Thanks to [@ssmithGT](https://github.com/ssmithGT) for the request ([#40](https://github.com/johnfmorton/craft-llm-ready/issues/40))
+
+### Changed
+
+- Blank lines in a plain-text Site Description are now collapsed to a single paragraph break, and leading and trailing blank lines are dropped, instead of each producing an empty `>` line.
+
+## [1.7.1] - 2026-09-07
+
+### Added
+
+- The analytics dashboard now warns when requests in the selected range arrived with the User-Agent `Amazon CloudFront`. That is the value CloudFront substitutes for the viewer's header unless the distribution's origin request policy forwards it, so none of those requests can be matched to a bot, and until now they were indistinguishable from any other `direct` traffic. The warning links to a new Troubleshooting entry with the CloudFront fix. Thanks to [@strandofgenius](https://github.com/strandofgenius) for the report ([#36](https://github.com/johnfmorton/craft-llm-ready/issues/36))
+
+### Changed
+
+- Requests carrying the User-Agent `Amazon CloudFront` are logged under that name instead of `direct`, so the bot breakdown shows how much traffic is affected. Rows logged before this release are unchanged.
+- DOCUMENTATION.md now explains what the `direct` label covers, and the new Troubleshooting entry for an all-`direct` dashboard covers CloudFront's origin request policy (and why `User-Agent` must stay out of the cache policy), the `Accept` header caveat behind CloudFront, other proxies that rewrite the header, and Blitz's cache generator.
+
+## [1.7.0] - 2026-09-07
+
+### Added
+
+- **Title Field** and **Author Override** now accept Craft object templates — the same `{{ ... }}` syntax as an entry type's Title Format or a section's URI format — with the entry available as `entry`. A value with no `{` behaves exactly as before (a field path for Title Field, a fixed name for Author Override), so existing settings are untouched. This covers the two requests the fixed override added in 1.4.0 couldn't: showing authors in some sections only (`{% if entry.section.handle in ['blog', 'news'] %}{{ entry.authors|map(a => a.fullName ?: a.username)|join(', ') }}{% endif %}`) and combining several fields into one value (`{{ entry.externalAuthors ?: entry.entryAuthors.all()|map(a => a.title)|join(', ') }}`). The result is reduced to plain text and escaped for YAML by the plugin, so the template outputs only the value; a template that throws logs a warning and is treated as empty rather than breaking the response. See "Customizing the title and author" in DOCUMENTATION.md. Thanks to [@Mathew-WD](https://github.com/Mathew-WD) and [@john-henry](https://github.com/john-henry) for the requests ([#6](https://github.com/johnfmorton/craft-llm-ready/issues/6))
+- New `MarkdownService::EVENT_DEFINE_FRONT_MATTER` event for modules and plugins. It fires after LLM Ready has resolved its own front matter keys (`title`, `date`, `author`, `canonical_url`, `section`) and before they are written out, carrying the entry, the site and the keys in output order. Handlers can add, change or remove any key: a string becomes a YAML scalar, a list of strings becomes a YAML sequence (an `authors:` list, say), and `null` or an empty value drops the key. See "Extending the front matter from a module" in DOCUMENTATION.md.
+
+### Changed
+
+- Entries with more than one author (Craft 5's multi-author support) now list every author in the front matter, comma-separated in the order they're set on the entry: `author: "Jane Doe, Bob Smith"`. Previously only the primary author was written and co-authors were silently dropped. Single-author entries are unchanged.
+- The Description Field, Title Field, Author Override and per-section LLM Template inputs on the settings page now span the full width instead of a fixed 40 characters, so a longer object template or field path is readable while you edit it.
+- The `author:` line is now omitted when an Author Override template renders to nothing. A fixed Author Override name and an entry's own author are written exactly as before.
+
+### Fixed
+
+- Front matter values containing a backslash, a newline or a tab are now escaped correctly inside YAML double quotes. Previously a title such as `C:\path` was quoted (because of the colon) but its backslash was left bare, which strict YAML parsers reject. Values starting with `-` are now quoted as well.
+
+## [1.6.1] - 2026-08-12
+
+### Fixed
+
+- SEOmatic sites no longer lose their dynamic meta — breadcrumbs JSON-LD, hreflang `<link>` tags, `sameAs`, the homepage name override, everything SEOmatic's `DynamicMeta` pass adds — on pages rendered while LLM Ready is enabled. Reading an entry's resolved `robots` value for the `noindex` handling introduced in 1.6.0 went through SEOmatic's `previewMetaContainers()`, which is destructive in two ways: it flips SEOmatic into a request-wide "previewing" state that LLM Ready never switched back, and it replaces SEOmatic's already-built meta containers with throwaway preview ones that deliberately omit the dynamic-meta pass. Since the lookup runs just before Craft renders each page (to decide whether to advertise the Markdown alternate), SEOmatic then skipped its own meta-container load for the page and rendered the preview leftovers instead.
+
+  The fix removes the preview from that path entirely. For the entry the current request is rendering — the discovery tag and content-negotiation checks — LLM Ready now triggers the same normal, cached container load SEOmatic's own Twig extension performs and reads `robots` from it: the identical value SEOmatic emits in the page's own robots tag, at zero extra cost, with no state to corrupt. Previews remain only for foreign entries (`/llms.txt` listings, `.md` lookups), where no HTML page render follows, and even there SEOmatic's static state is now saved and restored around the call — mirroring what SEOmatic's own `MetaBundle` does internally — so anything rendered afterwards, such as a 404 template, still gets a normal SEOmatic load. One narrow caveat remains, inherent to SEOmatic's preview API: a foreign-entry preview still rebuilds SEOmatic's container state, so if third-party code both forces SEOmatic to load early *and* renders a page after such a lookup in the same request, that page's dynamic meta can still be stale — a sequence LLM Ready itself never produces. Thanks to [@MGxpwr](https://github.com/MGxpwr) for the report and the diagnosis of the state leak ([#34](https://github.com/johnfmorton/craft-llm-ready/issues/34))
+
 ## [1.6.0] - 2026-08-02
 
 ### Added
@@ -241,7 +287,9 @@ _These fixes were surfaced by an independent security review of the plugin. Than
 - Permission checks on all Markdown endpoints — logged-in users without view permission receive a 403
 - Template path traversal protection and XPath injection prevention
 
-[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.6.1...v1.7.0
+[1.6.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.3...v1.6.0
 [1.5.3]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.2...v1.5.3
 [1.5.2]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.1...v1.5.2

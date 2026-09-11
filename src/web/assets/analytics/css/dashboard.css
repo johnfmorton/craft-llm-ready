@@ -1,3 +1,18 @@
+/* Boxed callout for the CloudFront User-Agent warning. Craft's own
+   blockquote.note styling is scoped to .readable, so the box is drawn here
+   from the CP's warning tokens; p.warning.with-icon supplies icon and colour. */
+.llm-ready-dashboard .cloudfront-notice {
+    margin-bottom: 24px;
+    padding: 12px 16px;
+    border: 1px solid var(--warning-border-color, #f5c542);
+    border-radius: 6px;
+    background: var(--warning-background, #fff8e1);
+}
+
+.llm-ready-dashboard .cloudfront-notice p {
+    margin: 0;
+}
+
 .llm-ready-dashboard .stats-row {
     display: flex;
     gap: 24px;

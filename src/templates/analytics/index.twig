@@ -35,6 +35,16 @@
             {% endif %}
         </div>
 
+        {# Shown when the selected range contains requests whose User-Agent was
+           replaced by CloudFront. Toggled by dashboard.js as the range changes. #}
+        <div class="cloudfront-notice" id="cloudfrontNotice" {{ data.cloudfrontRequests == 0 ? 'hidden' }}>
+            <p class="warning with-icon">
+                <strong>CloudFront isn’t forwarding the User-Agent header.</strong>
+                <span id="cloudfrontNoticeCount">{{ data.cloudfrontRequests|number_format }}</span> <span id="cloudfrontNoticeNoun">{{ data.cloudfrontRequests == 1 ? 'request' : 'requests' }}</span> in this range reached Craft with the User-Agent <code>Amazon CloudFront</code>, the value CloudFront substitutes when a distribution’s origin request policy doesn’t forward the viewer’s header. Those requests can’t be matched to a bot until it does.
+                <a href="https://github.com/johnfmorton/craft-llm-ready/blob/main/DOCUMENTATION.md#every-request-is-labeled-direct-or-the-dashboard-shows-amazon-cloudfront" target="_blank" rel="noopener">How to fix it</a>
+            </p>
+        </div>
+
         <div class="stats-row">
             <div class="stat-card">
                 <h4>Total Requests</h4>

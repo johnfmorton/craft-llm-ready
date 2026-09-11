@@ -10,6 +10,7 @@ use craft\elements\Entry;
 use craft\fields\PlainText;
 use craft\models\Section;
 use craft\models\Site;
+use johnfmorton\llmready\events\DefineFrontMatterEvent;
 use johnfmorton\llmready\LlmReady;
 use League\HTMLToMarkdown\HtmlConverter;
 use yii\base\Component;
@@ -20,6 +21,13 @@ use yii\helpers\Html;
  */
 class MarkdownService extends Component
 {
+    /**
+     * @event DefineFrontMatterEvent Raised while building an entry's YAML
+     * front matter, after the plugin has resolved its own values and before
+     * they are written out. Handlers may add, change or remove keys.
+     */
+    public const EVENT_DEFINE_FRONT_MATTER = 'defineFrontMatter';
+
     private ?HtmlConverter $_converter = null;
 
     /**
@@ -368,39 +376,154 @@ class MarkdownService extends Component
     public function buildFrontMatter(Entry $entry, Site $site): string
     {
         $settings = LlmReady::getInstance()->getSettings();
+
+        $frontMatter = [
+            'title' => $this->resolveTitle($entry, $settings->titleField),
+            'date' => $entry->postDate?->format('c'),
+            'author' => $this->resolveAuthor($entry, $settings->authorOverride),
+            'canonical_url' => $entry->getUrl(),
+            'section' => $entry->getSection()?->name,
+        ];
+
+        if ($this->hasEventHandlers(self::EVENT_DEFINE_FRONT_MATTER)) {
+            $event = new DefineFrontMatterEvent([
+                'entry' => $entry,
+                'site' => $site,
+                'frontMatter' => $frontMatter,
+            ]);
+            $this->trigger(self::EVENT_DEFINE_FRONT_MATTER, $event);
+            $frontMatter = $event->frontMatter;
+        }
+
+        return $this->serializeFrontMatter($frontMatter);
+    }
+
+    /**
+     * Resolve the front-matter title. Title Field may be a field path
+     * (`longTitle`, `seo.title`, `seomatic:title`) or a Craft object template
+     * (`{{ entry.longTitle ?: entry.title }}`). Falls back to the entry's
+     * native title when unset or when the configured value resolves empty, so
+     * every response has a title.
+     */
+    private function resolveTitle(Entry $entry, string $titleField): string
+    {
+        $title = null;
+
+        if ($titleField !== '') {
+            $title = $this->isObjectTemplate($titleField)
+                ? $this->renderObjectTemplate($entry, $titleField)
+                : $this->resolveExplicitField($entry, $titleField);
+        }
+
+        return $title ?? $entry->title ?? '';
+    }
+
+    /**
+     * Resolve the front-matter author. Author Override may be a fixed name
+     * written to every entry, or a Craft object template rendered per entry
+     * (`{% if entry.section.handle == 'blog' %}{{ entry.authors|map(a => a.fullName ?: a.username)|join(', ') }}{% endif %}`).
+     * A template that renders to nothing omits the `author:` line. No override
+     * falls through to the entry's own authors — all of them, comma-joined in
+     * the order they're set on the entry, so co-authors on a Craft 5
+     * multi-author entry aren't silently dropped.
+     */
+    private function resolveAuthor(Entry $entry, string $authorOverride): ?string
+    {
+        if ($authorOverride !== '') {
+            return $this->isObjectTemplate($authorOverride)
+                ? $this->renderObjectTemplate($entry, $authorOverride)
+                : $authorOverride;
+        }
+
+        $names = [];
+        foreach ($entry->getAuthors() as $author) {
+            $names[] = $author->fullName ?: $author->username;
+        }
+
+        return $names === [] ? null : implode(', ', $names);
+    }
+
+    /**
+     * Whether a setting value is a Craft object template rather than a plain
+     * string or field path. Mirrors the fast path in
+     * `View::renderObjectTemplate()`: Craft returns anything without a `{`
+     * untouched, so `{` is the unambiguous marker — no field path, `()` call
+     * or `seomatic:` key contains one.
+     */
+    private function isObjectTemplate(string $value): bool
+    {
+        return str_contains($value, '{');
+    }
+
+    /**
+     * Render a Craft object template against an entry — the same `{{ ... }}`
+     * syntax as an entry type's Title Format or a section's URI format. The
+     * entry is exposed as `entry` (and as Craft's usual `object`). The result
+     * is reduced to plain text like any other resolved field. A template that
+     * throws logs a warning and resolves to null, so a typo in a setting can't
+     * take down every Markdown response.
+     *
+     * Templates come from plugin settings, which need an admin (or the config
+     * file) to change — the same trust boundary as Craft's own object
+     * templates.
+     */
+    private function renderObjectTemplate(Entry $entry, string $template): ?string
+    {
+        try {
+            $rendered = Craft::$app->getView()->renderObjectTemplate($template, $entry, ['entry' => $entry]);
+        } catch (\Throwable $e) {
+            Craft::warning("LLM Ready: Object template '{$template}' failed for entry {$entry->id}: {$e->getMessage()}", __METHOD__);
+
+            return null;
+        }
+
+        return $this->normalizeText($rendered);
+    }
+
+    /**
+     * Write front matter keys out as a YAML document. A string becomes a
+     * scalar, a list of strings becomes a sequence, and null or empty values
+     * are omitted — that last rule is what lets an author template that
+     * renders to nothing drop the `author:` line.
+     *
+     * @param array<string, mixed> $frontMatter
+     */
+    private function serializeFrontMatter(array $frontMatter): string
+    {
         $lines = ['---'];
 
-        // Title — fall back to entry.title when titleField is unset or resolves empty.
-        $title = null;
-        if ($settings->titleField !== '') {
-            $title = $this->resolveExplicitField($entry, $settings->titleField);
-        }
-        $lines[] = 'title: ' . $this->yamlEscape($title ?? $entry->title ?? '');
-
-        if ($entry->postDate) {
-            $lines[] = 'date: ' . $entry->postDate->format('c');
-        }
-
-        // Author — explicit override wins; otherwise fall through to the entry's author.
-        if ($settings->authorOverride !== '') {
-            $lines[] = 'author: ' . $this->yamlEscape($settings->authorOverride);
-        } else {
-            $author = $entry->getAuthor();
-            if ($author) {
-                $lines[] = 'author: ' . $this->yamlEscape($author->fullName ?? $author->username);
+        foreach ($frontMatter as $key => $value) {
+            $key = (string) $key;
+            if (!preg_match('/^[A-Za-z_][A-Za-z0-9_-]*$/', $key)) {
+                Craft::warning("LLM Ready: Skipping front matter key '{$key}' — keys must match [A-Za-z_][A-Za-z0-9_-]*", __METHOD__);
+                continue;
             }
-        }
 
-        // Canonical URL
-        $url = $entry->getUrl();
-        if ($url) {
-            $lines[] = 'canonical_url: ' . $this->yamlEscape($url);
-        }
+            if (is_array($value)) {
+                $items = [];
+                foreach ($value as $item) {
+                    if ((is_scalar($item) || $item instanceof \Stringable) && trim((string) $item) !== '') {
+                        $items[] = trim((string) $item);
+                    }
+                }
+                if ($items === []) {
+                    continue;
+                }
+                $lines[] = "{$key}:";
+                foreach ($items as $item) {
+                    $lines[] = '  - ' . $this->yamlEscape($item);
+                }
+                continue;
+            }
 
-        // Section
-        $section = $entry->getSection();
-        if ($section) {
-            $lines[] = 'section: ' . $this->yamlEscape($section->name);
+            if (!is_scalar($value) && !$value instanceof \Stringable) {
+                continue;
+            }
+            $value = trim((string) $value);
+            if ($value === '') {
+                continue;
+            }
+            $lines[] = "{$key}: " . $this->yamlEscape($value);
         }
 
         $lines[] = '---';
@@ -410,16 +533,48 @@ class MarkdownService extends Component
     }
 
     /**
-     * Escape a value for YAML output
+     * Escape a value for YAML output.
+     *
+     * ISO 8601 timestamps (the `date:` line) are left bare so YAML parsers keep
+     * them typed. Anything containing YAML-significant characters — or that
+     * starts with whitespace or `-`, or ends with whitespace — is double-quoted
+     * with backslashes, quotes and control characters escaped.
      */
     private function yamlEscape(string $value): string
     {
-        // Quote if contains special characters
-        if (preg_match('/[:#\[\]{}|>&*!,\'"%@`]/', $value) || $value === '') {
-            return '"' . str_replace('"', '\\"', $value) . '"';
+        if (preg_match('/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}))?$/', $value)) {
+            return $value;
+        }
+
+        if ($value === '' || preg_match('/[:#\[\]{}|>&*!,\'"%@`\\\\\x00-\x1f]|^[\s-]|\s$/', $value)) {
+            $escaped = strtr($value, [
+                '\\' => '\\\\',
+                '"' => '\\"',
+                "\n" => '\\n',
+                "\r" => '\\r',
+                "\t" => '\\t',
+            ]);
+            // Any remaining control character has no YAML escape worth keeping.
+            $escaped = (string) preg_replace('/[\x00-\x08\x0b\x0c\x0e-\x1f]/', '', $escaped);
+
+            return '"' . $escaped . '"';
         }
 
         return $value;
+    }
+
+    /**
+     * Reduce a resolved value to a single line of plain text: strip tags,
+     * decode entities, collapse whitespace. Returns null when nothing is left.
+     */
+    private function normalizeText(string $value): ?string
+    {
+        $text = strip_tags($value);
+        $text = Html::decode($text);
+        $text = (string) preg_replace('/\s+/', ' ', $text);
+        $text = trim($text);
+
+        return $text !== '' ? $text : null;
     }
 
     /**
@@ -593,36 +748,8 @@ class MarkdownService extends Component
             return null;
         }
 
-        $seomaticClass = '\nystudio107\seomatic\Seomatic';
-        if (!class_exists($seomaticClass)) {
-            return null;
-        }
-        if (!Craft::$app->getPlugins()->isPluginEnabled('seomatic')) {
-            return null;
-        }
-
-        $uri = $entry->uri;
-        if (!is_string($uri) || $uri === '') {
-            return null;
-        }
-
         try {
-            // Drop the early-return guard inside previewMetaContainers so we
-            // get fresh resolution even when SEOmatic has already run for
-            // the outer /llms.txt or .md request.
-            $seomaticClass::$previewingMetaContainers = false;
-
-            $plugin = $seomaticClass::$plugin;
-            $plugin->metaContainers->previewMetaContainers(
-                $uri,
-                (int) $entry->siteId,
-                true,
-                true,
-                $entry,
-            );
-            $plugin->metaContainers->parseGlobalVars();
-
-            $meta = $seomaticClass::$seomaticVariable?->meta;
+            $meta = LlmReady::getInstance()->seoService->previewSeomaticMeta($entry);
             if ($meta === null) {
                 return null;
             }
@@ -632,12 +759,7 @@ class MarkdownService extends Component
                 return null;
             }
 
-            $value = strip_tags($value);
-            $value = Html::decode($value);
-            $value = (string) preg_replace('/\s+/', ' ', $value);
-            $value = trim($value);
-
-            return $value !== '' ? $value : null;
+            return $this->normalizeText($value);
         } catch (\Throwable $e) {
             Craft::warning("LLM Ready: SEOmatic resolution failed for entry {$entry->id}: {$e->getMessage()}", __METHOD__);
             return null;
@@ -693,12 +815,7 @@ class MarkdownService extends Component
                 return null;
             }
 
-            $text = strip_tags($value);
-            $text = Html::decode($text);
-            $text = (string) preg_replace('/\s+/', ' ', $text);
-            $text = trim($text);
-
-            return $text !== '' ? $text : null;
+            return $this->normalizeText($value);
         }
 
         return null;
@@ -791,9 +908,6 @@ class MarkdownService extends Component
             }
         }
 
-        // Invalidate llms.txt cache
-        foreach ($sites as $site) {
-            $cache->delete("llmready:llmstxt:{$site->id}");
-        }
+        LlmReady::getInstance()->llmsTxtService->invalidateCache();
     }
 }

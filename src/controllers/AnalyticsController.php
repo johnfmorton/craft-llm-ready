@@ -129,15 +129,17 @@ class AnalyticsController extends Controller
         $startDate = (new \DateTime())->modify('-30 days')->format('Y-m-d 00:00:00');
 
         $analyticsService = $plugin->analyticsService;
+        $botBreakdown = $analyticsService->getBotBreakdown($site->id, $startDate, $endDate);
 
         $data = [
             'totalRequests' => $analyticsService->getTotalRequests($site->id, $startDate, $endDate),
             'requestsOverTime' => $analyticsService->getRequestsOverTime($site->id, $startDate, $endDate),
             'requestsOverTimeByBot' => $analyticsService->getRequestsOverTimeByBot($site->id, $startDate, $endDate),
             'requestsOverTimeByType' => $analyticsService->getRequestsOverTimeByType($site->id, $startDate, $endDate),
-            'botBreakdown' => $analyticsService->getBotBreakdown($site->id, $startDate, $endDate),
+            'botBreakdown' => $botBreakdown,
             'requestTypeBreakdown' => $analyticsService->getRequestTypeBreakdown($site->id, $startDate, $endDate),
             'mostAccessedPages' => $analyticsService->getMostAccessedPages($site->id, $startDate, $endDate),
+            'cloudfrontRequests' => $analyticsService->getCloudFrontRequestCount($botBreakdown),
         ];
 
         return $this->renderTemplate('llm-ready/analytics/index', [
@@ -191,15 +193,17 @@ class AnalyticsController extends Controller
         $requestType = $this->parseFilterParam($request->getParam('requestType'), self::ALLOWED_REQUEST_TYPES);
 
         $analyticsService = LlmReady::getInstance()->analyticsService;
+        $botBreakdown = $analyticsService->getBotBreakdown($siteId, $startDate, $endDate, $botName, $requestType);
 
         return $this->asJson([
             'totalRequests' => $analyticsService->getTotalRequests($siteId, $startDate, $endDate, $botName, $requestType),
             'requestsOverTime' => $analyticsService->getRequestsOverTime($siteId, $startDate, $endDate, $granularity, $botName, $requestType),
             'requestsOverTimeByBot' => $analyticsService->getRequestsOverTimeByBot($siteId, $startDate, $endDate, $granularity, $botName, $requestType),
             'requestsOverTimeByType' => $analyticsService->getRequestsOverTimeByType($siteId, $startDate, $endDate, $granularity, $botName, $requestType),
-            'botBreakdown' => $analyticsService->getBotBreakdown($siteId, $startDate, $endDate, $botName, $requestType),
+            'botBreakdown' => $botBreakdown,
             'requestTypeBreakdown' => $analyticsService->getRequestTypeBreakdown($siteId, $startDate, $endDate, $botName, $requestType),
             'mostAccessedPages' => $analyticsService->getMostAccessedPages($siteId, $startDate, $endDate, 20, $botName, $requestType),
+            'cloudfrontRequests' => $analyticsService->getCloudFrontRequestCount($botBreakdown),
         ]);
     }
 
