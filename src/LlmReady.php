@@ -9,6 +9,7 @@ use craft\base\Element;
 use craft\base\Model;
 use craft\base\Plugin;
 use craft\elements\Entry;
+use craft\elements\GlobalSet;
 use craft\errors\SiteNotFoundException;
 use craft\events\ConfigEvent;
 use craft\events\DeleteSiteEvent;
@@ -659,6 +660,17 @@ class LlmReady extends Plugin
                 /** @var Entry $entry */
                 $entry = $event->sender;
                 $this->markdownService->invalidateEntryCache($entry);
+            },
+        );
+
+        // The Site Description setting can be a template that reads a global
+        // set, so an editor's change to one must reach /llms.txt without
+        // waiting out the cache TTL.
+        Event::on(
+            GlobalSet::class,
+            Element::EVENT_AFTER_SAVE,
+            function(ModelEvent $event) {
+                $this->llmsTxtService->invalidateCache();
             },
         );
     }

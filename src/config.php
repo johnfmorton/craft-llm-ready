@@ -139,6 +139,15 @@ return [
     // Introduction text for the `/llms.txt` file. Appears as a blockquote
     // below the site name. Helps LLMs understand what the site is about.
     // Example: 'SuperGeekery is a technical blog covering Craft CMS and web development.'
+    //
+    // A value containing `{` is rendered as a Craft object template with the
+    // site available as `site`, so the text can come from content that editors
+    // manage instead of from project config — a global set field, say:
+    //   '{{ siteInfo.llmDescription }}'
+    // or a field on a Single:
+    //   '{{ craft.entries.section("home").site(site).one().summary ?? "" }}'
+    // Rich text is reduced to plain text with paragraph breaks kept, and the
+    // cached file is refreshed whenever a global set or entry is saved.
     'llmsTxtIntro' => '',
 
     // Field handle/path for entry descriptions in `/llms.txt` and listing pages.
