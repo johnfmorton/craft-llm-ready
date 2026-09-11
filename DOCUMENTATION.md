@@ -348,7 +348,7 @@ A live search tool (`search-entries`) and per-tool analytics are planned for a f
 
 WebMCP is an emerging web standard, currently in **origin trial** — an opt-in preview period browsers use for new APIs:
 
-- **Chrome 149+ / Edge 150+** with an origin trial token (see below), or the `about:flags#enable-webmcp-testing` flag for local testing.
+- **Chrome 149+ / Edge 150+** with an origin trial token (see below), or the `chrome://flags#enable-webmcp-testing` flag for local testing (Chrome 150+ if you also want the inspector extension described under [Testing locally](#testing-locally)).
 - **ChatGPT Desktop** supports page tools in its built-in browser; **Brave** has experimental support in Leo.
 - Firefox and Safari have not shipped the API.
 
@@ -359,7 +359,15 @@ Visitors without a capable browser are unaffected: the injected script (~1.5 KB 
 1. Turn on **Enable WebMCP Tools** in the plugin settings.
 2. For real visitors, register your origin for the WebMCP origin trial at [Chrome's origin trials console](https://developer.chrome.com/origintrials/) and paste the token into **Origin Trial Token**. Tokens are free, per-origin, and expire — multi-site installs on different domains need one per site, settable per site in `config/llm-ready.php`. Skip this for local testing with the browser flag.
 
-To verify without an agent, open the browser console on an enabled page:
+### Testing locally
+
+You don't need an agent to see the tools working:
+
+1. In Chrome 150+ enable `chrome://flags#enable-webmcp-testing` and restart the browser. No origin trial token is needed while the flag is on.
+2. Install Google's [WebMCP Model Context Tool Inspector](https://chromewebstore.google.com/detail/webmcp-model-context-tool/gbpdfapgefenggkahomfgkhfehlcenpd) extension. It lists the tools each page registers, lets you execute one by hand with arguments you type, and can hand the tools to Gemini so a real agent decides when to call them — the closest thing to a production agent you can run on a local site. Its author warns that it has no production security boundaries, so keep it on a development profile and don't browse untrusted sites with it enabled.
+3. Open an enabled entry page. The inspector should list `get-page-content` and `get-site-overview`; run `get-page-content` and you should see the page's Markdown.
+
+Or check from the browser console on an enabled page:
 
 ```js
 const tools = await document.modelContext.getTools();
@@ -371,11 +379,26 @@ console.log(tools.map(t => t.name));
 
 On pages where at least one tool applies, LLM Ready injects a small deferred script (from the plugin's asset bundle), a `<script type="application/json">` configuration block, and — when a token is set — the `<meta http-equiv="origin-trial">` tag. Nothing about the page varies by visitor, so the injection is fully compatible with Blitz, Cloudflare, and other full-page caches. Your templates need a `<head>` element (same requirement as the discovery tag), and a strict Content-Security-Policy must allow the plugin's asset bundle URL in `script-src` — there is no inline JavaScript.
 
+### Placing the tag yourself
+
+Automatic injection covers pages Craft renders through its page pipeline whose URL resolves to an entry. For anything else, turn off **Auto-inject WebMCP** and place the bootstrap where you want it:
+
+```twig
+{# in a layout: the site overview tool everywhere, the page tool on entry pages #}
+{{ craft.llmReady.webMcp() }}
+
+{# a custom route whose template knows which entry it shows #}
+{{ craft.llmReady.webMcp({ entry: entry }) }}
+```
+
+The tag outputs the same three pieces automatic injection adds — the origin trial meta tag when a token is set, the JSON configuration block, and the deferred script — as literal markup at the point of the call. It can sit anywhere in the document, works in templates rendered outside Craft's page pipeline, and renders nothing when the plugin or **Enable WebMCP Tools** is off, so one CP setting still turns the feature off everywhere. An entry passed in is checked against the same rules as the `.md` URL — enabled section, live, not `noindex` — so the tag can never expose more than a crawler could fetch. Leave **Auto-inject WebMCP** on and the page carries the bootstrap twice.
+
 Tools run in the visitor's browser with the visitor's session, but they fetch the same public `.md` and `/llms.txt` URLs any anonymous visitor gets — drafts and pending changes are never exposed.
 
 ### Troubleshooting WebMCP
 
 - **`document.modelContext` is undefined** — the browser doesn't have WebMCP enabled. Check the browser version, the origin trial token (per-origin, and tokens expire), or enable the testing flag locally.
+- **Nothing injected at all, and no `<link rel="alternate">` discovery tag either** — the template has no `</head>`, `<body>`, or `</body>`. Craft delivers everything a plugin registers (scripts, asset bundles, meta tags) by inserting its `head()`, `beginBody()`, and `endBody()` hooks where it finds those tags, and silently drops all of it when they are missing — a bare fragment, or a scaffolded starter template that was never wrapped in a layout, fails this way. Wrap the template in a full document, or place the bootstrap yourself with `{{ craft.llmReady.webMcp() }}` (see [Placing the tag yourself](#placing-the-tag-yourself)); the discovery tag has no manual equivalent.
 - **No tools on a page** — the same rules as the discovery tag apply. Check the page source for the `llm-ready-webmcp` JSON block: absent means the server decided not to register tools here (disabled section, `noindex`, llms.txt off on a non-entry page); present means the issue is browser-side.
 - **The agent ignores the tools** — registration working (verify via `getTools()`) doesn't guarantee a given agent *uses* them; agent behavior varies by product. This is the newest part of the ecosystem.
 
@@ -437,6 +460,7 @@ Configure LLM Ready from **Settings > Plugins > LLM Ready** in the Craft control
 | Cache TTL (seconds) | `3600` | How long to cache Markdown output (`0` to disable) |
 | Enable llms.txt | `true` | Serve `/llms.txt` and `/.well-known/llms.txt`. Turn off to 404 the route — and stop the home page advertising it — while leaving `.md` URLs, content negotiation and discovery tags working |
 | Enable WebMCP Tools | `false` | Inject a small script registering read-only WebMCP tools (`get-page-content`, `get-site-overview`) for in-browser AI agents. See [WebMCP tools](#webmcp-tools) |
+| Auto-inject WebMCP | `true` | Add the WebMCP bootstrap to site pages automatically. Turn off to place it yourself with `{{ craft.llmReady.webMcp() }}` — see [Placing the tag yourself](#placing-the-tag-yourself) |
 | Origin Trial Token | `""` | Chrome/Edge origin trial token for the WebMCP API, injected as a `<meta http-equiv="origin-trial">` tag. Per-origin; leave empty for flag-based local testing |
 | Site Title | `""` | Title used for the `/llms.txt` H1 heading. Falls back to the site's name when blank. A value containing `{` is rendered as a Craft object template with the site as `site`, so it can read a field on a Single (`{{ craft.entries.section('siteInfo').site(site).one().llmTitle ?? '' }}`) or a global set (`{{ siteInfo.llmTitle }}`) that content editors manage outside project config, and stay per site where a fixed title applies to every site. Collapsed to one line. See [Letting editors manage the site title and description](#letting-editors-manage-the-site-title-and-description). |
 | Site Description | `""` | Introduction text for the `/llms.txt` blockquote. A value containing `{` is rendered as a Craft object template with the site as `site`, so it can read a field on a Single (`{{ craft.entries.section('siteInfo').site(site).one().llmDescription ?? '' }}`) or a global set (`{{ siteInfo.llmDescription }}`) that content editors manage outside project config. See [Letting editors manage the site title and description](#letting-editors-manage-the-site-title-and-description). |

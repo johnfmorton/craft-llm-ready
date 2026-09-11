@@ -22,8 +22,12 @@ Phase 2's `search-entries`.
 - [ ] Test Craft site with this branch's build of LLM Ready; a blog with
       10+ entries across at least two sections, so the site-scope question
       has a real answer living on a different page.
-- [ ] Chrome 149+ with `about:flags#enable-webmcp-testing` enabled and an
-      agent surface available (or ChatGPT Desktop pointed at the test site).
+- [ ] Chrome 150+ with `chrome://flags#enable-webmcp-testing` enabled and
+      Google's WebMCP Model Context Tool Inspector extension installed. Its
+      Gemini mode is the agent sidebar the screen directions below assume;
+      its manual mode gives a deterministic tool call for the "after" beats
+      if Gemini under-uses a tool on a take. ChatGPT Desktop pointed at the
+      test site is an alternative agent.
 - [ ] **Enable WebMCP Tools** turned on in the plugin settings.
 - [ ] Console snippet on the clipboard: `await document.modelContext.getTools()`
 - [ ] Two rehearsed questions:

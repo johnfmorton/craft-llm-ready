@@ -38,7 +38,9 @@ WebMCP is an emerging web standard, currently in **origin trial** — an
 opt-in preview period browsers use for new APIs.
 
 - **Chrome 149+ / Edge 150+** with an origin trial token (see below), or the
-  `about:flags#enable-webmcp-testing` flag for local testing.
+  `chrome://flags#enable-webmcp-testing` flag for local testing (Chrome 150+
+  if you also want the inspector extension described under *Testing
+  locally*).
 - **ChatGPT Desktop** supports page tools in its built-in browser.
 - **Brave** has experimental support in Leo.
 - Firefox and Safari have not shipped the API. Visitors on those browsers are
@@ -55,12 +57,28 @@ the tools — but it is a deliberate opt-in while the standard settles.
    [origin trials console](https://developer.chrome.com/origintrials/) and
    paste the token into the **Origin Trial Token** setting. (Skip this for
    local testing with the browser flag.)
-3. Open any enabled entry page in Chrome 149+ with an agent surface active,
-   and ask it something about the page — it will read your authored Markdown
-   through `get-page-content` instead of scraping your HTML.
+3. Open any enabled entry page in Chrome with an agent active — ChatGPT
+   Desktop's browser, or the inspector extension's Gemini mode described
+   next — and ask it something about the page. It will read your authored
+   Markdown through `get-page-content` instead of scraping your HTML.
 
-To verify the plumbing without an agent, open the browser console on an
-enabled page:
+### Testing locally
+
+You don't need an agent to see the tools working:
+
+1. In Chrome 150+ enable `chrome://flags#enable-webmcp-testing` and restart
+   the browser. No origin trial token is needed while the flag is on.
+2. Install Google's [WebMCP Model Context Tool Inspector](https://chromewebstore.google.com/detail/webmcp-model-context-tool/gbpdfapgefenggkahomfgkhfehlcenpd)
+   extension. It lists the tools each page registers, lets you execute one
+   by hand with arguments you type, and can hand the tools to Gemini so a
+   real agent decides when to call them. Its author warns that it has no
+   production security boundaries, so keep it on a development profile and
+   don't browse untrusted sites with it enabled.
+3. Open an enabled entry page. The inspector should list `get-page-content`
+   and `get-site-overview`; run `get-page-content` and you should see the
+   page's Markdown.
+
+Or check from the browser console on an enabled page:
 
 ```js
 const tools = await document.modelContext.getTools();
@@ -175,12 +193,41 @@ window.llmReady?.modelContext?.registerTool({ /* WebMCP tool descriptor */ });
 > form, and think carefully before letting an agent trigger it. The plugin
 > ships no mutating tools for exactly this reason.
 
+### Placing the tag yourself
+
+Automatic injection covers pages Craft renders through its page pipeline whose URL resolves to an entry. For anything else, turn off **Auto-inject WebMCP** and place the bootstrap where you want it:
+
+```twig
+{# in a layout: the site overview tool everywhere, the page tool on entry pages #}
+{{ craft.llmReady.webMcp() }}
+
+{# a custom route whose template knows which entry it shows #}
+{{ craft.llmReady.webMcp({ entry: entry }) }}
+```
+
+The tag outputs the same three pieces automatic injection adds — the origin trial meta tag when a token is set, the JSON configuration block, and the deferred script — as literal markup at the point of the call. It can sit anywhere in the document, works in templates rendered outside Craft's page pipeline, and renders nothing when the plugin or **Enable WebMCP Tools** is off, so one CP setting still turns the feature off everywhere. An entry passed in is checked against the same rules as the `.md` URL — enabled section, live, not `noindex` — so the tag can never expose more than a crawler could fetch. Leave **Auto-inject WebMCP** on and the page carries the bootstrap twice.
+
 ### Troubleshooting
 
 **`document.modelContext` is undefined.** The browser doesn't have WebMCP
 enabled. Check the browser version (Chrome 149+/Edge 150+), the origin trial
 token (per-origin, and tokens expire), or enable
-`about:flags#enable-webmcp-testing` for local testing.
+`chrome://flags#enable-webmcp-testing` for local testing.
+
+**The API exists but the inspector extension shows nothing.** The extension
+needs Chrome 150+ and the testing flag. If the page's `llm-ready-webmcp`
+JSON island is present and `getTools()` in the console lists the tools,
+the plugin side is fine — reload the extension's panel.
+
+**Nothing is injected at all — and the `<link rel="alternate">` discovery
+tag is missing too.** The template has no `</head>`, `<body>`, or `</body>`.
+Craft delivers everything a plugin registers (scripts, asset bundles, meta
+tags) by inserting its `head()`, `beginBody()`, and `endBody()` hooks where
+it finds those tags, and silently drops all of it when they are missing —
+a bare fragment, or a scaffolded starter template that was never wrapped in
+a layout, fails this way. Wrap the template in a full document, or place
+the bootstrap yourself with `{{ craft.llmReady.webMcp() }}`; the discovery
+tag has no manual equivalent.
 
 **The tools don't appear on a page.** The same rules as the discovery tag
 apply: the section must be enabled for the current site, the entry must be

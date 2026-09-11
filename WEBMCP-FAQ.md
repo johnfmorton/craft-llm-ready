@@ -47,8 +47,10 @@ serves it in a meta tag; the browser then enables the API for that site's
 visitors. The plugin has a setting for the token and injects the tag for you.
 Tokens are free, per-origin, and expire — multi-site installs on different
 domains need one per site. For local development you can skip the token and
-flip `about:flags#enable-webmcp-testing` instead. When the API ships
-unflagged, the token step disappears.
+flip `chrome://flags#enable-webmcp-testing` instead (Chrome 150+); Google's
+[WebMCP Model Context Tool Inspector](https://chromewebstore.google.com/detail/webmcp-model-context-tool/gbpdfapgefenggkahomfgkhfehlcenpd)
+extension then lists the page's tools, runs them by hand, or hands them to
+Gemini. When the API ships unflagged, the token step disappears.
 
 ### Will it slow down my site?
 

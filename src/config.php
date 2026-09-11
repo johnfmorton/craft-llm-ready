@@ -200,13 +200,19 @@ return [
     // are unaffected — the script is a silent no-op there.
     'enableWebMcp' => false,
 
+    // Whether to inject the WebMCP bootstrap automatically on site pages.
+    // Turn off to place it yourself with `{{ craft.llmReady.webMcp() }}`
+    // (custom routes, templates rendered outside the page pipeline, or
+    // full control over placement).
+    'autoInjectWebMcp' => true,
+
     // Chrome/Edge Origin Trial token for the WebMCP API, injected as a
     // `<meta http-equiv="origin-trial">` tag on pages carrying the tool
     // script. Register your origin at https://developer.chrome.com/origintrials/
     // to get one. Tokens are per-origin, so multi-site installs on different
     // domains need one per site — use a multi-environment config or
     // per-site override here. Leave empty for local testing with the
-    // `about:flags#enable-webmcp-testing` browser flag.
+    // `chrome://flags#enable-webmcp-testing` browser flag (Chrome 150+).
     'webMcpOriginTrialToken' => '',
 
     // -----------------------------------------------------------------------

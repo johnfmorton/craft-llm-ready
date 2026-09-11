@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **WebMCP tools (opt-in).** With **Enable WebMCP Tools** on, site pages register read-only tools for AI agents running in the visitor's browser via the emerging [WebMCP standard](https://github.com/webmachinelearning/webmcp): `get-page-content` (the current entry's Markdown) and `get-site-overview` (the `/llms.txt` index). Both fetch existing public URLs and enforce the same visibility rules as `.md` serving, declare the WebMCP `readOnlyHint`, and are a silent no-op in browsers without the API. An **Origin Trial Token** setting injects the `<meta http-equiv="origin-trial">` tag real visitors' browsers need while the API is in trial. Off by default. See the [WebMCP tools](DOCUMENTATION.md#webmcp-tools) documentation.
+- **`{{ craft.llmReady.webMcp() }}`** places the WebMCP bootstrap yourself — for custom routes (pass `{ entry: entry }`), templates rendered outside Craft's page pipeline, or full control over placement — with a matching **Auto-inject WebMCP** setting to turn the automatic injection off. The tag honors **Enable WebMCP Tools**, so one setting still turns the feature off everywhere.
+
 ## [1.9.0] - 2026-09-11
 
 ### Added

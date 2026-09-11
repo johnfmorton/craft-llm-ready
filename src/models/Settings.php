@@ -102,13 +102,23 @@ class Settings extends Model
      *
      * Off by default while the WebMCP API is in origin trial: real visitors
      * need the site to serve an origin trial token (see
-     * $webMcpOriginTrialToken), and local testing needs Chrome 149+ with the
-     * `about:flags#enable-webmcp-testing` flag. Browsers without the API are
+     * $webMcpOriginTrialToken), and local testing needs Chrome 150+ with the
+     * `chrome://flags#enable-webmcp-testing` flag. Browsers without the API are
      * unaffected either way — the script is a silent no-op there.
      *
      * @var bool
      */
     public bool $enableWebMcp = false;
+
+    /**
+     * Whether to inject the WebMCP bootstrap automatically on site pages
+     * (when $enableWebMcp is on). Turn off to place it yourself with
+     * `{{ craft.llmReady.webMcp() }}` — for custom routes, templates rendered
+     * outside Craft's page pipeline, or full control over script placement.
+     *
+     * @var bool
+     */
+    public bool $autoInjectWebMcp = true;
 
     /**
      * Chrome/Edge Origin Trial token for the WebMCP API, injected as a
@@ -128,7 +138,7 @@ class Settings extends Model
     public function rules(): array
     {
         return [
-            [['enabled', 'noindexHeader', 'autoInjectDiscoveryTag', 'autoInjectLinkHeader', 'enableContentNegotiation', 'enableUserAgentDetection', 'enableAnalytics', 'enableWebMcp'], 'boolean'],
+            [['enabled', 'noindexHeader', 'autoInjectDiscoveryTag', 'autoInjectLinkHeader', 'enableContentNegotiation', 'enableUserAgentDetection', 'enableAnalytics', 'enableWebMcp', 'autoInjectWebMcp'], 'boolean'],
             [['contentSelector', 'excludeSelector', 'llmsTxtTitle', 'llmsTxtIntro', 'descriptionField', 'titleField', 'authorOverride', 'webMcpOriginTrialToken'], 'string'],
             ['cacheTtl', 'integer', 'min' => 0],
             ['analyticsRetentionDays', 'integer', 'min' => 1],

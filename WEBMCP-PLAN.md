@@ -1,6 +1,7 @@
 # WebMCP Support — Planning Document
 
-Status: **draft / exploration** — nothing in this document is implemented yet.
+Status: **Phase 1 built, unreleased** — see §7 for what is implemented on
+this branch and the manual checklist the release is gated on.
 Last researched: September 2026.
 
 This document explores the WebMCP browser API and proposes how LLM Ready can
@@ -93,7 +94,9 @@ Other relevant surface:
 Per the spec repo's `implementation-status.md`:
 
 - **Chrome 149** — Origin Trial live; local testing via
-  `about:flags#enable-webmcp-testing`.
+  `chrome://flags#enable-webmcp-testing`. Google ships a developer
+  extension, the WebMCP Model Context Tool Inspector (Chrome 150+), that
+  lists a page's tools, executes them by hand, or hands them to Gemini.
 - **Edge 150** — Origin Trial live, mirroring Chrome.
 - **ChatGPT Desktop** — supported (its embedded browser consumes page tools).
 - **Brave** — experimental support in Leo AI chat.
@@ -216,6 +219,13 @@ Mirror `registerDiscoveryTagInjection()` (src/LlmReady.php:440): on
    tools are enabled, site handle) is passed as JSON in a
    `<script type="application/json" id="llm-ready-webmcp">…</script>` data
    island, which CSP treats as data, not code.
+3. **Manual placement** (added after Phase 1): `{{ craft.llmReady.webMcp() }}`
+   emits the same three pieces as literal markup, with an optional `entry`
+   for custom routes, gated by an `autoInjectWebMcp` setting that mirrors
+   `autoInjectDiscoveryTag`. It honors the master `enableWebMcp` switch,
+   so the CP setting stays the single off switch. Both paths share one
+   builder (`getWebMcpConfig()`), so visibility rules cannot drift. This
+   is also the natural home for Phase 3 developer tool descriptors.
 
 The bootstrap script (vanilla ES module, no build-step dependencies beyond
 what the repo already tolerates):
@@ -451,8 +461,8 @@ adapter must target:
 
 ### What was built
 
-- `enableWebMcpPrototype` setting — config-file only, default off, no CP
-  UI (src/models/Settings.php, documented in src/config.php).
+- A config-file-only `enableWebMcpPrototype` switch, default off, no CP
+  UI — since replaced by the real `enableWebMcp` setting in Phase 1.
 - `WebMcpAsset` + `js/webmcp.js` — the adapter and the hardcoded
   `get-page-content` tool. **1.3 KB gzipped**, comfortably under the ~2 KB
   budget. The `execute` fetches the entry's existing `.md` URL; no new
@@ -474,11 +484,30 @@ adapter must target:
   globals and no errors, which is exactly the path every non-WebMCP
   browser will take in production.
 
-### Still needs a real Chrome 149 + agent (manual, outside this environment)
+### Still needs a real Chrome + agent (manual, outside this environment)
 
-- Confirm the shipped OT implementation matches `webmcp-types` 0.1.7.
-- Watch an actual agent surface discover and call `get-page-content`;
-  iterate on the tool description if the agent under-uses it.
+Test rig, confirmed 2026-09-11: local Chrome 153 exposes
+`document.modelContext` on the dev site (`navigator.modelContext` absent),
+and Google's WebMCP Model Context Tool Inspector extension is installed.
+The extension is the agent surface for this checklist — manual mode for
+deterministic calls, Gemini mode for real agent behavior.
+
+- ~~Confirm the shipped implementation matches `webmcp-types` 0.1.7.~~
+  *Checked 2026-09-11 in Chrome 153:* `document.modelContext.getTools()`
+  returns the registered descriptors with `annotations.readOnlyHint`
+  intact, and — unlike the types, which omit it — Chrome ships an
+  agent-side `executeTool(registeredTool, argsJsonString)` that takes the
+  **`RegisteredTool` object** (not its name) and the arguments as a **JSON
+  string**, and resolves to the tool's return value **JSON-serialized as a
+  string**. Calling `get-page-content` this way returned the entry's
+  front-mattered Markdown end to end. Handy for console-driven checks:
+
+  ```js
+  const t = (await document.modelContext.getTools()).find(t => t.name === 'get-page-content');
+  JSON.parse(await document.modelContext.executeTool(t, '{}')).content[0].text;
+  ```
+- Watch an actual agent (the inspector's Gemini mode) discover and call
+  `get-page-content`; iterate on the tool description if it under-uses it.
 - Try ChatGPT Desktop as a second client.
 - Record the Phase 0 demo video (WEBMCP-DEMO-SCRIPT-PHASE0.md).
 
@@ -502,5 +531,5 @@ README highlight). Script cost is 1.5 KB gzipped with both tools. All
 Phase 0 verification re-run and green: PHPStan level 4, ECS, and 11
 Playwright assertions now covering both tools, the llms.txt-only page
 case, 404 handling, rejected registration, and the no-API no-op.
-**Release remains gated** on the manual checklist above (real Chrome 149
-OT session, agent behavior, ChatGPT Desktop).
+**Release remains gated** on the manual checklist above (real Chrome
+session with the inspector extension, agent behavior, ChatGPT Desktop).

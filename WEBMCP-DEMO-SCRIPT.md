@@ -21,10 +21,12 @@ agent *using tools the site handed it*.
 - [ ] A demo Craft site with real-looking content — a blog with 10+ entries
       and at least two sections works well. LLM Ready installed, current
       version, `.md` URLs and `/llms.txt` confirmed working.
-- [ ] Chrome 149+ with an agent surface available, or ChatGPT Desktop.
-      For a local demo site, enable `about:flags#enable-webmcp-testing`
-      (mention the origin trial token in narration; don't spend screen time
-      on the console signup).
+- [ ] Chrome 150+ with `chrome://flags#enable-webmcp-testing` enabled and
+      Google's WebMCP Model Context Tool Inspector extension installed — its
+      Gemini mode is the on-screen agent, and its manual mode is the
+      fallback for a deterministic tool call on camera. ChatGPT Desktop
+      works as an alternative agent. (Mention the origin trial token in
+      narration; don't spend screen time on the console signup.)
 - [ ] Two browser profiles or a way to toggle the plugin setting quickly —
       the before/after cut works best when the site is otherwise identical.
 - [ ] DevTools console snippet on a clipboard:

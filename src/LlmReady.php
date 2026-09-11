@@ -18,12 +18,14 @@ use craft\events\RegisterComponentTypesEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
 use craft\events\TemplateEvent;
+use craft\helpers\Html;
 use craft\helpers\Json;
 use craft\models\Site;
 use craft\services\Dashboard;
 use craft\services\Sites;
 use craft\services\UserPermissions;
 use craft\services\Utilities;
+use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
 use craft\web\View;
 use johnfmorton\llmready\models\Settings;
@@ -35,6 +37,7 @@ use johnfmorton\llmready\services\LlmsTxtService;
 use johnfmorton\llmready\services\MarkdownService;
 use johnfmorton\llmready\services\SeoService;
 use johnfmorton\llmready\utilities\CacheCheckUtility;
+use johnfmorton\llmready\variables\LlmReadyVariable;
 use johnfmorton\llmready\web\assets\webmcp\WebMcpAsset;
 use johnfmorton\llmready\widgets\AnalyticsWidget;
 use yii\base\ActionEvent;
@@ -97,6 +100,7 @@ class LlmReady extends Plugin
             $this->registerContentNegotiationHandler();
             $this->registerDiscoveryTagInjection();
             $this->registerWebMcpInjection();
+            $this->registerTemplateVariable();
         }
 
         if (Craft::$app->getRequest()->getIsCpRequest()) {
@@ -595,42 +599,12 @@ class LlmReady extends Plugin
             View::EVENT_BEFORE_RENDER_PAGE_TEMPLATE,
             function(TemplateEvent $event) {
                 $settings = $this->getSettings();
-                if (!$settings->enabled || !$settings->enableWebMcp) {
+                if (!$settings->autoInjectWebMcp) {
                     return;
                 }
 
-                if (!Craft::$app->getRequest()->getIsGet()) {
-                    return;
-                }
-
-                $site = Craft::$app->getSites()->getCurrentSite();
-                $config = [];
-
-                // Site overview tool — any rendered page, when llms.txt serves
-                if ($settings->enableLlmsTxt) {
-                    $baseUrl = $site->getBaseUrl();
-                    if ($baseUrl) {
-                        $config['llmsTxtUrl'] = rtrim($baseUrl, '/') . '/llms.txt';
-                    }
-                }
-
-                // Page content tool — entry pages whose .md URL would serve.
-                // The bare home page has no .md URL (the catch-all rule
-                // matches `.+`), so it offers no page tool.
-                $element = $this->resolvePageEntry();
-                if (
-                    $element !== null
-                    && $element->uri !== '__home__'
-                    && $this->markdownService->isSectionEnabled($element->sectionId, $site->id)
-                    && !$this->seoService->isNoindex($element)
-                ) {
-                    $url = $element->getUrl();
-                    if ($url) {
-                        $config['pageMarkdownUrl'] = rtrim($url, '/') . '.md';
-                    }
-                }
-
-                if ($config === []) {
+                $config = $this->getWebMcpConfig();
+                if ($config === null) {
                     return;
                 }
 
@@ -645,18 +619,145 @@ class LlmReady extends Plugin
 
                 $view->registerAssetBundle(WebMcpAsset::class);
 
-                // JSON_HEX_TAG keeps a literal `</script>` inside any value
-                // from breaking out of the data island.
                 $view->registerScript(
-                    Json::encode(
-                        $config,
-                        JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG,
-                    ),
+                    $this->encodeWebMcpConfig($config),
                     View::POS_END,
                     ['type' => 'application/json', 'id' => 'llm-ready-webmcp'],
                     'llm-ready-webmcp',
                 );
             },
+        );
+    }
+
+    /**
+     * Expose `craft.llmReady` in site templates.
+     */
+    private function registerTemplateVariable(): void
+    {
+        Event::on(
+            CraftVariable::class,
+            CraftVariable::EVENT_INIT,
+            function(Event $event) {
+                /** @var CraftVariable $variable */
+                $variable = $event->sender;
+                $variable->set('llmReady', LlmReadyVariable::class);
+            },
+        );
+    }
+
+    /**
+     * Decide which WebMCP tools the current request should offer.
+     *
+     * Returns the configuration the bootstrap script reads from its JSON
+     * data island (`llmsTxtUrl`, `pageMarkdownUrl`), or `null` when nothing
+     * should be injected: plugin or WebMCP disabled, a non-GET request, or
+     * no tool applying to the page. The page tool's visibility rules are
+     * deliberately the same as the discovery tag's — it only registers when
+     * the entry's `.md` URL would actually serve (enabled section, live entry
+     * with a URL, not noindex) — and both tools fetch existing public URLs,
+     * so an in-browser agent can never reach content the crawler surface
+     * hides.
+     *
+     * @param Entry|null $entry The page's entry, when the template knows it
+     *   (custom routes). Defaults to resolving the request path.
+     * @return array<string, string>|null
+     */
+    public function getWebMcpConfig(?Entry $entry = null): ?array
+    {
+        $settings = $this->getSettings();
+        if (!$settings->enabled || !$settings->enableWebMcp) {
+            return null;
+        }
+
+        if (!Craft::$app->getRequest()->getIsGet()) {
+            return null;
+        }
+
+        $site = Craft::$app->getSites()->getCurrentSite();
+        $config = [];
+
+        // Site overview tool — any rendered page, when llms.txt serves
+        if ($settings->enableLlmsTxt) {
+            $baseUrl = $site->getBaseUrl();
+            if ($baseUrl) {
+                $config['llmsTxtUrl'] = rtrim($baseUrl, '/') . '/llms.txt';
+            }
+        }
+
+        // Page content tool — entry pages whose .md URL would serve. The
+        // bare home page has no .md URL (the catch-all rule matches `.+`),
+        // so it offers no page tool. A URI lookup only returns live
+        // elements; an entry handed in by a template is checked explicitly.
+        $element = $entry ?? $this->resolvePageEntry();
+        if (
+            $element !== null
+            && $element->uri !== '__home__'
+            && ($entry === null || $element->getStatus() === Entry::STATUS_LIVE)
+            && $this->markdownService->isSectionEnabled($element->sectionId, $element->siteId)
+            && !$this->seoService->isNoindex($element)
+        ) {
+            $url = $element->getUrl();
+            if ($url) {
+                $config['pageMarkdownUrl'] = rtrim($url, '/') . '.md';
+            }
+        }
+
+        return $config === [] ? null : $config;
+    }
+
+    /**
+     * Render the WebMCP bootstrap as literal markup, for templates that
+     * place it themselves via `{{ craft.llmReady.webMcp() }}`.
+     *
+     * Same three pieces the automatic injection registers — origin-trial
+     * meta tag (when a token is set), JSON data island, deferred script —
+     * but emitted inline so they land wherever the tag sits and on any
+     * render path, including templates that never pass through Craft's
+     * page pipeline. Empty when {@see getWebMcpConfig()} decides nothing
+     * applies.
+     */
+    public function renderWebMcpHtml(?Entry $entry = null): string
+    {
+        $config = $this->getWebMcpConfig($entry);
+        if ($config === null) {
+            return '';
+        }
+
+        $settings = $this->getSettings();
+        $assetManager = Craft::$app->getAssetManager();
+        $bundle = $assetManager->getBundle(WebMcpAsset::class);
+        $scriptUrl = $assetManager->getAssetUrl($bundle, 'js/webmcp.js');
+
+        $html = '';
+
+        if ($settings->webMcpOriginTrialToken !== '') {
+            $html .= Html::tag('meta', '', [
+                'http-equiv' => 'origin-trial',
+                'content' => $settings->webMcpOriginTrialToken,
+            ]) . "\n";
+        }
+
+        $html .= Html::script($this->encodeWebMcpConfig($config), [
+            'type' => 'application/json',
+            'id' => 'llm-ready-webmcp',
+        ]) . "\n";
+
+        $html .= Html::jsFile($scriptUrl, ['defer' => true]) . "\n";
+
+        return $html;
+    }
+
+    /**
+     * JSON-encode the data island. JSON_HEX_TAG keeps a literal `</script>`
+     * inside any value from breaking out of it.
+     *
+     * @param array<string, string> $config
+     */
+    private function encodeWebMcpConfig(array $config): string
+    {
+        return Json::encode(
+            $config,
+            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG,
         );
     }
 
