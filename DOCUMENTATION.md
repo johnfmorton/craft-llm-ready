@@ -411,7 +411,7 @@ return [
 ];
 ```
 
-The settings page does not yet indicate when a value is overridden by the config file; the toggle still shows the control-panel value, but the config file wins.
+Any setting present in `config/llm-ready.php` is flagged on the settings page with a "This is being overridden by the `…` setting in config/llm-ready.php" note, and its input is disabled.
 
 ### Section settings
 

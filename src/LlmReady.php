@@ -120,6 +120,10 @@ class LlmReady extends Plugin
 
     protected function settingsHtml(): ?string
     {
+        // Settings present in config/llm-ready.php override the control
+        // panel; the template flags each such field and disables it.
+        $configOverrides = Craft::$app->getConfig()->getConfigFromFile('llm-ready');
+
         // Get all sections with their site settings for the template
         $sections = Craft::$app->getEntries()->getAllSections();
         $sites = Craft::$app->getSites()->getAllSites();
@@ -175,6 +179,7 @@ class LlmReady extends Plugin
             'settings' => $this->getSettings(),
             'sectionData' => $sectionData,
             'cacheCheck' => $this->cacheDetectionService->getCheckData(),
+            'configOverrides' => $configOverrides,
         ]);
     }
 
