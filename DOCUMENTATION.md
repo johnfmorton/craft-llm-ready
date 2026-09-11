@@ -377,6 +377,42 @@ Configure LLM Ready from **Settings > Plugins > LLM Ready** in the Craft control
 | Title Field | `""` | Optional field handle for the front-matter `title:` value. Supports the same syntax as Description Field (dot notation, `()` method calls, Generated Field handles, `seomatic:title`), or a Craft object template such as `{{ entry.longTitle ?: entry.title }}`. Falls back to the entry's native title when blank or unresolved. See [Customizing the title and author](#customizing-the-title-and-author). |
 | Author Override | `""` | Author written to each entry's front matter. A fixed name (a team or company, say) replaces individual editor names on every entry. A Craft object template such as `{% if entry.section.handle == 'blog' %}{{ entry.authors\|map(a => a.fullName ?: a.username)\|join(', ') }}{% endif %}` is rendered per entry, and the `author:` line is omitted when it renders to nothing. Blank uses each entry's own authors, comma-separated on multi-author entries. See [Customizing the title and author](#customizing-the-title-and-author). |
 
+#### Setting AI Bot User-Agent Detection per environment
+
+Whether this setting is safe depends on what sits in front of the site, which usually differs between a local copy (served straight from its origin) and production (behind a CDN or page cache). Rather than toggling it by hand, let it follow the environment from `config/llm-ready.php`. A value there overrides the control panel.
+
+Read it from `.env`:
+
+```php
+// config/llm-ready.php
+use craft\helpers\App;
+
+return [
+    'enableUserAgentDetection' => App::parseBooleanEnv('$LLM_READY_UA_DETECTION') ?? false,
+];
+```
+
+```
+# .env (dev only)
+LLM_READY_UA_DETECTION=true
+```
+
+Or key the file on `CRAFT_ENVIRONMENT` with a [multi-environment config](https://craftcms.com/docs/5.x/config/#multi-environment-configs):
+
+```php
+// config/llm-ready.php
+return [
+    '*' => [
+        'enableUserAgentDetection' => false,
+    ],
+    'dev' => [
+        'enableUserAgentDetection' => true,
+    ],
+];
+```
+
+The settings page does not yet indicate when a value is overridden by the config file; the toggle still shows the control-panel value, but the config file wins.
+
 ### Section settings
 
 Below the global settings, a per-section configuration table lists all sections that have URLs. For each section and site combination, you can configure:
