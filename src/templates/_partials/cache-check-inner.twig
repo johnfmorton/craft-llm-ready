@@ -111,7 +111,7 @@
                 {% if findings|length %}
                     {{ 'Proxy or page-cache evidence was found on this request — it is listed above.'|t('llm-ready') }}
                 {% else %}
-                    {{ 'No proxy headers on this request and no page-cache plugin detected here — that says nothing about a probed URL, and a cache that doesn’t announce itself is invisible to this check.'|t('llm-ready') }}
+                    {{ 'No proxy headers on this request and no page-cache plugin detected here — that says nothing about a probed URL.'|t('llm-ready') }}
                 {% endif %}
                 {% if not isProduction %}
                     {{ 'A CDN or page cache usually exists only in production, so probe your production URL.'|t('llm-ready') }}

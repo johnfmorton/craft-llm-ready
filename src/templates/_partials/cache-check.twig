@@ -1,5 +1,5 @@
 {# The "Cache check" inset pane (issue #33, design 2a).
-   Wrapper: the pane element plus its styles and script. The header and
+   Wrapper (footer layout per design 4b): the pane element plus its styles and script. The header and
    body live in cache-check-inner, which cache-check/probe re-renders whole
    for the AJAX response (the header switches between a quiet row and a
    warning banner depending on the result). Included below the AI Bot
@@ -176,22 +176,28 @@
     color: #cf1124;
 }
 .llm-ready-probe-footer {
-    display: flex;
-    align-items: baseline;
-    gap: 14px;
     margin-top: 10px;
-    flex-wrap: wrap;
 }
 .has-evidence .llm-ready-probe-footer {
     margin-top: 12px;
 }
 .llm-ready-probe-meta {
+    display: block;
     font-size: 12px;
     color: #8b96a2;
 }
+/* Stacked: meta, then the two disclosures (8px after the meta line, 6px
+   between them). */
 .llm-ready-details {
     font-size: 12px;
     color: #596673;
+    margin-top: 6px;
+}
+.llm-ready-probe-meta + .llm-ready-details {
+    margin-top: 8px;
+}
+.llm-ready-probe-footer > :first-child {
+    margin-top: 0;
 }
 .llm-ready-details > summary {
     cursor: pointer;

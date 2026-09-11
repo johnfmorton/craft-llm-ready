@@ -20,27 +20,15 @@
     on: settings.enableContentNegotiation,
 }) }}
 
-{# AI Bot User-Agent Detection (design 1a): field header with one line of
-   instructions, a compact warning callout with the long explanation behind
-   a disclosure, the lightswitch with a visible inline label, then the
-   Cache check pane — four distinct objects instead of one prose block. #}
+{# AI Bot User-Agent Detection (design 4b): field header with two lines
+   of instructions, the long explanation behind a "When is it unsafe?"
+   disclosure, the lightswitch with a visible inline label, then the Cache
+   check pane — distinct objects instead of one prose block. #}
 {% set uaDetectionHtml %}
-    {# Custom callout per design-1a — Craft's native warning tip is
-       deliberately not used here (wrong border/text treatment). The
-       "Why this happens" toggle sits inline at the end of the sentence and
-       must add zero height while collapsed. #}
-    <div class="llm-ready-warning">
-        <span class="llm-ready-warning__icon" aria-hidden="true">!</span>
-        <div class="llm-ready-warning__content">
-            <p class="llm-ready-warning__text">
-                {{ 'Keep this <strong>off</strong> if a shared cache or CDN (Cloudflare, Fastly, Varnish, Azure Front Door, Servd) sits in front of this site — a bot’s Markdown response can be cached and replayed to real visitors.'|t('llm-ready')|raw }}
-                <button type="button" class="llm-ready-why-toggle" aria-expanded="false">{{ 'Why this happens'|t('llm-ready') }}</button>
-            </p>
-            <div class="llm-ready-why-body" hidden>
-                <p>{{ 'The response then depends on the <code>User-Agent</code> header, which shared caches do not key on — declaring <code>Vary: User-Agent</code> would be correct but has effectively unbounded cardinality, so caches ignore it for HTML. A cache keying only on the URL can therefore store the Markdown served to a bot and replay it to every later visitor. Crawlers are already served through <code>.md</code> URLs, <code>/llms.txt</code>, and the discovery tag/header — each its own URL with a single, safely cacheable response. Safe to turn on for a site served straight from its origin.'|t('llm-ready')|raw }}</p>
-            </div>
-        </div>
-    </div>
+    <details class="llm-ready-unsafe">
+        <summary><span class="llm-ready-caret">▶</span> {{ 'When is it unsafe? (Cloudflare, Fastly, Varnish, Servd…)'|t('llm-ready') }}</summary>
+        <p>{{ 'Shared caches don’t key on User-Agent, so a Markdown response generated for a bot can be stored and replayed to human visitors on the same URL. Any CDN or full-page cache (Blitz included) in front of the site makes this setting unsafe on canonical URLs. Use the cache check below if unsure.'|t('llm-ready') }}</p>
+    </details>
 
     <div class="llm-ready-ua-switch">
         {{ forms.lightswitch({
@@ -57,63 +45,39 @@
 
 {{ forms.field({
     label: 'AI Bot User-Agent Detection',
-    instructions: 'Serve Markdown on the **canonical** URL to known AI crawlers (GPTBot, ClaudeBot, etc.). Off by default.',
+    instructions: 'Serve Markdown on the **canonical** URL to known AI crawlers (GPTBot, ClaudeBot, etc.). Off by default — and keep it off behind a shared cache or CDN, where cached Markdown can reach real visitors.',
 }, uaDetectionHtml) }}
 
 {% css %}
-.llm-ready-warning {
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-    margin-top: 14px;
-    padding: 12px 14px;
-    background: #fdf3e3;
-    border: 1px solid #f0dcb8;
-    border-radius: 5px;
-}
-.llm-ready-warning__icon {
-    flex: none;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #cf783a;
-    color: #fff;
-    font: 700 12px/18px system-ui, sans-serif;
-    text-align: center;
-}
-.llm-ready-warning__content {
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-.llm-ready-warning__text {
-    margin: 0;
-    font-size: 13.5px;
-    line-height: 1.5;
-    color: #8a5a24;
-}
-.llm-ready-why-toggle {
-    background: none;
-    border: 0;
-    padding: 0;
-    font: inherit;
-    color: #8a5a24;
-    text-decoration: underline;
-    cursor: pointer;
-}
-.llm-ready-why-body > p {
-    margin: 0;
+.llm-ready-unsafe {
+    margin-top: 8px;
     font-size: 13px;
-    line-height: 1.5;
-    color: #8a5a24;
-    max-width: 560px;
+    color: #596673;
 }
-.llm-ready-why-body code {
-    background: rgba(0, 0, 0, .06);
-    border-radius: 3px;
-    padding: 0 4px;
-    font-size: 11px;
+.llm-ready-unsafe > summary {
+    cursor: pointer;
+    list-style: none;
+    color: #1f5f9e;
+}
+.llm-ready-unsafe > summary::-webkit-details-marker {
+    display: none;
+}
+.llm-ready-unsafe > summary:hover {
+    color: #12437a;
+    text-decoration: underline;
+}
+.llm-ready-unsafe .llm-ready-caret {
+    display: inline-block;
+    font-size: 9px;
+    transition: transform .15s;
+}
+.llm-ready-unsafe[open] > summary .llm-ready-caret {
+    transform: rotate(90deg);
+}
+.llm-ready-unsafe > p {
+    margin: 8px 0 0;
+    line-height: 1.5;
+    max-width: 640px;
 }
 .llm-ready-ua-switch {
     display: flex;
@@ -123,27 +87,9 @@
 }
 .llm-ready-ua-switch__label {
     font-size: 14px;
+    color: #3f4d5a;
 }
 {% endcss %}
-
-{% js %}
-(function() {
-    var toggle = document.querySelector('.llm-ready-why-toggle');
-    var body = document.querySelector('.llm-ready-why-body');
-    if (!toggle || !body) {
-        return;
-    }
-    toggle.addEventListener('click', function() {
-        var opening = body.hasAttribute('hidden');
-        if (opening) {
-            body.removeAttribute('hidden');
-        } else {
-            body.setAttribute('hidden', '');
-        }
-        toggle.setAttribute('aria-expanded', opening ? 'true' : 'false');
-    });
-})();
-{% endjs %}
 
 {{ forms.editableTableField({
     label: 'Additional Bot User-Agents',
