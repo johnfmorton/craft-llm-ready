@@ -7,3 +7,6 @@
 /node_modules
 /vendor
 /excluded-from-repo
+
+# Playwright MCP session snapshots (tool output, never source)
+/.playwright-mcp
