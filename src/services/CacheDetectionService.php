@@ -462,6 +462,12 @@ class CacheDetectionService extends Component
 
         $evidence = [];
         $hit = false;
+        // Short phrases for signals that the probed site is *built* to cache
+        // its HTML (a page cache answering, s-maxage, a caching CDN route),
+        // as opposed to a proxy merely being in the path. Without a hit,
+        // these lead the verdict message — they are the finding, and the
+        // "no hit observed" caveat should follow them, not bury them.
+        $cachingSignals = [];
 
         $age = $response->getHeaderLine('Age');
         if ($age !== '' && (int)$age > 0) {
@@ -476,17 +482,24 @@ class CacheDetectionService extends Component
                 continue;
             }
 
-            $frontDoorStatus = self::FRONT_DOOR_CACHE_STATUSES[strtoupper(trim($value))] ?? null;
+            $statusToken = strtoupper(trim($value));
+            $frontDoorStatus = self::FRONT_DOOR_CACHE_STATUSES[$statusToken] ?? null;
             if ($name === 'X-Cache' && $frontDoorStatus !== null) {
                 [$isHit, $meaning] = $frontDoorStatus;
                 $frontDoorSeen = true;
                 $hit = $hit || $isHit;
                 $evidence[] = "{$name}: {$value} — {$meaning}";
+                if ($statusToken === 'TCP_MISS') {
+                    $cachingSignals[] = 'caching is enabled on its Azure Front Door route';
+                }
             } elseif (stripos($value, 'hit') !== false) {
                 $hit = true;
                 $evidence[] = "{$name}: {$value} — a cache reported serving this response.";
             } else {
                 $evidence[] = "{$name}: {$value} — a cache layer is present.";
+                $cachingSignals[] = $name === 'X-Page-Cache'
+                    ? 'a page-cache layer answered (X-Page-Cache)'
+                    : 'a cache layer answered (X-Cache)';
             }
         }
 
@@ -531,6 +544,7 @@ class CacheDetectionService extends Component
         $poweredBy = $response->getHeaderLine('X-Powered-By');
         if (stripos($poweredBy, 'blitz') !== false) {
             $evidence[] = 'X-Powered-By: ' . $this->truncate($poweredBy) . ' — the Blitz page cache is active on the probed site, serving cached HTML on canonical URLs.';
+            $cachingSignals[] = 'the Blitz page cache is active';
         }
 
         // s-maxage only ever addresses shared caches, so its presence means
@@ -539,6 +553,7 @@ class CacheDetectionService extends Component
         $cacheControl = $response->getHeaderLine('Cache-Control');
         if (stripos($cacheControl, 's-maxage') !== false) {
             $evidence[] = 'Cache-Control: ' . $this->truncate($cacheControl) . ' — the page declares itself cacheable by shared caches (s-maxage), a directive that only exists for a cache in front.';
+            $cachingSignals[] = 'its HTML declares itself shared-cacheable (s-maxage)';
         }
 
         $status = $response->getStatusCode();
@@ -549,6 +564,13 @@ class CacheDetectionService extends Component
         if ($hit) {
             $verdict = self::PROBE_HIT;
             $message = 'Confirmed: the second request was served from a shared cache. HTML on canonical URLs is being shared-cached at the probed site — keep AI Bot User-Agent Detection off wherever that site runs.';
+        } elseif ($cachingSignals !== []) {
+            // Lead with the finding. "No hit observed" is a caveat, not the
+            // verdict — a site that runs a page cache and declares its HTML
+            // shared-cacheable is set up to cache, whether or not two probe
+            // requests happened to be served from it.
+            $verdict = self::PROBE_PROXY;
+            $message = 'The probed site is set up to cache its HTML: ' . implode('; ', array_unique($cachingSignals)) . '. Keep AI Bot User-Agent Detection off wherever that site runs. (No cache hit was observed in this test — a cache can miss twice for many reasons — but the configuration is the evidence.)';
         } elseif ($evidence !== []) {
             $verdict = self::PROBE_PROXY;
             $message = 'A proxy or CDN answered this probe, but did not serve it from cache during the test. That does not prove HTML is never cached — a cache can miss twice for many reasons. If you know a cache sits in front, trust that over this result.';

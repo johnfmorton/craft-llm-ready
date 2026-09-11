@@ -36,7 +36,7 @@
             </ul>
         {% else %}
             <p class="llm-ready-passive-note">
-                {{ 'Nothing detected from this environment’s ({env}) request headers or page-cache plugins. A cache that doesn’t announce itself is invisible to this check — if you know one sits in front of this site, trust that knowledge over this result.'|t('llm-ready', { env: currentEnv }) }}
+                {{ 'This environment ({env}): no proxy headers on this request and no page-cache plugin detected. That says nothing about a probed URL below — and a cache that doesn’t announce itself is invisible to this check, so if you know one sits in front of this site, trust that knowledge over this result.'|t('llm-ready', { env: currentEnv }) }}
             </p>
         {% endif %}
 
