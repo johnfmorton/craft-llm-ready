@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-09-11
+
 ### Added
 
 - **The plugin now detects whether a shared cache sits in front of the site, and says so right where the decision is made.** 1.6.0 turned "AI Bot User-Agent Detection" off by default because it is unsafe behind a caching edge — but left the site owner to work out for themselves which kind of site they have. Most of that evidence is available to the plugin, so it now gathers it in three tiers ([#33](https://github.com/johnfmorton/craft-llm-ready/issues/33)):
