@@ -1,0 +1,152 @@
+{#- Header + body of the Cache check pane (issue #33, design 2a).
+
+   Rendered inside .llm-ready-cache-pane on page load, and re-rendered
+   whole by cache-check/probe for the AJAX response — the header has two
+   states and a probe can switch between them:
+
+   - Nothing found: the quiet title + status-dot row.
+   - Evidence or a proxy found (status.level evidence/proxy): a warning
+     banner whose title names what was found and where, and whose detail
+     is the recommendation itself, so the outcome is never hidden behind
+     a dot. The evidence list follows the probe input.
+
+   The passive tier's own note ("this environment: nothing detected") and
+   the production nudge live in a collapsed "About this environment"
+   disclosure in the footer — they are context, not the result.
+
+   Wording stays asymmetric: a positive detection is stated with
+   confidence, a negative result is only ever "inconclusive" — never
+   "safe to enable".
+
+   Class hooks, not ids: on the settings page Craft namespaces this HTML,
+   which rewrites id attributes — classes survive both there and in the
+   utility.
+
+   Variables: currentEnv (string), findings (array), otherResults (array),
+   probe (array|null), probeDate (DateTime|null), probeDefaultUrl (string),
+   status (array{level, text, title, detail}), isProduction (bool) -#}
+
+{% set hasBanner = status.level in ['evidence', 'proxy'] %}
+{% set probeEvidence = probe ? (probe.evidence ?? []) : [] %}
+{% set findingCount = findings|length + probeEvidence|length %}
+
+{% if hasBanner %}
+    <div class="llm-ready-cache-pane__banner">
+        <span class="llm-ready-cache-pane__banner-icon" aria-hidden="true">!</span>
+        <div class="llm-ready-cache-pane__banner-text">
+            <div class="llm-ready-cache-pane__banner-title">{{ status.title }}</div>
+            <div class="llm-ready-cache-pane__banner-detail">{{ status.detail|raw }}</div>
+        </div>
+        <span class="llm-ready-cache-pane__pill">{{ 'Cache check'|t('llm-ready') }}</span>
+    </div>
+{% else %}
+    <div class="llm-ready-cache-pane__header">
+        <span class="llm-ready-cache-pane__title">{{ 'Cache check'|t('llm-ready') }}</span>
+        <span class="llm-ready-cache-pane__status">
+            <span class="llm-ready-status-dot"></span>
+            <span class="llm-ready-status-text">{{ status.text }}</span>
+        </span>
+    </div>
+{% endif %}
+
+<div class="llm-ready-cache-pane__body{{ hasBanner ? ' has-evidence' : '' }}">
+    {# The URL input deliberately has no name attribute, so it is never
+       submitted with the settings form. It keeps the last probed URL. #}
+    <div class="llm-ready-probe-row">
+        <input type="url" class="text llm-ready-probe-url"
+            value="{{ probe and probe.url ? probe.url : probeDefaultUrl }}"
+            aria-label="{{ 'URL to probe'|t('llm-ready') }}"
+            placeholder="https://example.com/">
+        <button type="button" class="btn llm-ready-probe-btn">{{ 'Run cache probe'|t('llm-ready') }}</button>
+    </div>
+
+    {% if findingCount %}
+        <div class="llm-ready-evidence">
+            <div class="llm-ready-evidence__label">
+                {%- if findingCount == 1 -%}
+                    {{ 'Evidence · 1 finding'|t('llm-ready') }}
+                {%- else -%}
+                    {{ 'Evidence · {count} findings'|t('llm-ready', { count: findingCount }) }}
+                {%- endif -%}
+            </div>
+            <div class="llm-ready-evidence__list">
+                {% for finding in findings %}
+                    <div class="llm-ready-evidence__row">
+                        <span class="llm-ready-evidence__icon" aria-hidden="true">!</span>
+                        <div class="llm-ready-evidence__text"><strong>{{ finding.label }}</strong> — {{ finding.evidence }}</div>
+                    </div>
+                {% endfor %}
+                {# Probe evidence strings are "Header: value — what it means";
+                   the header part is set in code, the meaning as text. #}
+                {% for item in probeEvidence %}
+                    {% set parts = item|split(' — ', 2) %}
+                    <div class="llm-ready-evidence__row">
+                        <span class="llm-ready-evidence__icon" aria-hidden="true">!</span>
+                        <div class="llm-ready-evidence__text">
+                            {%- if parts|length == 2 -%}
+                                <code>{{ parts[0] }}</code> — {{ parts[1] }}
+                            {%- else -%}
+                                <code>{{ item }}</code>
+                            {%- endif -%}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    {% if probe %}
+        <div class="llm-ready-probe-message is-{{ probe.verdict }}{{ findingCount ? ' is-caveat' : '' }}">{{ probe.message }}</div>
+    {% endif %}
+
+    <div class="llm-ready-probe-footer">
+        {% if probe and probe.url %}
+            <span class="llm-ready-probe-meta">
+                {{- 'Probed {url}'|t('llm-ready', { url: probe.url }) }}{% if probeDate %} · {{ probeDate|datetime('short') }}{% endif -%}
+            </span>
+        {% endif %}
+        <details class="llm-ready-details">
+            <summary><span class="llm-ready-caret">▶</span> {{ 'About this environment ({env})'|t('llm-ready', { env: currentEnv }) }}</summary>
+            <p>
+                {% if findings|length %}
+                    {{ 'Proxy or page-cache evidence was found on this request — it is listed above.'|t('llm-ready') }}
+                {% else %}
+                    {{ 'No proxy headers on this request and no page-cache plugin detected here — that says nothing about a probed URL, and a cache that doesn’t announce itself is invisible to this check.'|t('llm-ready') }}
+                {% endif %}
+                {% if not isProduction %}
+                    {{ 'A CDN or page cache usually exists only in production, so probe your production URL.'|t('llm-ready') }}
+                {% endif %}
+            </p>
+            {% if otherResults|length %}
+                <ul class="llm-ready-other-envs">
+                    {% for result in otherResults %}
+                        {% set otherWarnings = result.findings|filter(f => f.level == 'warning') %}
+                        <li>
+                            <strong>{{ 'Last check in {env}'|t('llm-ready', { env: result.environment }) }}{% if result.passiveDate %}, {{ result.passiveDate|datetime('short') }}{% endif %}:</strong>
+                            {% if otherWarnings|length %}
+                                {{ 'shared cache detected'|t('llm-ready') }} ({{ otherWarnings|map(f => f.label)|join(', ') }}) — {{ 'keep AI Bot User-Agent Detection off there'|t('llm-ready') }}.
+                            {% elseif result.findings|length %}
+                                {{ 'no shared cache confirmed'|t('llm-ready') }} ({{ result.findings|map(f => f.label)|join(', ') }}).
+                            {% else %}
+                                {{ 'no cache evidence recorded — inconclusive there too'|t('llm-ready') }}.
+                            {% endif %}
+                            {% if result.probe and result.probe.verdict == 'hit' %}
+                                {{ 'A probe there confirmed a cache hit'|t('llm-ready') }}{% if result.probeDate %} ({{ result.probeDate|datetime('short') }}){% endif %}.
+                            {% elseif result.probe and result.probe.verdict == 'proxy' %}
+                                {{ 'A probe there saw a proxy but no cache hit'|t('llm-ready') }}{% if result.probeDate %} ({{ result.probeDate|datetime('short') }}){% endif %}.
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </details>
+        <details class="llm-ready-details">
+            <summary><span class="llm-ready-caret">▶</span> {{ 'How the probe works'|t('llm-ready') }}</summary>
+            <p>
+                {{ 'Requests the URL twice with a browser User-Agent and checks the second response for cache evidence'|t('llm-ready') }}
+                (<code>Age</code>, <code>X-Cache</code>, <code>CF-Cache-Status</code>).
+                {{ 'A hit is proof of shared caching; anything else proves nothing.'|t('llm-ready') }}
+            </p>
+        </details>
+    </div>
+</div>

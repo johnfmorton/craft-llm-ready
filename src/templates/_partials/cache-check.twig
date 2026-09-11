@@ -1,138 +1,51 @@
-{# The "Cache check" inset pane (issue #33, design 1a).
-   The shared-cache diagnostic is a visually distinct sub-pane — header row
-   with a scannable status dot, body with the evidence and the probe tool —
-   so it cannot be mistaken for field instructions. Included below the
-   AI Bot User-Agent Detection toggle on the settings page, and by the
-   LLM Ready Cache Check utility.
+{# The "Cache check" inset pane (issue #33, design 2a).
+   Wrapper: the pane element plus its styles and script. The header and
+   body live in cache-check-inner, which cache-check/probe re-renders whole
+   for the AJAX response (the header switches between a quiet row and a
+   warning banner depending on the result). Included below the AI Bot
+   User-Agent Detection toggle on the settings page, and by the LLM Ready
+   Cache Check utility.
 
-   The wording stays deliberately asymmetric: a positive detection is stated
-   with confidence, a negative result is only ever "nothing detected" /
-   "inconclusive" — never "safe to enable". A cache that does not announce
-   itself (nginx proxy_cache, a quiet Varnish) is invisible to every check
-   here.
+   Colours and sizes are the design handoff's values, not Craft's CSS
+   variables. Craft's own `.text` and `.btn` classes are used for the
+   input and button, which the design draws as CP-native controls.
 
-   Class hooks, not ids: on the settings page Craft namespaces this HTML,
-   which rewrites id attributes — classes survive both there and in the
-   utility.
-
-   Variables: currentEnv (string), findings (array), otherResults (array),
-   probe (array|null), probeDate (DateTime|null), probeDefaultUrl (string),
-   status (array{level, text}), isProduction (bool) #}
+   Variables: see cache-check-inner. #}
 
 <div class="llm-ready-cache-pane">
-    <div class="llm-ready-cache-pane__header">
-        <span class="llm-ready-cache-pane__title">{{ 'Cache check'|t('llm-ready') }}</span>
-        <span class="llm-ready-cache-pane__status is-{{ status.level }}">
-            <span class="llm-ready-status-dot is-{{ status.level }}"></span>
-            <span class="llm-ready-status-text">{{ status.text }}</span>
-        </span>
-    </div>
-    <div class="llm-ready-cache-pane__body">
-        {% if findings|length %}
-            <ul class="llm-ready-findings">
-                {% for finding in findings %}
-                    <li><strong>{{ finding.label }}</strong> — {{ finding.evidence }}</li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p class="llm-ready-passive-note">
-                {{ 'This environment ({env}): no proxy headers on this request and no page-cache plugin detected. That says nothing about a probed URL below — and a cache that doesn’t announce itself is invisible to this check, so if you know one sits in front of this site, trust that knowledge over this result.'|t('llm-ready', { env: currentEnv }) }}
-            </p>
-        {% endif %}
-
-        {% if otherResults|length %}
-            <ul class="llm-ready-other-envs">
-                {% for result in otherResults %}
-                    {% set otherWarnings = result.findings|filter(f => f.level == 'warning') %}
-                    <li>
-                        <strong>{{ 'Last check in {env}'|t('llm-ready', { env: result.environment }) }}{% if result.passiveDate %}, {{ result.passiveDate|datetime('short') }}{% endif %}:</strong>
-                        {% if otherWarnings|length %}
-                            {{ 'shared cache detected'|t('llm-ready') }} ({{ otherWarnings|map(f => f.label)|join(', ') }}) — {{ 'keep this setting off there'|t('llm-ready') }}.
-                        {% elseif result.findings|length %}
-                            {{ 'no shared cache confirmed'|t('llm-ready') }} ({{ result.findings|map(f => f.label)|join(', ') }}).
-                        {% else %}
-                            {{ 'no cache evidence recorded — inconclusive there too'|t('llm-ready') }}.
-                        {% endif %}
-                        {% if result.probe and result.probe.verdict == 'hit' %}
-                            {{ 'A probe there confirmed a cache hit'|t('llm-ready') }}{% if result.probeDate %} ({{ result.probeDate|datetime('short') }}){% endif %}.
-                        {% elseif result.probe and result.probe.verdict == 'proxy' %}
-                            {{ 'A probe there saw a proxy but no cache hit'|t('llm-ready') }}{% if result.probeDate %} ({{ result.probeDate|datetime('short') }}){% endif %}.
-                        {% endif %}
-                    </li>
-                {% endfor %}
-            </ul>
-        {% endif %}
-
-        {% if not isProduction %}
-            <p class="llm-ready-env-note">
-                {{ 'You are checking from the <strong>{env}</strong> environment. A CDN or page cache usually exists only in production, so this environment says little about the live site — enter your <strong>production URL</strong> below and run the probe against it.'|t('llm-ready', { env: currentEnv })|raw }}
-            </p>
-        {% endif %}
-
-        {# The URL input deliberately has no name attribute, so it is never
-           submitted with the settings form. #}
-        <div class="llm-ready-probe-row">
-            <input type="url" class="text llm-ready-probe-url"
-                value="{{ probeDefaultUrl }}"
-                aria-label="{{ 'URL to probe'|t('llm-ready') }}"
-                placeholder="https://example.com/">
-            <button type="button" class="btn llm-ready-probe-btn">{{ 'Run cache probe'|t('llm-ready') }}</button>
-        </div>
-
-        {# Kept truly empty (whitespace-trimmed) when no probe has run, so
-           :empty removes it from the flex stack and the 10px gap between
-           the input row and the meta row doesn't double up. #}
-        <div class="llm-ready-probe-result">
-            {%- include 'llm-ready/_partials/probe-result' with { probe: probe } only -%}
-        </div>
-
-        <div class="llm-ready-probe-footer">
-            <span class="llm-ready-probe-meta">
-                {%- if probe and probe.url -%}
-                    {{ 'Probed {url}'|t('llm-ready', { url: probe.url }) }}{% if probeDate %} · {{ probeDate|datetime('short') }}{% endif %}
-                {%- endif -%}
-            </span>
-            <details class="llm-ready-details">
-                <summary><span class="llm-ready-caret">▶</span> {{ 'How the probe works'|t('llm-ready') }}</summary>
-                <p>
-                    {{ 'Requests the URL twice with a browser User-Agent and checks the second response for cache-hit evidence'|t('llm-ready') }}
-                    (<code>Age</code>, <code>X-Cache</code>, <code>CF-Cache-Status</code>).
-                    {{ 'A hit is proof of shared caching; anything else proves nothing.'|t('llm-ready') }}
-                    <strong>{{ 'Checking from a local environment? Enter the production URL'|t('llm-ready') }}</strong> —
-                    {{ 'the probe reads the live server’s response headers from anywhere.'|t('llm-ready') }}
-                </p>
-            </details>
-        </div>
-    </div>
+    {% include 'llm-ready/_partials/cache-check-inner' with _context only %}
 </div>
 
 {% css %}
 .llm-ready-cache-pane {
     margin-top: 20px;
-    border: 1px solid var(--gray-150);
+    border: 1px solid #dbe3ec;
     border-radius: 5px;
-    background: var(--gray-050);
+    background: #f9fbfd;
+    overflow: hidden;
 }
+
+/* Quiet header: nothing found. */
 .llm-ready-cache-pane__header {
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 12px 16px;
-    border-bottom: 1px solid var(--gray-100);
+    border-bottom: 1px solid #e4eaf1;
 }
 .llm-ready-cache-pane__title {
     font-size: 12px;
     font-weight: 700;
     letter-spacing: .04em;
     text-transform: uppercase;
-    color: var(--gray-400);
+    color: #758391;
 }
 .llm-ready-cache-pane__status {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     font-size: 13px;
-    color: var(--gray-500);
+    color: #596673;
     margin-left: auto;
     text-align: right;
 }
@@ -141,53 +54,65 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: var(--gray-300);
+    background: #9aa5b1;
 }
-.llm-ready-status-dot.is-evidence,
-.llm-ready-status-dot.is-proxy {
-    background: var(--orange-500);
-}
-.llm-ready-cache-pane__status.is-evidence,
-.llm-ready-cache-pane__status.is-proxy {
-    color: var(--orange-500);
-    font-weight: 600;
-}
-.llm-ready-env-note {
-    margin: 0;
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--gray-500);
-}
-/* Spacing inside the pane body is structural (flex gap), not margins:
-   input row → 10px → result → 10px → meta row, per the fix pass. */
-.llm-ready-cache-pane__body {
+
+/* Warning banner: evidence or a proxy found. */
+.llm-ready-cache-pane__banner {
     display: flex;
-    flex-direction: column;
-    gap: 10px;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    background: #fdf3e3;
+    border-bottom: 1px solid #f0dcb8;
+}
+.llm-ready-cache-pane__banner-icon {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #cf783a;
+    color: #fff;
+    font: 700 14px/22px system-ui, -apple-system, "Segoe UI", sans-serif;
+    text-align: center;
+}
+.llm-ready-cache-pane__banner-text {
+    min-width: 0;
+}
+.llm-ready-cache-pane__banner-title {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: #8a5a24;
+}
+.llm-ready-cache-pane__banner-detail {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #8a5a24;
+    margin-top: 2px;
+}
+.llm-ready-cache-pane__pill {
+    margin-left: auto;
+    flex: none;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #8a5a24;
+    background: rgba(207, 120, 58, .16);
+    border-radius: 10px;
+    padding: 3px 9px;
+}
+
+/* Body. Spacing is on divs, not <p> — p margins get zeroed in this CP. */
+.llm-ready-cache-pane__body {
     padding: 14px 16px 16px;
-}
-.llm-ready-findings,
-.llm-ready-other-envs {
-    margin: 0;
-    padding-left: 18px;
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--gray-500);
-}
-.llm-ready-findings li,
-.llm-ready-other-envs li {
-    list-style: disc;
-    margin-bottom: 4px;
-}
-.llm-ready-passive-note {
-    margin: 0;
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--gray-500);
 }
 .llm-ready-probe-row {
     display: flex;
     gap: 8px;
+}
+.has-evidence .llm-ready-probe-row {
+    margin-bottom: 14px;
 }
 .llm-ready-probe-row .llm-ready-probe-url {
     flex: 1;
@@ -195,63 +120,90 @@
 .llm-ready-probe-row .llm-ready-probe-btn {
     flex: none;
 }
-.llm-ready-probe-result {
+.llm-ready-evidence__label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #758391;
+    margin-bottom: 8px;
+}
+.llm-ready-evidence__list {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
-.llm-ready-probe-result:empty {
-    display: none;
+.llm-ready-evidence__row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
 }
-.llm-ready-probe-result .llm-ready-probe-message {
-    margin: 0;
+.llm-ready-evidence__icon {
+    flex: none;
+    box-sizing: content-box;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fdf3e3;
+    border: 1px solid #f0dcb8;
+    color: #cf783a;
+    font: 700 10px/15px system-ui, -apple-system, "Segoe UI", sans-serif;
+    text-align: center;
+}
+.llm-ready-evidence__text {
     font-size: 13px;
     line-height: 1.5;
-    color: var(--gray-500);
+    color: #3f4d5a;
 }
-.llm-ready-probe-evidence {
-    margin: 0;
-    padding-left: 18px;
-    font-size: 12px;
-    line-height: 1.6;
-}
-.llm-ready-probe-evidence li {
-    list-style: disc;
-}
-.llm-ready-probe-evidence code,
-.llm-ready-details code {
-    background: var(--gray-100);
+.llm-ready-evidence__text code {
+    background: #e4e8ed;
     border-radius: 3px;
-    padding: 0 4px;
-    font-size: 11px;
+    padding: 1px 5px;
+    font-size: 11.5px;
 }
-/* Meta line and the how-it-works disclosure stack vertically — the probe
-   status line is block-level on its own line. The empty meta span (no
-   probe yet) is dropped so it doesn't leave a stray gap. */
+.llm-ready-probe-message {
+    margin-top: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #596673;
+}
+.llm-ready-probe-message.is-caveat {
+    margin-top: 12px;
+    font-size: 12.5px;
+    color: #8b96a2;
+}
+.llm-ready-probe-message.is-error {
+    color: #cf1124;
+}
 .llm-ready-probe-footer {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
+    align-items: baseline;
+    gap: 14px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+.has-evidence .llm-ready-probe-footer {
+    margin-top: 12px;
 }
 .llm-ready-probe-meta {
     font-size: 12px;
-    color: var(--gray-350);
-}
-.llm-ready-probe-meta:empty {
-    display: none;
+    color: #8b96a2;
 }
 .llm-ready-details {
     font-size: 12px;
-    color: var(--gray-500);
+    color: #596673;
 }
 .llm-ready-details > summary {
     cursor: pointer;
     list-style: none;
-    color: var(--link-color, #1f5f9e);
+    color: #1f5f9e;
 }
 .llm-ready-details > summary::-webkit-details-marker {
     display: none;
+}
+.llm-ready-details > summary:hover {
+    color: #12437a;
+    text-decoration: underline;
 }
 .llm-ready-caret {
     display: inline-block;
@@ -266,6 +218,22 @@
     line-height: 1.5;
     max-width: 560px;
 }
+.llm-ready-details > p code {
+    background: #e4e8ed;
+    border-radius: 3px;
+    padding: 0 4px;
+    font-size: 11px;
+}
+.llm-ready-other-envs {
+    margin: 8px 0 0;
+    padding-left: 18px;
+    line-height: 1.5;
+    max-width: 560px;
+}
+.llm-ready-other-envs li {
+    list-style: disc;
+    margin-bottom: 4px;
+}
 {% endcss %}
 
 {% js %}
@@ -274,19 +242,13 @@
     if (!pane) {
         return;
     }
-    var btn = pane.querySelector('.llm-ready-probe-btn');
-    var urlInput = pane.querySelector('.llm-ready-probe-url');
-    var result = pane.querySelector('.llm-ready-probe-result');
-    var meta = pane.querySelector('.llm-ready-probe-meta');
-    var statusWrap = pane.querySelector('.llm-ready-cache-pane__status');
-    var statusDot = pane.querySelector('.llm-ready-status-dot');
-    var statusText = pane.querySelector('.llm-ready-status-text');
-    if (!btn || !urlInput || !result) {
-        return;
-    }
 
+    // Handlers are delegated to the pane because a probe replaces its
+    // entire contents (the header can change state).
     function runProbe() {
-        if (btn.classList.contains('loading')) {
+        var btn = pane.querySelector('.llm-ready-probe-btn');
+        var urlInput = pane.querySelector('.llm-ready-probe-url');
+        if (!btn || !urlInput || btn.classList.contains('loading')) {
             return;
         }
         btn.classList.add('loading');
@@ -295,32 +257,24 @@
             data: {url: urlInput.value},
         })
             .then(function(response) {
-                result.innerHTML = response.data.html;
-                if (meta) {
-                    meta.textContent = response.data.meta;
-                }
-                if (statusDot && statusText && response.data.status) {
-                    statusDot.className = 'llm-ready-status-dot is-' + response.data.status.level;
-                    if (statusWrap) {
-                        statusWrap.className = 'llm-ready-cache-pane__status is-' + response.data.status.level;
-                    }
-                    statusText.textContent = response.data.status.text;
-                }
+                pane.innerHTML = response.data.html;
             })
             .catch(function() {
                 Craft.cp.displayError({{ 'The cache probe failed to run.'|t('llm-ready')|json_encode|raw }});
-            })
-            .finally(function() {
                 btn.classList.remove('loading');
             });
     }
 
-    btn.addEventListener('click', runProbe);
+    pane.addEventListener('click', function(event) {
+        if (event.target.closest('.llm-ready-probe-btn')) {
+            runProbe();
+        }
+    });
 
     // Enter in the URL field probes; on the settings page it would
     // otherwise submit the whole settings form.
-    urlInput.addEventListener('keydown', function(event) {
-        if (event.key === 'Enter') {
+    pane.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter' && event.target.closest('.llm-ready-probe-url')) {
             event.preventDefault();
             runProbe();
         }

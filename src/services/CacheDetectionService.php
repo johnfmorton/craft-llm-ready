@@ -179,7 +179,7 @@ class CacheDetectionService extends Component
      *     probe: array|null,
      *     probeDate: DateTime|null,
      *     probeDefaultUrl: string,
-     *     status: array{level: string, text: string},
+     *     status: array{level: string, text: string, title: string, detail: string},
      *     isProduction: bool,
      * }
      */
@@ -407,7 +407,7 @@ class CacheDetectionService extends Component
      * The result (which records the probed URL) is persisted for the
      * current environment.
      *
-     * @return array{verdict: string, url: string, evidence: string[], message: string}
+     * @return array{verdict: string, url: string, evidence: string[], message: string, cachingSignals?: string[]}
      */
     public function runProbe(?string $url = null): array
     {
@@ -511,7 +511,7 @@ class CacheDetectionService extends Component
                 $hit = true;
                 $evidence[] = "{$name}: {$value} — a cache reported serving this response.";
             } else {
-                $evidence[] = "{$name}: {$value} — a cache layer is present.";
+                $evidence[] = "{$name}: {$value} — a cache layer answered the request.";
                 $cachingSignals[] = $name === 'X-Page-Cache'
                     ? 'a page-cache layer answered (X-Page-Cache)'
                     : 'a cache layer answered (X-Cache)';
@@ -578,20 +578,20 @@ class CacheDetectionService extends Component
 
         if ($hit) {
             $verdict = self::PROBE_HIT;
-            $message = 'Confirmed: the second request was served from a shared cache. HTML on canonical URLs is being shared-cached at the probed site — keep AI Bot User-Agent Detection off wherever that site runs.';
+            $message = 'Confirmed: the second request was served from a shared cache. HTML on canonical URLs is being shared-cached at the probed site.';
         } elseif ($cachingSignals !== []) {
-            // Lead with the finding. "No hit observed" is a caveat, not the
-            // verdict — a site that runs a page cache and declares its HTML
+            // A site that runs a page cache and declares its HTML
             // shared-cacheable is set up to cache, whether or not two probe
-            // requests happened to be served from it.
+            // requests happened to be served from it. The pane's banner
+            // states that finding (see getStatus()); this is the caveat.
             $verdict = self::PROBE_PROXY;
-            $message = 'The probed site is set up to cache its HTML: ' . implode('; ', array_unique($cachingSignals)) . '. Keep AI Bot User-Agent Detection off wherever that site runs. (No cache hit was observed in this test — a cache can miss twice for many reasons — but the configuration is the evidence.)';
+            $message = 'No cache hit was observed in this test — a cache can miss twice for many reasons — but the configuration is the evidence.';
         } elseif ($evidence !== []) {
             $verdict = self::PROBE_PROXY;
-            $message = 'A proxy or CDN answered this probe, but did not serve it from cache during the test. That does not prove HTML is never cached — a cache can miss twice for many reasons. Keep AI Bot User-Agent Detection off unless you know that proxy never caches HTML.';
+            $message = 'A proxy or CDN answered this probe, but did not serve it from cache during the test. That does not prove HTML is never cached — a cache can miss twice for many reasons.';
         } else {
             $verdict = self::PROBE_NONE;
-            $message = 'No cache evidence in the probe responses. Absence of evidence is not absence of a cache — a cache configured not to identify itself is invisible to this check.';
+            $message = 'No cache evidence in the probe responses. Absence of evidence is not absence of a cache — if you know a cache sits in front of this site, trust that over this result.';
         }
 
         $result = [
@@ -599,6 +599,7 @@ class CacheDetectionService extends Component
             'url' => $url,
             'evidence' => $evidence,
             'message' => $message,
+            'cachingSignals' => array_values(array_unique($cachingSignals)),
         ];
 
         $this->persist($this->getCurrentEnvironment(), probe: $result);
@@ -607,9 +608,13 @@ class CacheDetectionService extends Component
     }
 
     /**
-     * The scannable one-line verdict for the Cache check pane header — a
-     * status dot plus short text, derived from the passive findings and the
-     * last probe so the outcome reads without the prose.
+     * The verdict for the Cache check pane header (design 2a).
+     *
+     * `level` drives which header renders: `none` keeps the quiet title +
+     * status-dot row (`text`); `evidence` and `proxy` switch to the warning
+     * banner, whose `title` names what was found and where, and whose
+     * `detail` is the recommendation itself — "Keep AI Bot User-Agent
+     * Detection off …" — so the outcome is never hidden behind a dot.
      *
      * Levels: `evidence` (confident: shared cache confirmed by a probe hit
      * or a warning-level passive finding), `proxy` (something is in the
@@ -617,11 +622,13 @@ class CacheDetectionService extends Component
      * never "safe": absence of evidence is not absence of a cache).
      *
      * @param array<array{level: string, label: string, evidence: string}> $findings
-     * @param array{verdict: string, url: string, evidence: string[], message: string}|null $probe
-     * @return array{level: string, text: string}
+     * @param array{verdict: string, url: string, evidence: string[], message: string, cachingSignals?: string[]}|null $probe
+     * @return array{level: string, text: string, title: string, detail: string}
      */
     public function getStatus(array $findings, ?array $probe): array
     {
+        $env = $this->getCurrentEnvironment();
+
         $passiveWarning = false;
         $passiveNotice = false;
         foreach ($findings as $finding) {
@@ -632,23 +639,50 @@ class CacheDetectionService extends Component
             }
         }
 
-        if ($passiveWarning || ($probe !== null && $probe['verdict'] === self::PROBE_HIT)) {
-            return [
-                'level' => 'evidence',
-                'text' => Craft::t('llm-ready', 'Shared cache detected — keep AI Bot User-Agent Detection off'),
-            ];
+        $probeHit = $probe !== null && $probe['verdict'] === self::PROBE_HIT;
+        $probeProxy = $probe !== null && $probe['verdict'] === self::PROBE_PROXY;
+        // The probed site is *set up* to cache its HTML (page cache, s-maxage,
+        // a caching CDN route) even though no hit was observed — reported
+        // with the same confidence as a hit, since the configuration is the
+        // evidence. Results stored before this key existed count as proxy-only.
+        $probeCaching = $probeProxy && ($probe['cachingSignals'] ?? []) !== [];
+
+        if ($passiveWarning || $probeHit) {
+            $level = 'evidence';
+            $text = Craft::t('llm-ready', 'Shared cache detected — keep AI Bot User-Agent Detection off');
+        } elseif ($passiveNotice || $probeProxy) {
+            $level = 'proxy';
+            $text = Craft::t('llm-ready', 'Proxy or page-cache evidence — keep AI Bot User-Agent Detection off');
+        } else {
+            $level = 'none';
+            $text = Craft::t('llm-ready', 'No cache evidence — inconclusive');
         }
 
-        if ($passiveNotice || ($probe !== null && $probe['verdict'] === self::PROBE_PROXY)) {
-            return [
-                'level' => 'proxy',
-                'text' => Craft::t('llm-ready', 'Proxy or page-cache evidence — keep AI Bot User-Agent Detection off'),
-            ];
+        $setting = '<strong>' . Craft::t('llm-ready', 'AI Bot User-Agent Detection off') . '</strong>';
+        $unlessKnown = Craft::t('llm-ready', 'Keep {setting} unless you know it never caches HTML.', ['setting' => $setting]);
+
+        if ($probeHit || $probeCaching) {
+            $title = Craft::t('llm-ready', 'Shared cache detected on the probed site');
+            $detail = Craft::t('llm-ready', 'Keep {setting} wherever that site runs.', ['setting' => $setting]);
+        } elseif ($passiveWarning) {
+            $title = Craft::t('llm-ready', 'Shared cache detected in this environment ({env})', ['env' => $env]);
+            $detail = Craft::t('llm-ready', 'Keep {setting} here.', ['setting' => $setting]);
+        } elseif ($probeProxy) {
+            $title = Craft::t('llm-ready', 'Proxy or CDN detected on the probed site');
+            $detail = $unlessKnown;
+        } elseif ($passiveNotice) {
+            $title = Craft::t('llm-ready', 'Proxy detected in this environment ({env})', ['env' => $env]);
+            $detail = $unlessKnown;
+        } else {
+            $title = '';
+            $detail = '';
         }
 
         return [
-            'level' => 'none',
-            'text' => Craft::t('llm-ready', 'No cache evidence — inconclusive'),
+            'level' => $level,
+            'text' => $text,
+            'title' => $title,
+            'detail' => $detail,
         ];
     }
 

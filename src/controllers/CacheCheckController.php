@@ -40,25 +40,16 @@ class CacheCheckController extends Controller
         $service = LlmReady::getInstance()->cacheDetectionService;
         $probe = $service->runProbe(is_string($url) ? $url : null);
 
-        // Re-evaluate the passive tiers on this request so the pane-header
-        // status reflects both the fresh probe and the header/plugin
-        // evidence, not the probe alone.
-        $findings = $service->evaluateCurrentEnvironment();
-        $status = $service->getStatus($findings, $probe);
+        // Re-render the whole pane (header + body): the header switches
+        // between its quiet and warning-banner states depending on what the
+        // probe found together with the passive tiers, which getCheckData()
+        // re-evaluates on this request.
+        $data = $service->getCheckData();
+        $data['probe'] = $probe;
+        $data['probeDate'] = new \DateTime();
 
-        $html = Craft::$app->getView()->renderTemplate('llm-ready/_partials/probe-result', [
-            'probe' => $probe,
-        ]);
+        $html = Craft::$app->getView()->renderTemplate('llm-ready/_partials/cache-check-inner', $data);
 
-        $meta = $probe['url'] !== ''
-            ? Craft::t('llm-ready', 'Probed {url}', ['url' => $probe['url']])
-                . ' · ' . Craft::$app->getFormatter()->asDatetime(new \DateTime(), 'short')
-            : '';
-
-        return $this->asJson([
-            'html' => $html,
-            'meta' => $meta,
-            'status' => $status,
-        ]);
+        return $this->asJson(['html' => $html]);
     }
 }
