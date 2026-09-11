@@ -33,7 +33,7 @@
         <span class="llm-ready-warning__icon" aria-hidden="true">!</span>
         <div class="llm-ready-warning__content">
             <p class="llm-ready-warning__text">
-                {{ 'Keep this <strong>off</strong> if a shared cache or CDN (Cloudflare, Fastly, Varnish, Servd) sits in front of this site — a bot’s Markdown response can be cached and replayed to real visitors.'|t('llm-ready')|raw }}
+                {{ 'Keep this <strong>off</strong> if a shared cache or CDN (Cloudflare, Fastly, Varnish, Azure Front Door, Servd) sits in front of this site — a bot’s Markdown response can be cached and replayed to real visitors.'|t('llm-ready')|raw }}
                 <button type="button" class="llm-ready-why-toggle" aria-expanded="false">{{ 'Why this happens'|t('llm-ready') }}</button>
             </p>
             <div class="llm-ready-why-body" hidden>

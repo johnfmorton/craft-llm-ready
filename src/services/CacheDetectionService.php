@@ -24,7 +24,8 @@ use yii\base\Component;
  * homework. Three tiers:
  *
  * - Tier 1: inspect the current request's headers for proxy fingerprints
- *   (CF-Ray, Fastly-Client-IP, X-Varnish, Via, …). Free, no network.
+ *   (CF-Ray, Fastly-Client-IP, X-Varnish, X-Azure-FDID, Via, …). Free, no
+ *   network.
  * - Tier 2: read the configuration of page caches running inside Craft
  *   (Blitz). Cache headers never reach an in-Craft cache, so this asks the
  *   plugin directly rather than inferring.
@@ -87,6 +88,14 @@ class CacheDetectionService extends Component
             'label' => 'Akamai (or another CDN in enterprise mode)',
             'headers' => ['True-Client-IP', 'Akamai-Origin-Hop'],
         ],
+        [
+            // Front Door stamps these on every request it forwards, caching
+            // or not — caching is a per-route switch there, so the origin
+            // can't tell from the request whether this route caches. The
+            // probe can: Front Door's X-Cache vocabulary says so.
+            'label' => 'Azure Front Door',
+            'headers' => ['X-Azure-FDID', 'X-Azure-Ref', 'X-Azure-SocketIP', 'X-Azure-ClientIP'],
+        ],
     ];
 
     /**
@@ -103,6 +112,22 @@ class CacheDetectionService extends Component
      * its cache rather than the origin.
      */
     private const CF_CACHE_HIT_STATUSES = ['HIT', 'STALE', 'UPDATING', 'REVALIDATED'];
+
+    /**
+     * Azure Front Door's `X-Cache` vocabulary, which it attaches to every
+     * response. Unlike a bare `HIT`/`MISS`, these also say *why* a response
+     * wasn't cached — and two of them mean caching is not happening on this
+     * route at all, which is the opposite of "a cache layer is present".
+     *
+     * @var array<string, array{0: bool, 1: string}> status => [is a hit, meaning]
+     */
+    private const FRONT_DOOR_CACHE_STATUSES = [
+        'TCP_HIT' => [true, 'Azure Front Door served this from its cache.'],
+        'TCP_REMOTE_HIT' => [true, 'Azure Front Door served this from its cache (on a neighbouring edge).'],
+        'TCP_MISS' => [false, 'caching is enabled on this Azure Front Door route; the cache missed in this test.'],
+        'CONFIG_NOCACHE' => [false, 'Azure Front Door is in front of this URL, but caching is disabled on its route.'],
+        'PRIVATE_NOSTORE' => [false, 'Azure Front Door is in front of this URL, but the origin marked this response private or no-store, so it was not cached.'],
+    ];
 
     /**
      * The current environment name (`CRAFT_ENVIRONMENT`), bounded to the DB
@@ -231,7 +256,7 @@ class CacheDetectionService extends Component
 
         // CDN-Loop (RFC 8586) names the CDN in its value.
         $cdnLoop = $headers->get('CDN-Loop');
-        if ($cdnLoop !== null && $cdnLoop !== '' && !$this->alreadyFoundCloudflare($findings, $cdnLoop)) {
+        if ($cdnLoop !== null && $cdnLoop !== '' && !(stripos($cdnLoop, 'cloudflare') !== false && $this->alreadyFound($findings, 'Cloudflare'))) {
             $findings[] = [
                 'level' => self::LEVEL_WARNING,
                 'label' => 'CDN proxy',
@@ -253,15 +278,29 @@ class CacheDetectionService extends Component
         $via = $headers->get('Via');
         if ($via !== null && $via !== '') {
             $isVarnish = stripos($via, 'varnish') !== false;
-            $findings[] = [
-                'level' => self::LEVEL_WARNING,
-                'label' => $isVarnish ? 'Varnish' : 'Proxy (Via header)',
-                'evidence' => $isVarnish
-                    ? 'This request arrived with Via: ' . $this->truncate($via) . ' — Varnish identified itself.'
-                    : 'This request arrived with Via: ' . $this->truncate($via) . ' — a proxy is in the request path. Whether it caches is unknown; treat it as unsafe unless you know otherwise.',
-            ];
-            if (!$isVarnish) {
-                $findings[count($findings) - 1]['level'] = self::LEVEL_NOTICE;
+            // Front Door sends `Via: 1.1 Azure`; only report it here if the
+            // X-Azure-* signature above didn't already.
+            $isAzure = stripos($via, 'azure') !== false;
+            if ($isVarnish) {
+                $findings[] = [
+                    'level' => self::LEVEL_WARNING,
+                    'label' => 'Varnish',
+                    'evidence' => 'This request arrived with Via: ' . $this->truncate($via) . ' — Varnish identified itself.',
+                ];
+            } elseif ($isAzure) {
+                if (!$this->alreadyFound($findings, 'Azure Front Door')) {
+                    $findings[] = [
+                        'level' => self::LEVEL_WARNING,
+                        'label' => 'Azure Front Door',
+                        'evidence' => 'This request arrived with Via: ' . $this->truncate($via) . ' — Azure Front Door identified itself.',
+                    ];
+                }
+            } else {
+                $findings[] = [
+                    'level' => self::LEVEL_NOTICE,
+                    'label' => 'Proxy (Via header)',
+                    'evidence' => 'This request arrived with Via: ' . $this->truncate($via) . ' — a proxy is in the request path. Whether it caches is unknown; treat it as unsafe unless you know otherwise.',
+                ];
             }
         }
 
@@ -337,7 +376,8 @@ class CacheDetectionService extends Component
      *
      * Requests a URL twice with a browser User-Agent and inspects the second
      * response for cache-hit evidence (`Age > 0`, `X-Cache: HIT`,
-     * `CF-Cache-Status: HIT`). A hit proves HTML on canonical URLs is being
+     * `X-Cache: TCP_HIT` from Azure Front Door, `CF-Cache-Status: HIT`). A
+     * hit proves HTML on canonical URLs is being
      * shared-cached. Proxy fingerprints on either response (e.g.
      * `CF-Cache-Status: DYNAMIC`, `Server: cloudflare`) are recorded even
      * without a hit, since they prove an edge is in the path.
@@ -429,15 +469,24 @@ class CacheDetectionService extends Component
             $evidence[] = "Age: {$age} — the response had been sitting in a cache for {$age} seconds.";
         }
 
+        $frontDoorSeen = false;
         foreach (['X-Cache', 'X-Page-Cache'] as $name) {
             $value = $response->getHeaderLine($name);
-            if ($value !== '') {
-                if (stripos($value, 'hit') !== false) {
-                    $hit = true;
-                    $evidence[] = "{$name}: {$value} — a cache reported serving this response.";
-                } else {
-                    $evidence[] = "{$name}: {$value} — a cache layer is present.";
-                }
+            if ($value === '') {
+                continue;
+            }
+
+            $frontDoorStatus = self::FRONT_DOOR_CACHE_STATUSES[strtoupper(trim($value))] ?? null;
+            if ($name === 'X-Cache' && $frontDoorStatus !== null) {
+                [$isHit, $meaning] = $frontDoorStatus;
+                $frontDoorSeen = true;
+                $hit = $hit || $isHit;
+                $evidence[] = "{$name}: {$value} — {$meaning}";
+            } elseif (stripos($value, 'hit') !== false) {
+                $hit = true;
+                $evidence[] = "{$name}: {$value} — a cache reported serving this response.";
+            } else {
+                $evidence[] = "{$name}: {$value} — a cache layer is present.";
             }
         }
 
@@ -460,6 +509,13 @@ class CacheDetectionService extends Component
         $server = $response->getHeaderLine('Server');
         if (stripos($server, 'cloudflare') !== false && $cfStatus === '') {
             $evidence[] = "Server: {$server} — Cloudflare is proxying this URL.";
+        }
+
+        // Front Door attaches X-Azure-Ref to every response; normally its
+        // X-Cache line above already says so, and what the route does.
+        $azureRef = $response->getHeaderLine('X-Azure-Ref');
+        if ($azureRef !== '' && !$frontDoorSeen) {
+            $evidence[] = 'X-Azure-Ref: ' . $this->truncate($azureRef) . ' — Azure Front Door is in front of this URL (no X-Cache status to read).';
         }
 
         foreach (['Via', 'X-Varnish', 'X-Served-By'] as $name) {
@@ -623,19 +679,17 @@ class CacheDetectionService extends Component
     }
 
     /**
-     * Whether a Cloudflare finding is already present (so a
-     * `CDN-Loop: cloudflare` doesn't produce a duplicate).
+     * Whether a finding with the given label prefix is already present, so
+     * a second signal for the same edge (`CDN-Loop: cloudflare` after
+     * `CF-Ray`, `Via: 1.1 Azure` after `X-Azure-FDID`) doesn't produce a
+     * duplicate.
      *
      * @param array<array{level: string, label: string, evidence: string}> $findings
      */
-    private function alreadyFoundCloudflare(array $findings, string $cdnLoop): bool
+    private function alreadyFound(array $findings, string $labelPrefix): bool
     {
-        if (stripos($cdnLoop, 'cloudflare') === false) {
-            return false;
-        }
-
         foreach ($findings as $finding) {
-            if (str_starts_with($finding['label'], 'Cloudflare')) {
+            if (str_starts_with($finding['label'], $labelPrefix)) {
                 return true;
             }
         }
