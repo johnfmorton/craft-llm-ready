@@ -396,6 +396,7 @@ If the developer wants to customize the plugin beyond defaults, here are the ava
 | Auto-inject Discovery Tag | On | Add a `<link rel="alternate">` tag to HTML pages |
 | Auto-inject Link Header | On | Also advertise the Markdown alternate via an HTTP `Link` header (sent on GET and HEAD) |
 | Cache TTL | 3600 seconds | How long to cache Markdown output (0 = no cache) |
+| Site Title | (empty) | `/llms.txt` H1 heading; blank uses the site's name |
 | Site Description | (empty) | Intro text for the `/llms.txt` blockquote |
 | Description Field | (empty) | Field/path for entry descriptions in `/llms.txt` and listings. Supports dot notation, `()` method calls, Generated Fields, and `seomatic:description` — see Step 9 and `SEO-PLUGINS.md`. Auto-extracts if blank |
 | Title Field | (empty) | Field/path overriding the front-matter `title:` (same syntax as Description Field). Falls back to the entry title if blank |
