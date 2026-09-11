@@ -2,6 +2,8 @@
 
 _LLM Ready_ makes your Craft CMS site machine-readable by serving clean Markdown versions of your content to AI crawlers and LLMs. Append `.md` to any entry URL, and LLM Ready converts the page to Markdown with YAML front matter — no extra templates required.
 
+> **⚠️ Work in progress — you are on the `webmcp` branch.** This branch adds opt-in support for [WebMCP](https://github.com/webmachinelearning/webmcp), an emerging web standard that lets a page offer read-only tools to AI agents running in the visitor's browser. WebMCP itself is still in development: it is a Chrome/Edge origin trial working its way through the standards process, and its API is still changing. Nothing on this branch is released. It is being tested against real browsers and agents before it ships in a stable version. Install it only if you want to try WebMCP support and report what you find — see [Installing this branch](#installing-this-branch). For the stable plugin, use the [`main` branch](https://github.com/johnfmorton/craft-llm-ready) or the Plugin Store.
+
 For complete documentation, see the [LLM Ready Documentation](DOCUMENTATION.md) in this repo.
 
 **Using an AI coding assistant?** Point your agent to [AI-INSTALL.md](AI-INSTALL.md) for automated installation and configuration.
@@ -56,3 +58,30 @@ composer require johnfmorton/craft-llm-ready
 # tell Craft to install the plugin
 ./craft plugin/install llm-ready
 ```
+
+### Installing this branch
+
+The `webmcp` branch is not in the Plugin Store and has no release tag. Composer can install it directly, because Packagist tracks every branch of this repository as a `dev-` version:
+
+```bash
+# go to the project directory
+cd /path/to/my-project.test
+
+# switch to (or install) the WebMCP work-in-progress branch
+composer require "johnfmorton/craft-llm-ready:dev-webmcp"
+
+# first-time install only — a site that already runs LLM Ready just needs the Composer step
+./craft plugin/install llm-ready
+```
+
+A standard Craft project accepts the `dev-webmcp` constraint as is: its `composer.json` ships with `"minimum-stability": "dev"` and `"prefer-stable": true`, so the explicit dev constraint is honored while everything else stays on stable releases. Composer keeps following the branch — run `composer update johnfmorton/craft-llm-ready` to pick up new commits.
+
+Then turn on **Enable WebMCP Tools** in the plugin settings and follow [Testing locally](DOCUMENTATION.md#testing-locally) in the documentation, which covers the browser flag and Google's WebMCP inspector extension.
+
+To go back to the stable plugin:
+
+```bash
+composer require "johnfmorton/craft-llm-ready:^1.9"
+```
+
+Found something? Please [open an issue](https://github.com/johnfmorton/craft-llm-ready/issues) and mention that you are on the `webmcp` branch.
