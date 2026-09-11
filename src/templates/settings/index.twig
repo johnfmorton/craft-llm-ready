@@ -328,7 +328,7 @@
     name: 'webMcpOriginTrialToken',
     warning: 'webMcpOriginTrialToken' in overridden ? configWarning('webMcpOriginTrialToken') : null,
     disabled: 'webMcpOriginTrialToken' in overridden,
-    value: settings.webMcpOriginTrialToken,
+    value: settings.webMcpOriginTrialToken is iterable ? 'Per-site tokens set in config/llm-ready.php' : settings.webMcpOriginTrialToken,
     placeholder: 'A0x…',
 }) }}
 

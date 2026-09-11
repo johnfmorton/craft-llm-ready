@@ -198,21 +198,54 @@ return [
     // running in the visitor's browser. Off by default while the WebMCP API
     // is in origin trial (Chrome 149+/Edge 150+). Browsers without the API
     // are unaffected — the script is a silent no-op there.
+    //
+    // Enabling it is safe everywhere, but a token (below) only makes sense
+    // per origin, so a multi-environment config is the natural shape:
+    //
+    //       return [
+    //           '*'          => ['enableWebMcp' => true],
+    //           'dev'        => ['webMcpOriginTrialToken' => ''],         // browser flag instead
+    //           'production' => ['webMcpOriginTrialToken' => 'A0x…'],
+    //       ];
     'enableWebMcp' => false,
 
     // Whether to inject the WebMCP bootstrap automatically on site pages.
-    // Turn off to place it yourself with `{{ craft.llmReady.webMcp() }}`
-    // (custom routes, templates rendered outside the page pipeline, or
-    // full control over placement).
+    // Automatic injection reaches pages Craft renders through its page
+    // pipeline whose template has </head>, <body>, and </body>. Turn it off
+    // and place the bootstrap yourself when that isn't the case — a custom
+    // route whose URL doesn't resolve to an entry, a template rendered
+    // outside the page pipeline, or full control over placement:
+    //
+    //       {{ craft.llmReady.webMcp() }}                   {# in a layout #}
+    //       {{ craft.llmReady.webMcp({ entry: entry }) }}   {# custom route #}
+    //
+    // Leave it on together with the tag and pages carry the bootstrap twice.
     'autoInjectWebMcp' => true,
 
     // Chrome/Edge Origin Trial token for the WebMCP API, injected as a
     // `<meta http-equiv="origin-trial">` tag on pages carrying the tool
     // script. Register your origin at https://developer.chrome.com/origintrials/
-    // to get one. Tokens are per-origin, so multi-site installs on different
-    // domains need one per site — use a multi-environment config or
-    // per-site override here. Leave empty for local testing with the
+    // to get one. Leave empty for local testing with the
     // `chrome://flags#enable-webmcp-testing` browser flag (Chrome 150+).
+    //
+    // The token is public — every visitor receives it in the page — so it
+    // can be committed. It does expire, though, so reading it from `.env`
+    // (add `use craft\helpers\App;` at the top of config/llm-ready.php)
+    // lets you rotate it without a deploy:
+    //
+    //       'webMcpOriginTrialToken' => App::env('LLM_READY_WEBMCP_TOKEN') ?? '',
+    //
+    // Tokens are issued per origin, so a multi-site install whose sites
+    // live on different domains needs one per site. Give an array keyed by
+    // site handle; a site with no entry gets no tag:
+    //
+    //       'webMcpOriginTrialToken' => [
+    //           'default' => 'A0x…',   // https://example.com
+    //           'fr'      => 'A0y…',   // https://example.fr
+    //       ],
+    //
+    // Sites that are subdomains or paths of one registered origin share a
+    // token, so a single string is enough for them.
     'webMcpOriginTrialToken' => '',
 
     // -----------------------------------------------------------------------

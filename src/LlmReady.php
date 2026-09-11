@@ -610,10 +610,11 @@ class LlmReady extends Plugin
 
                 $view = Craft::$app->getView();
 
-                if ($settings->webMcpOriginTrialToken !== '') {
+                $token = $settings->getWebMcpOriginTrialToken();
+                if ($token !== '') {
                     $view->registerMetaTag([
                         'http-equiv' => 'origin-trial',
-                        'content' => $settings->webMcpOriginTrialToken,
+                        'content' => $token,
                     ], 'llm-ready-webmcp-ot');
                 }
 
@@ -730,10 +731,11 @@ class LlmReady extends Plugin
 
         $html = '';
 
-        if ($settings->webMcpOriginTrialToken !== '') {
+        $token = $settings->getWebMcpOriginTrialToken();
+        if ($token !== '') {
             $html .= Html::tag('meta', '', [
                 'http-equiv' => 'origin-trial',
-                'content' => $settings->webMcpOriginTrialToken,
+                'content' => $token,
             ]) . "\n";
         }
 

@@ -357,7 +357,20 @@ Visitors without a capable browser are unaffected: the injected script (~1.5 KB 
 ### Setup
 
 1. Turn on **Enable WebMCP Tools** in the plugin settings.
-2. For real visitors, register your origin for the WebMCP origin trial at [Chrome's origin trials console](https://developer.chrome.com/origintrials/) and paste the token into **Origin Trial Token**. Tokens are free, per-origin, and expire — multi-site installs on different domains need one per site, settable per site in `config/llm-ready.php`. Skip this for local testing with the browser flag.
+2. For real visitors, register your origin for the WebMCP origin trial at [Chrome's origin trials console](https://developer.chrome.com/origintrials/) and paste the token into **Origin Trial Token**. Tokens are free, per-origin, and expire. Skip this for local testing with the browser flag. A multi-site install whose sites live on different domains needs one token per site: in `config/llm-ready.php` the setting accepts an array keyed by site handle, and a site with no entry gets no tag (sites that are subdomains or paths of one registered origin share a token, so a single string covers them). The token is public, every visitor receives it in the page, so it is safe to commit; because it expires, reading it from `.env` is convenient:
+
+```php
+// config/llm-ready.php
+use craft\helpers\App;
+
+return [
+    'enableWebMcp' => true,
+    // one origin
+    'webMcpOriginTrialToken' => App::env('LLM_READY_WEBMCP_TOKEN') ?? '',
+    // or one per site, on different domains
+    // 'webMcpOriginTrialToken' => ['default' => 'A0x…', 'fr' => 'A0y…'],
+];
+```
 
 ### Testing locally
 
@@ -461,7 +474,7 @@ Configure LLM Ready from **Settings > Plugins > LLM Ready** in the Craft control
 | Enable llms.txt | `true` | Serve `/llms.txt` and `/.well-known/llms.txt`. Turn off to 404 the route — and stop the home page advertising it — while leaving `.md` URLs, content negotiation and discovery tags working |
 | Enable WebMCP Tools | `false` | Inject a small script registering read-only WebMCP tools (`get-page-content`, `get-site-overview`) for in-browser AI agents. See [WebMCP tools](#webmcp-tools) |
 | Auto-inject WebMCP | `true` | Add the WebMCP bootstrap to site pages automatically. Turn off to place it yourself with `{{ craft.llmReady.webMcp() }}` — see [Placing the tag yourself](#placing-the-tag-yourself) |
-| Origin Trial Token | `""` | Chrome/Edge origin trial token for the WebMCP API, injected as a `<meta http-equiv="origin-trial">` tag. Per-origin; leave empty for flag-based local testing |
+| Origin Trial Token | `""` | Chrome/Edge origin trial token for the WebMCP API, injected as a `<meta http-equiv="origin-trial">` tag. Per-origin; leave empty for flag-based local testing. In `config/llm-ready.php` it may be an array keyed by site handle for multi-site installs on different domains |
 | Site Title | `""` | Title used for the `/llms.txt` H1 heading. Falls back to the site's name when blank. A value containing `{` is rendered as a Craft object template with the site as `site`, so it can read a field on a Single (`{{ craft.entries.section('siteInfo').site(site).one().llmTitle ?? '' }}`) or a global set (`{{ siteInfo.llmTitle }}`) that content editors manage outside project config, and stay per site where a fixed title applies to every site. Collapsed to one line. See [Letting editors manage the site title and description](#letting-editors-manage-the-site-title-and-description). |
 | Site Description | `""` | Introduction text for the `/llms.txt` blockquote. A value containing `{` is rendered as a Craft object template with the site as `site`, so it can read a field on a Single (`{{ craft.entries.section('siteInfo').site(site).one().llmDescription ?? '' }}`) or a global set (`{{ siteInfo.llmDescription }}`) that content editors manage outside project config. See [Letting editors manage the site title and description](#letting-editors-manage-the-site-title-and-description). |
 | Description Field | `""` | Field handle to use for entry descriptions in `/llms.txt` and listing pages. Supports dot notation (e.g. `seo.seoDescription`), `()` method-call syntax (e.g. `metaData.getMetaDescription()`), Generated Field handles, and a native SEOmatic resolver via `seomatic:description`. See [SEO-PLUGINS.md](SEO-PLUGINS.md) for SEOmatic / Ether SEO / SEOmate / SEO Fields recipes. When set, the configured field is authoritative — no auto-extract fallback runs if it resolves to nothing. |

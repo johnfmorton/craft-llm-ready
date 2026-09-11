@@ -105,8 +105,8 @@ treatment as the plugin's Markdown responses.
 
 Yes, with the same per-section, per-site enablement as the rest of the
 plugin. The one extra consideration is origin trial tokens, which are
-per-origin — sites on different domains each need their own token, settable
-per site in `config/llm-ready.php`.
+per-origin — sites on different domains each need their own token. In
+`config/llm-ready.php` the setting takes an array keyed by site handle.
 
 ### I run Craft headless. Can I use this?
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace johnfmorton\llmready\models;
 
+use Craft;
 use craft\base\Model;
 
 /**
@@ -124,13 +125,16 @@ class Settings extends Model
      * Chrome/Edge Origin Trial token for the WebMCP API, injected as a
      * `<meta http-equiv="origin-trial">` tag on pages that carry the tool
      * script. Tokens are issued per origin at
-     * https://developer.chrome.com/origintrials/ — multi-site installs on
-     * different domains need one per site (override per site in
-     * config/llm-ready.php). Leave empty for flag-based local testing.
+     * https://developer.chrome.com/origintrials/, so a multi-site install
+     * whose sites live on different domains needs one per site: in
+     * config/llm-ready.php the value may be an array keyed by site handle
+     * (`['default' => 'A0x…', 'fr' => 'A0y…']`); a site with no entry gets
+     * no tag. The control panel field holds a single token for every site.
+     * Leave empty for flag-based local testing.
      *
-     * @var string
+     * @var string|array<string, mixed>
      */
-    public string $webMcpOriginTrialToken = '';
+    public string|array $webMcpOriginTrialToken = '';
 
     /** @var int Number of days to retain analytics data */
     public int $analyticsRetentionDays = 90;
@@ -139,10 +143,48 @@ class Settings extends Model
     {
         return [
             [['enabled', 'noindexHeader', 'autoInjectDiscoveryTag', 'autoInjectLinkHeader', 'enableContentNegotiation', 'enableUserAgentDetection', 'enableAnalytics', 'enableWebMcp', 'autoInjectWebMcp'], 'boolean'],
-            [['contentSelector', 'excludeSelector', 'llmsTxtTitle', 'llmsTxtIntro', 'descriptionField', 'titleField', 'authorOverride', 'webMcpOriginTrialToken'], 'string'],
+            [['contentSelector', 'excludeSelector', 'llmsTxtTitle', 'llmsTxtIntro', 'descriptionField', 'titleField', 'authorOverride'], 'string'],
+            [['webMcpOriginTrialToken'], 'validateOriginTrialToken'],
             ['cacheTtl', 'integer', 'min' => 0],
             ['analyticsRetentionDays', 'integer', 'min' => 1],
             [['additionalBotUserAgents', 'botUserAgents', 'excludeBotUserAgents'], 'each', 'rule' => ['string']],
         ];
+    }
+    /**
+     * The origin trial token for a site: the configured string, or the
+     * matching entry of a per-site array. Empty when none applies.
+     *
+     * @param string|null $siteHandle Defaults to the current site.
+     */
+    public function getWebMcpOriginTrialToken(?string $siteHandle = null): string
+    {
+        $token = $this->webMcpOriginTrialToken;
+        if (is_string($token)) {
+            return trim($token);
+        }
+
+        $siteHandle ??= Craft::$app->getSites()->getCurrentSite()->handle;
+        $value = $token[$siteHandle] ?? '';
+
+        return is_string($value) ? trim($value) : '';
+    }
+
+    /**
+     * A token is a string, or (from config/llm-ready.php) an array of
+     * strings keyed by site handle.
+     */
+    public function validateOriginTrialToken(string $attribute): void
+    {
+        $value = $this->$attribute;
+        if (is_string($value)) {
+            return;
+        }
+
+        foreach ($value as $handle => $token) {
+            if (!is_string($handle) || !is_string($token)) {
+                $this->addError($attribute, Craft::t('llm-ready', 'Per-site origin trial tokens must be an array of strings keyed by site handle.'));
+                return;
+            }
+        }
     }
 }
