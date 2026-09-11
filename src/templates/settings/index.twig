@@ -239,6 +239,8 @@
     instructions: 'The <code>/llms.txt</code> H1 heading. Leave blank to use the site\'s name, which is per site — a fixed title here applies to every site. Collapsed to one line; a template that renders to nothing falls back to the site\'s name.',
     id: 'llmsTxtTitle',
     name: 'llmsTxtTitle',
+    warning: 'llmsTxtTitle' in overridden ? configWarning('llmsTxtTitle') : null,
+    disabled: 'llmsTxtTitle' in overridden,
     value: settings.llmsTxtTitle,
     placeholder: 'e.g., Acme Developer Docs',
 }) }}
