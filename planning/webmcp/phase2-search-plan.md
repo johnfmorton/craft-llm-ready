@@ -1,7 +1,7 @@
 # Phase 2 planning — exposing a site's search through WebMCP
 
 Status: **draft / design exploration.** Companion to
-[WEBMCP-PLAN.md](WEBMCP-PLAN.md); this document deepens its Phase 2 into a
+[plan.md](plan.md); this document deepens its Phase 2 into a
 design any developer can follow to expose *their* site's search — whatever
 shape it takes — as WebMCP tools.
 

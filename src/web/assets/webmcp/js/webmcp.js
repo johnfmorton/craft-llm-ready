@@ -6,7 +6,7 @@
  * `get-site-overview` (the site index, from /llms.txt). A silent no-op on
  * browsers without the API.
  *
- * See WEBMCP-PLAN.md in the plugin repo for the design this implements.
+ * See planning/webmcp/plan.md in the plugin repo for the design this implements.
  */
 (function() {
     'use strict';

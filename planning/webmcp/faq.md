@@ -1,7 +1,7 @@
 # WebMCP support — FAQ
 
 Draft FAQ for the WebMCP feature, written from the questions plugin users are
-most likely to ask. Companion to [WEBMCP-PLAN.md](WEBMCP-PLAN.md).
+most likely to ask. Companion to [plan.md](plan.md).
 
 ---
 

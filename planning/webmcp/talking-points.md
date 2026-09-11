@@ -2,7 +2,7 @@
 
 For discussing the feature with plugin users: Discord/Stack Exchange threads,
 a blog post announcing the feature, CraftQuest/Craft CMS community calls.
-Companion to [WEBMCP-PLAN.md](WEBMCP-PLAN.md).
+Companion to [plan.md](plan.md).
 
 ---
 

@@ -11,8 +11,8 @@ scope, not just its own content. Simple to stage, and it lands the point
 that WebMCP tools can surface content beyond what the visitor is looking at.
 
 This is a preview, not a launch video — the feature ships after manual
-validation against the real origin trial (WEBMCP-PLAN.md §7). The full
-launch script ([WEBMCP-DEMO-SCRIPT.md](WEBMCP-DEMO-SCRIPT.md)) waits for
+validation against the real origin trial (plan.md §7). The full
+launch script ([demo-script.md](demo-script.md)) waits for
 Phase 2's `search-entries`.
 
 ---
@@ -163,6 +163,6 @@ analytics.*
 - **Keep the honesty beat.** Naming the flag, the token, and origin-trial
   status pre-empts "where do I get this?" comments.
 - **Spike findings feed the plan.** Anything the recording surfaces about
-  Chrome's actual API or agent behavior belongs in WEBMCP-PLAN.md §7.
+  Chrome's actual API or agent behavior belongs in plan.md §7.
 - **Cutdown:** beat 2 alone, bookended by the empty→populated
   `getTools()` contrast, makes a ~60-second short.

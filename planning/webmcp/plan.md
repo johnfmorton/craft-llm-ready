@@ -509,7 +509,7 @@ deterministic calls, Gemini mode for real agent behavior.
 - Watch an actual agent (the inspector's Gemini mode) discover and call
   `get-page-content`; iterate on the tool description if it under-uses it.
 - Try ChatGPT Desktop as a second client.
-- Record the Phase 0 demo video (WEBMCP-DEMO-SCRIPT-PHASE0.md).
+- Record the Phase 0 demo video (demo-script-phase0.md).
 
 ### Notes for Phase 1
 

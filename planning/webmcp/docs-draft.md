@@ -2,7 +2,7 @@
 
 > **Status: partially landed.** The Phase 1 portions of this draft are now
 > real documentation — see the "WebMCP tools" section of
-> [DOCUMENTATION.md](DOCUMENTATION.md#webmcp-tools), which supersedes this
+> [DOCUMENTATION.md](../../DOCUMENTATION.md#webmcp-tools), which supersedes this
 > file for everything Phase 1 ships. This draft remains the reference for
 > the Phase 2 sections (search/listing tools, analytics) and Phase 3
 > (extensibility) that haven't landed yet.

@@ -1,0 +1,2 @@
+# Maintainer-only material that has no business in an installed copy of the plugin
+/planning export-ignore
