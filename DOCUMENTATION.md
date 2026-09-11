@@ -210,7 +210,7 @@ LLM Ready auto-generates a `/llms.txt` file following the [llms.txt specificatio
 
 The generated file includes:
 
-- **H1**: Your site name, or a custom title (configured in plugin settings)
+- **H1**: Your site name, or a custom title (configured in plugin settings, or handed to editors the same way as the description)
 - **Blockquote**: An optional site description (configured in plugin settings, or handed to editors through a field on a Single or a global set — see [Letting editors manage the site description](#letting-editors-manage-the-site-description))
 - **H2 sections**: One per enabled Craft section, with a list of entry links
 
@@ -268,6 +268,8 @@ Each step resolves to `null` when it has nothing to offer, and `??` moves on to 
 Either way the value editors enter is content, not project config, so it deploys with the database and can differ per site.
 
 Rich-text output is reduced to plain text: tags are stripped, entities decoded, and each paragraph or line break becomes its own line of the blockquote, so a two-paragraph description stays two paragraphs. A template that renders to nothing omits the blockquote; one that throws logs a warning and omits it too, so a typo in the setting can't take down `/llms.txt`. The cached file is dropped whenever an entry or a global set is saved, so an editor's change is live on the next request. Object templates come from plugin settings, which need an admin (or `config/llm-ready.php`) to change — the same trust boundary as Craft's own title and URI formats.
+
+**The H1 too.** The **Site Title** setting takes the same object templates, so the heading can come from a field beside the description (`{{ siteInfo.llmTitle }}`, say). That matters in a multi-site install: the default H1 is the site's name, which is already per site, while a fixed Site Title replaces it on every site. A template keeps the heading per site. The rendered title is collapsed to a single line, since a line break would end the heading, and one that renders to nothing (or throws) falls back to the site's name.
 
 ## Listing pages
 
@@ -358,7 +360,7 @@ Configure LLM Ready from **Settings > Plugins > LLM Ready** in the Craft control
 | Auto-inject Link Header | `true` | Add an HTTP `Link` response header (RFC 8288) pointing at the Markdown alternate. Useful for crawlers that inspect headers without parsing HTML |
 | Cache TTL (seconds) | `3600` | How long to cache Markdown output (`0` to disable) |
 | Enable llms.txt | `true` | Serve `/llms.txt` and `/.well-known/llms.txt`. Turn off to 404 the route — and stop the home page advertising it — while leaving `.md` URLs, content negotiation and discovery tags working |
-| Site Title | `""` | Title used for the `/llms.txt` H1 heading. Falls back to the site's name when blank |
+| Site Title | `""` | Title used for the `/llms.txt` H1 heading. Falls back to the site's name when blank. Accepts a Craft object template exactly as Site Description does (`{{ siteInfo.llmTitle }}`), collapsed to one line, so editors can set it per site; a fixed title applies to every site. See [Letting editors manage the site description](#letting-editors-manage-the-site-description). |
 | Site Description | `""` | Introduction text for the `/llms.txt` blockquote. A value containing `{` is rendered as a Craft object template with the site as `site`, so it can read a field on a Single (`{{ craft.entries.section('siteInfo').site(site).one().llmDescription ?? '' }}`) or a global set (`{{ siteInfo.llmDescription }}`) that content editors manage outside project config. See [Letting editors manage the site description](#letting-editors-manage-the-site-description). |
 | Description Field | `""` | Field handle to use for entry descriptions in `/llms.txt` and listing pages. Supports dot notation (e.g. `seo.seoDescription`), `()` method-call syntax (e.g. `metaData.getMetaDescription()`), Generated Field handles, and a native SEOmatic resolver via `seomatic:description`. See [SEO-PLUGINS.md](SEO-PLUGINS.md) for SEOmatic / Ether SEO / SEOmate / SEO Fields recipes. When set, the configured field is authoritative — no auto-extract fallback runs if it resolves to nothing. |
 | Title Field | `""` | Optional field handle for the front-matter `title:` value. Supports the same syntax as Description Field (dot notation, `()` method calls, Generated Field handles, `seomatic:title`), or a Craft object template such as `{{ entry.longTitle ?: entry.title }}`. Falls back to the entry's native title when blank or unresolved. See [Customizing the title and author](#customizing-the-title-and-author). |

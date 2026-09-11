@@ -124,7 +124,7 @@
 
 {{ forms.textField({
     label: 'Site Title',
-    instructions: 'Title used for the <code>/llms.txt</code> H1 heading. Leave blank to use the site\'s name.',
+    instructions: 'Title used for the <code>/llms.txt</code> H1 heading. Leave blank to use the site\'s name. Like Site Description below, a Craft object template reads a field that content editors manage — e.g. <code>{{ siteInfo.llmTitle }}</code> on a global set — and can differ per site; a fixed title applies to every site. The site is available as <code>site</code>. The result is collapsed to one line, and a template that renders to nothing falls back to the site\'s name.',
     id: 'llmsTxtTitle',
     name: 'llmsTxtTitle',
     value: settings.llmsTxtTitle,

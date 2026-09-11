@@ -134,6 +134,11 @@ return [
 
     // Title used for the `/llms.txt` H1 heading. Leave empty to use the
     // site's name. Example: 'SuperGeekery Docs'
+    //
+    // Accepts a Craft object template exactly as `llmsTxtIntro` below does,
+    // e.g. '{{ siteInfo.llmTitle }}', so editors can manage it per site — a
+    // fixed string applies to every site. The result is collapsed to one
+    // line; a template that renders to nothing falls back to the site's name.
     'llmsTxtTitle' => '',
 
     // Introduction text for the `/llms.txt` file. Appears as a blockquote
