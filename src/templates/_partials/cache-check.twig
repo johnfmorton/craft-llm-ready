@@ -17,12 +17,12 @@
 
    Variables: currentEnv (string), findings (array), otherResults (array),
    probe (array|null), probeDate (DateTime|null), probeDefaultUrl (string),
-   status (array{level, text}) #}
+   status (array{level, text}), isProduction (bool) #}
 
 <div class="llm-ready-cache-pane">
     <div class="llm-ready-cache-pane__header">
         <span class="llm-ready-cache-pane__title">{{ 'Cache check'|t('llm-ready') }}</span>
-        <span class="llm-ready-cache-pane__status">
+        <span class="llm-ready-cache-pane__status is-{{ status.level }}">
             <span class="llm-ready-status-dot is-{{ status.level }}"></span>
             <span class="llm-ready-status-text">{{ status.text }}</span>
         </span>
@@ -61,6 +61,12 @@
                     </li>
                 {% endfor %}
             </ul>
+        {% endif %}
+
+        {% if not isProduction %}
+            <p class="llm-ready-env-note">
+                {{ 'You are checking from the <strong>{env}</strong> environment. A CDN or page cache usually exists only in production, so this environment says little about the live site — enter your <strong>production URL</strong> below and run the probe against it.'|t('llm-ready', { env: currentEnv })|raw }}
+            </p>
         {% endif %}
 
         {# The URL input deliberately has no name attribute, so it is never
@@ -140,6 +146,17 @@
 .llm-ready-status-dot.is-evidence,
 .llm-ready-status-dot.is-proxy {
     background: var(--orange-500);
+}
+.llm-ready-cache-pane__status.is-evidence,
+.llm-ready-cache-pane__status.is-proxy {
+    color: var(--orange-500);
+    font-weight: 600;
+}
+.llm-ready-env-note {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--gray-500);
 }
 /* Spacing inside the pane body is structural (flex gap), not margins:
    input row → 10px → result → 10px → meta row, per the fix pass. */
@@ -261,6 +278,7 @@
     var urlInput = pane.querySelector('.llm-ready-probe-url');
     var result = pane.querySelector('.llm-ready-probe-result');
     var meta = pane.querySelector('.llm-ready-probe-meta');
+    var statusWrap = pane.querySelector('.llm-ready-cache-pane__status');
     var statusDot = pane.querySelector('.llm-ready-status-dot');
     var statusText = pane.querySelector('.llm-ready-status-text');
     if (!btn || !urlInput || !result) {
@@ -283,6 +301,9 @@
                 }
                 if (statusDot && statusText && response.data.status) {
                     statusDot.className = 'llm-ready-status-dot is-' + response.data.status.level;
+                    if (statusWrap) {
+                        statusWrap.className = 'llm-ready-cache-pane__status is-' + response.data.status.level;
+                    }
                     statusText.textContent = response.data.status.text;
                 }
             })

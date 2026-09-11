@@ -141,6 +141,19 @@ class CacheDetectionService extends Component
     }
 
     /**
+     * Whether this looks like the production environment. Craft's
+     * convention is `CRAFT_ENVIRONMENT=production` (the starter `.env`
+     * ships `dev`, `staging`, `production`), so anything not starting with
+     * "prod" is treated as non-production. Used to steer the user towards
+     * probing the production URL: a CDN or page cache usually exists only
+     * there, so a local check says little about the live site.
+     */
+    public function isProductionEnvironment(): bool
+    {
+        return str_starts_with(strtolower($this->getCurrentEnvironment()), 'prod');
+    }
+
+    /**
      * The URL the probe targets when none is supplied — used to prefill the
      * probe URL field in the UI.
      */
@@ -167,6 +180,7 @@ class CacheDetectionService extends Component
      *     probeDate: DateTime|null,
      *     probeDefaultUrl: string,
      *     status: array{level: string, text: string},
+     *     isProduction: bool,
      * }
      */
     public function getCheckData(): array
@@ -195,6 +209,7 @@ class CacheDetectionService extends Component
             'probeDate' => $currentProbeDate,
             'probeDefaultUrl' => $this->getDefaultProbeUrl(),
             'status' => $this->getStatus($findings, $currentProbe),
+            'isProduction' => $this->isProductionEnvironment(),
         ];
     }
 
@@ -573,7 +588,7 @@ class CacheDetectionService extends Component
             $message = 'The probed site is set up to cache its HTML: ' . implode('; ', array_unique($cachingSignals)) . '. Keep AI Bot User-Agent Detection off wherever that site runs. (No cache hit was observed in this test — a cache can miss twice for many reasons — but the configuration is the evidence.)';
         } elseif ($evidence !== []) {
             $verdict = self::PROBE_PROXY;
-            $message = 'A proxy or CDN answered this probe, but did not serve it from cache during the test. That does not prove HTML is never cached — a cache can miss twice for many reasons. If you know a cache sits in front, trust that over this result.';
+            $message = 'A proxy or CDN answered this probe, but did not serve it from cache during the test. That does not prove HTML is never cached — a cache can miss twice for many reasons. Keep AI Bot User-Agent Detection off unless you know that proxy never caches HTML.';
         } else {
             $verdict = self::PROBE_NONE;
             $message = 'No cache evidence in the probe responses. Absence of evidence is not absence of a cache — a cache configured not to identify itself is invisible to this check.';
@@ -620,14 +635,14 @@ class CacheDetectionService extends Component
         if ($passiveWarning || ($probe !== null && $probe['verdict'] === self::PROBE_HIT)) {
             return [
                 'level' => 'evidence',
-                'text' => Craft::t('llm-ready', 'Shared cache detected — keep this setting off'),
+                'text' => Craft::t('llm-ready', 'Shared cache detected — keep AI Bot User-Agent Detection off'),
             ];
         }
 
         if ($passiveNotice || ($probe !== null && $probe['verdict'] === self::PROBE_PROXY)) {
             return [
                 'level' => 'proxy',
-                'text' => Craft::t('llm-ready', 'Proxy or page-cache evidence — see details'),
+                'text' => Craft::t('llm-ready', 'Proxy or page-cache evidence — keep AI Bot User-Agent Detection off'),
             ];
         }
 
