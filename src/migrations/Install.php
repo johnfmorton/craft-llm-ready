@@ -8,6 +8,7 @@ use Craft;
 use craft\db\Migration;
 use johnfmorton\llmready\LlmReady;
 use johnfmorton\llmready\records\AnalyticsRecord;
+use johnfmorton\llmready\records\CacheCheckRecord;
 use johnfmorton\llmready\records\SectionSettingRecord;
 use Throwable;
 
@@ -32,6 +33,7 @@ class Install extends Migration
     public function safeDown(): bool
     {
         $this->dropTableIfExists(AnalyticsRecord::tableName());
+        $this->dropTableIfExists(CacheCheckRecord::tableName());
         $this->dropTableIfExists(SectionSettingRecord::tableName());
 
         // Clean up project config
@@ -54,6 +56,20 @@ class Install extends Migration
             ]);
         }
 
+        if ($this->db->schema->getTableSchema(CacheCheckRecord::tableName()) === null) {
+            $this->createTable(CacheCheckRecord::tableName(), [
+                'id' => $this->primaryKey(),
+                'environment' => $this->string(64)->notNull(),
+                'passiveData' => $this->text()->null(),
+                'passiveDate' => $this->dateTime()->null(),
+                'probeData' => $this->text()->null(),
+                'probeDate' => $this->dateTime()->null(),
+                'dateCreated' => $this->dateTime()->notNull(),
+                'dateUpdated' => $this->dateTime()->notNull(),
+                'uid' => $this->uid(),
+            ]);
+        }
+
         if ($this->db->schema->getTableSchema(SectionSettingRecord::tableName()) === null) {
             $this->createTable(SectionSettingRecord::tableName(), [
                 'id' => $this->primaryKey(),
@@ -70,6 +86,8 @@ class Install extends Migration
 
     private function createIndexes(): void
     {
+        $this->createIndex(null, CacheCheckRecord::tableName(), ['environment'], true);
+
         $this->createIndex(null, AnalyticsRecord::tableName(), ['dateCreated']);
         $this->createIndex(null, AnalyticsRecord::tableName(), ['siteId', 'dateCreated']);
         $this->createIndex(null, AnalyticsRecord::tableName(), ['botName']);

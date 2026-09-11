@@ -165,6 +165,8 @@ Serving Markdown on the canonical URL means the response varies by `User-Agent`,
 
 If the site is served straight from its origin with no CDN or shared cache in front, the setting can be enabled deliberately in **Settings → Plugins → LLM Ready**, after which this command returns Markdown. Ask the site owner before changing it.
 
+To find out whether a shared cache is in front, use the plugin's built-in check: it appears directly below the toggle on the settings page (and at **Utilities → LLM Ready Cache Check**). It inspects request headers and in-Craft page-cache plugins automatically, and its **Run cache probe** button can be pointed at the production URL to read the live edge from a local install. Treat only positive detections as conclusive — "nothing detected" does not prove there is no cache.
+
 ### 7d. Test `/llms.txt`
 
 ```bash

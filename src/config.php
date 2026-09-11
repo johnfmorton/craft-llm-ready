@@ -50,7 +50,23 @@ return [
     // discovery tag/header instead. Each is its own URL, so nothing varies
     // and everything stays cacheable.
     //
-    // Safe to turn on if no shared cache sits in front of this site.
+    // Safe to turn on if no shared cache sits in front of this site — which
+    // usually differs per environment (bare origin in dev, CDN in
+    // production). A value here overrides the control panel, so make it
+    // follow the environment in one of two ways:
+    //
+    //   - read a variable from `.env` (add `use craft\helpers\App;` at the
+    //     top of config/llm-ready.php, and `LLM_READY_UA_DETECTION=true` to
+    //     the dev `.env`):
+    //
+    //       'enableUserAgentDetection' => App::parseBooleanEnv('$LLM_READY_UA_DETECTION') ?? false,
+    //
+    //   - or key the file on CRAFT_ENVIRONMENT (a multi-environment config):
+    //
+    //       return [
+    //           '*'   => ['enableUserAgentDetection' => false],
+    //           'dev' => ['enableUserAgentDetection' => true],
+    //       ];
     'enableUserAgentDetection' => false,
 
     // Additional bot user-agent strings to detect, appended to the built-in
