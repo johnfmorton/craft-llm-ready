@@ -74,6 +74,9 @@ class Settings extends Model
      */
     public array $excludeBotUserAgents = [];
 
+    /** @var string Site title for llms.txt H1 heading (empty = site name) */
+    public string $llmsTxtTitle = '';
+
     /** @var string Site description for llms.txt header blockquote */
     public string $llmsTxtIntro = '';
 
@@ -99,7 +102,7 @@ class Settings extends Model
     {
         return [
             [['enabled', 'noindexHeader', 'autoInjectDiscoveryTag', 'autoInjectLinkHeader', 'enableContentNegotiation', 'enableUserAgentDetection', 'enableAnalytics'], 'boolean'],
-            [['contentSelector', 'excludeSelector', 'llmsTxtIntro', 'descriptionField', 'titleField', 'authorOverride'], 'string'],
+            [['contentSelector', 'excludeSelector', 'llmsTxtTitle', 'llmsTxtIntro', 'descriptionField', 'titleField', 'authorOverride'], 'string'],
             ['cacheTtl', 'integer', 'min' => 0],
             ['analyticsRetentionDays', 'integer', 'min' => 1],
             [['additionalBotUserAgents', 'botUserAgents', 'excludeBotUserAgents'], 'each', 'rule' => ['string']],

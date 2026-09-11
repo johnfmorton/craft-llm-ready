@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Site Title** setting to override the `/llms.txt` H1 heading, which otherwise defaults to the site's name. Like Site Description, a value containing `{` is rendered as a Craft object template with the site as `site`, so `{{ siteInfo.llmTitle }}` hands the heading to content editors and keeps it per site, where a fixed title applies to every site. The result is collapsed to one line, and a template that renders to nothing or throws falls back to the site's name. See "Letting editors manage the site title and description" in DOCUMENTATION.md (the section that covered the description alone). Thanks to [@DigitaleJungle](https://github.com/DigitaleJungle) for the contribution ([#39](https://github.com/johnfmorton/craft-llm-ready/pull/39))
+
 ## [1.8.0] - 2026-09-10
 
 ### Added

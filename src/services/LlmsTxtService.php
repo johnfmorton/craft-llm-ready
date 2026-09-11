@@ -36,9 +36,8 @@ class LlmsTxtService extends Component
         $seoService = LlmReady::getInstance()->seoService;
         $lines = [];
 
-        // H1: Site name
-        $siteName = $site->getName();
-        $lines[] = "# {$siteName}";
+        // H1: Site Title setting, or the site's name
+        $lines[] = '# ' . $this->resolveTitle($site, $settings->llmsTxtTitle);
         $lines[] = '';
 
         // Blockquote: Intro text
@@ -107,9 +106,9 @@ class LlmsTxtService extends Component
 
     /**
      * Drop the cached llms.txt for every site. Called when an entry or a
-     * global set is saved, since the Site Description template can read
-     * either — and, through Twig, any site's content, so one site's save
-     * can't be assumed to affect only that site's file.
+     * global set is saved, since the Site Title and Site Description
+     * templates can read either — and, through Twig, any site's content, so
+     * one site's save can't be assumed to affect only that site's file.
      */
     public function invalidateCache(): void
     {
@@ -126,39 +125,69 @@ class LlmsTxtService extends Component
     }
 
     /**
+     * Resolve the Site Title setting to the H1 text.
+     *
+     * Blank falls back to the site's name, which is per site, so a static
+     * title replaces every site's name in a multi-site install while a
+     * template (see {@see renderSetting()}) can read per-site content. The
+     * result is collapsed to a single line, since a newline would end the
+     * heading, and a template that renders to nothing or throws falls back to
+     * the site's name too.
+     */
+    private function resolveTitle(Site $site, string $title): string
+    {
+        $title = $this->renderSetting($site, $title, 'Site Title');
+        $title = trim((string) preg_replace('/\s+/u', ' ', $title));
+
+        return $title !== '' ? $title : $site->getName();
+    }
+
+    /**
      * Resolve the Site Description setting to the lines of the blockquote.
      *
-     * Plain text is used as written, one blockquote line per line. A value
-     * containing `{` is a Craft object template — the same `{{ ... }}` syntax
-     * as Title Field and Author Override — rendered with the site as `site`
-     * (and as Craft's usual `object`). Global sets are available by handle as
-     * in any site template, so `{{ siteInfo.llmDescription }}` hands the text
-     * to content editors through a global set field, outside project config
-     * and per site. Rich-text output is reduced to plain text with paragraph
-     * breaks preserved.
-     *
-     * A template that throws logs a warning and resolves to no blockquote, so
-     * a typo in a setting can't take down `/llms.txt`. Templates come from
-     * plugin settings, which need an admin (or the config file) to change —
-     * the same trust boundary as Craft's own object templates.
+     * Plain text is used as written, one blockquote line per line; a template
+     * (see {@see renderSetting()}) that renders to nothing or throws resolves
+     * to no blockquote.
      *
      * @return string[]
      */
     private function resolveIntro(Site $site, string $intro): array
     {
-        if (str_contains($intro, '{')) {
-            try {
-                $intro = Craft::$app->getView()->renderObjectTemplate($intro, $site, ['site' => $site]);
-            } catch (\Throwable $e) {
-                Craft::warning("LLM Ready: Site Description template '{$intro}' failed for site {$site->id}: {$e->getMessage()}", __METHOD__);
+        return $this->toLines($this->renderSetting($site, $intro, 'Site Description'));
+    }
 
-                return [];
-            }
-
-            $intro = $this->htmlToText($intro);
+    /**
+     * Render a `/llms.txt` text setting for a site.
+     *
+     * Plain text is returned as written. A value containing `{` is a Craft
+     * object template — the same `{{ ... }}` syntax as Title Field and Author
+     * Override — rendered with the site as `site` (and as Craft's usual
+     * `object`). Global sets are available by handle as in any site template,
+     * so `{{ siteInfo.llmDescription }}` hands the text to content editors
+     * through a global set field, outside project config and per site.
+     * Rich-text output is reduced to plain text with paragraph breaks
+     * preserved.
+     *
+     * A template that throws logs a warning and renders to an empty string,
+     * so a typo in a setting can't take down `/llms.txt`. Templates come from
+     * plugin settings, which need an admin (or the config file) to change —
+     * the same trust boundary as Craft's own object templates.
+     */
+    private function renderSetting(Site $site, string $value, string $label): string
+    {
+        if (!str_contains($value, '{')) {
+            return $value;
         }
 
-        return $this->toLines($intro);
+        try {
+            $rendered = Craft::$app->getView()->renderObjectTemplate($value, $site, ['site' => $site]);
+        } catch (\Throwable $e) {
+            Craft::warning("LLM Ready: {$label} template '{$value}' failed for site {$site->id}: {$e->getMessage()}", __METHOD__);
+
+            return '';
+        }
+
+        return $this->htmlToText($rendered);
     }
 
     /**

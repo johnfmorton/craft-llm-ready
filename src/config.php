@@ -132,9 +132,18 @@ return [
     // page stops advertising an `llms.txt` alternate.
     'enableLlmsTxt' => true,
 
+    // Title used for the `/llms.txt` H1 heading. Leave empty to use the
+    // site's name. Example: 'Acme Developer Docs'
+    //
+    // Accepts a Craft object template exactly as `llmsTxtIntro` below does,
+    // e.g. '{{ siteInfo.llmTitle }}', so editors can manage it per site — a
+    // fixed string applies to every site. The result is collapsed to one
+    // line; a template that renders to nothing falls back to the site's name.
+    'llmsTxtTitle' => '',
+
     // Introduction text for the `/llms.txt` file. Appears as a blockquote
     // below the site name. Helps LLMs understand what the site is about.
-    // Example: 'SuperGeekery is a technical blog covering Craft CMS and web development.'
+    // Example: 'Acme is a technical blog covering Craft CMS and web development.'
     //
     // A value containing `{` is rendered as a Craft object template with the
     // site available as `site`, so the text can come from content that editors
