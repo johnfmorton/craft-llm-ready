@@ -19,6 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   The wording is deliberately asymmetric. A positive detection is confident: a shared cache is in front, keep the setting off. A negative one only ever says "nothing detected" — an nginx `proxy_cache` or a Varnish configured not to announce itself is invisible to every tier, so the check never claims a site is safe.
 
+  The result is stated where it can't be missed. When evidence is found, the Cache check pane's header becomes a warning banner that names what was found and where ("Shared cache detected on the probed site", "Proxy detected in this environment (dev)") and carries the recommendation itself — keep AI Bot User-Agent Detection off — followed by an "Evidence · N findings" list. A site that runs a page cache or declares its HTML shared-cacheable (`s-maxage`) is reported with the same confidence as a cache hit, since the configuration is the evidence even when two probe requests happen to miss. The pane also says which site each line is about: the passive tier's own note ("this environment: nothing detected") lives in a collapsed "About this environment" disclosure, and outside production that note asks for the production URL, because a CDN or page cache usually exists only there and a local check says little about the live site.
+
+- **Settings overridden in `config/llm-ready.php` are now flagged on the settings page.** Each such field shows "This is being overridden by the `…` setting in config/llm-ready.php" and is disabled, mirroring Craft's treatment of its own config overrides, so nobody flips a switch that has no effect. The config-only bot list options (`botUserAgents`, `excludeBotUserAgents`) are reported under Additional Bot User-Agents, since they change what that field does.
+- The shipped `config.php` template and DOCUMENTATION.md now show how to make AI Bot User-Agent Detection follow the environment — on in dev, off behind the production CDN — either from a `.env` variable via `App::parseBooleanEnv()` or with a multi-environment config keyed on `CRAFT_ENVIRONMENT`.
+
+### Changed
+
+- The AI Bot User-Agent Detection field on the settings page is reorganised. Its instructions now carry the warning ("Off by default — and keep it off behind a shared cache or CDN, where cached Markdown can reach real visitors"), the explanation of why sits behind a collapsed "When is it unsafe? (Cloudflare, Fastly, Varnish, Servd…)" disclosure instead of a callout, and the toggle is labelled "Serve Markdown to known AI bots".
+
 ## [1.8.0] - 2026-09-10
 
 ### Added
