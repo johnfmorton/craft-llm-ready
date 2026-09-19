@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Excluded Elements** setting. The HTML elements removed during HTML-to-Markdown conversion were a fixed list (`script, style, nav, footer, header, audio, video, iframe, form, svg`); that list is now the default of a setting, editable in the control panel and as `excludeElements` in `config/llm-ready.php`. Articles that use `<header>` for the title block or `<footer>` for a byline keep them by taking those two names out, and elements of your own (`aside`, `dialog`, a custom element) can be added. Comma-separated tag names only, like the two selector settings above it — classes and attributes stay with Exclude Selector, and the field says so when given one. Requested by [@sparkalow](https://github.com/sparkalow) ([#43](https://github.com/johnfmorton/craft-llm-ready/issues/43)).
+- **`htmlConverterOptions`** in `config/llm-ready.php` passes any other [league/html-to-markdown option](https://github.com/thephpleague/html-to-markdown#configuration-options) — `list_item_style`, `hard_break`, `use_autolinks`, and the rest — to the converter. It is merged over the plugin's own options, so a key set there wins; a `remove_nodes` key replaces the Excluded Elements list and the settings page says so. Also from [#43](https://github.com/johnfmorton/craft-llm-ready/issues/43).
+- A **FAQ** section in DOCUMENTATION.md, starting with the content-extraction questions this setting raises: `body` plus exclusions, Exclude Selector versus Excluded Elements, a missing title block, and automatic conversion versus a dedicated template. AI-INSTALL.md tells agents to compare the first `.md` response with the HTML page and fix a missing title block through Excluded Elements rather than the template.
+
+### Changed
+
+- **Exclude Selector** accepts hyphenated tag names — a custom element such as `newsletter-signup`, alone or as `newsletter-signup.compact` — which it previously skipped with a warning. Its instructions and the Excluded Elements field now both say "remove", so the two settings read as what they are: the same operation on CSS selectors and on tag names respectively.
+
+### Fixed
+
+- AI-INSTALL.md said per-section settings were stored in a plugin database table; they have been in project config (`llm-ready.sectionSettings`) since 1.0.0, and the note now says so.
+
 ## [1.9.0] - 2026-09-11
 
 ### Added
