@@ -145,6 +145,8 @@ curl -s -D - {entry_url}.md
 - `X-Robots-Tag: noindex`
 - Body starts with YAML front matter (`---`) followed by Markdown content
 
+**Then compare the body with the HTML page.** If the front matter has a title but the Markdown body has no H1 or byline, the template wraps them in `<header>` (or `<footer>`), which the default **Excluded Elements** setting removes. Fix it by removing `header` and `footer` from that list at **Settings > Plugins > LLM Ready** (see Step 12), not by restructuring the template.
+
 ### 7b. Test content negotiation
 
 ```bash
@@ -365,7 +367,7 @@ Inform the developer:
 
 > "The template has been created at `templates/_llm/blog.twig`. To activate it, go to **Settings > Plugins > LLM Ready** and set the **LLM Template** field for the Blog section to `_llm/blog`."
 
-Note: This setting must be configured in the Craft control panel — it is stored in the plugin's database table, not in project config files.
+Note: Per-section settings are stored in Craft's project config (under `llm-ready.sectionSettings`), so once set in the control panel they travel with `config/project/` to other environments like any other project config change. They are edited in the control panel only; `config/llm-ready.php` has no per-section keys.
 
 ### 11e. Test the dedicated template
 
@@ -391,7 +393,8 @@ If the developer wants to customize the plugin beyond defaults, here are the ava
 | AI Bot Detection | Off | Serve Markdown to AI crawler user-agents on the canonical URL. Off by default — only enable if no CDN or shared cache sits in front of the site |
 | Additional Bot User-Agents | (empty) | Custom user-agent strings to detect, appended to the built-in list |
 | Content Selector | `main, article, [role="main"], .content, #content` | CSS selectors for extracting main content during HTML conversion |
-| Exclude Selector | (empty) | CSS selectors for elements to strip before conversion (e.g. `.carousel, [data-nosnippet]`) |
+| Exclude Selector | (empty) | CSS selectors for elements to remove before conversion (e.g. `.carousel, [data-nosnippet]`). Plain and custom tag names work too |
+| Excluded Elements | `script, style, nav, footer, header, audio, video, iframe, form, svg` | HTML tag names removed, with their contents, during conversion. Remove `header` and `footer` from the list when an article template uses them for the title block or byline; add `aside`, `dialog` or a custom element as needed. Empty removes nothing |
 | X-Robots-Tag: noindex | On | Prevent search engines from indexing Markdown pages |
 | Auto-inject Discovery Tag | On | Add a `<link rel="alternate">` tag to HTML pages |
 | Auto-inject Link Header | On | Also advertise the Markdown alternate via an HTTP `Link` header (sent on GET and HEAD) |
@@ -403,6 +406,8 @@ If the developer wants to customize the plugin beyond defaults, here are the ava
 | Author Override | (empty) | Fixed author name written to every entry's front matter, instead of the individual editor's name |
 
 Per-section settings (enable/disable and LLM template) are configured in the table at the bottom of the settings page.
+
+`config/llm-ready.php` accepts every setting above (as `contentSelector`, `excludeSelector`, `excludeElements`, and so on) plus one config-only option: `htmlConverterOptions`, an array of [league/html-to-markdown options](https://github.com/thephpleague/html-to-markdown#configuration-options) merged over the plugin's own, for bullet style, hard breaks, autolinks and the rest. A value in the config file overrides the control panel and disables that field there.
 
 **Important:** After installation, prompt the developer to configure the **Site Description** setting. This text appears as a blockquote in `/llms.txt` and helps LLMs understand what the site is about. Suggest something like:
 
@@ -448,6 +453,7 @@ If any tests fail, check these common issues:
 | `.md` URL returns 404 | Plugin not installed, section disabled, or entry not published | Verify plugin is enabled and entry is live |
 | Markdown output is empty | Template rendering failed, no content fields found | Check template for errors; create a dedicated LLM template |
 | Markdown includes nav/footer | Content selector doesn't match the template's main content area | Update the Content Selector setting to target the correct element |
+| Article title block or byline missing from Markdown | The template wraps them in `<header>`/`<footer>`, which Excluded Elements removes by default | Remove `header` and `footer` from **Excluded Elements** (Step 12) |
 | `/llms.txt` is empty | No sections have URLs enabled | Check that sections have URI formats configured |
 | Discovery tag missing | Template has no `<head>` element, HTML page didn't render, or setting is disabled | Ensure the template includes a `<head>` element, and that the page loads correctly |
 | Content negotiation not working | Setting is disabled, or the Accept header is incorrect | Verify `enableContentNegotiation` is on and header is `Accept: text/markdown` |

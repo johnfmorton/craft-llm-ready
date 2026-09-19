@@ -99,10 +99,32 @@ return [
     // Used when no dedicated LLM template is configured for a section.
     'contentSelector' => 'main, article, [role="main"], .content, #content',
 
-    // CSS selectors for nodes to strip out before conversion (comma-separated).
+    // CSS selectors for elements to remove before conversion (comma-separated).
     // Use for decorative or repeated regions inside the main content area, so
-    // they never reach the Markdown output. Example: '.carousel, [data-nosnippet]'
+    // they never reach the Markdown output. Tag names work too, custom elements
+    // included. Example: '.carousel, [data-nosnippet], newsletter-signup'
     'excludeSelector' => '',
+
+    // HTML elements removed from the extracted content during conversion, with
+    // everything inside them (comma-separated tag names). This is the default
+    // list: take `header` and `footer` out of it if your articles use those
+    // elements for the title block or byline, or add elements of your own
+    // (`aside`, `dialog`, a custom element). An empty string removes nothing.
+    // For classes, IDs and attributes use `excludeSelector` instead.
+    'excludeElements' => 'script, style, nav, footer, header, audio, video, iframe, form, svg',
+
+    // Extra options for the league/html-to-markdown converter, merged over the
+    // plugin's own (`strip_tags` => true, `header_style` => 'atx', and
+    // `remove_nodes` from `excludeElements`) so a key here wins. Config-file only;
+    // there is no control panel field. The library documents every option:
+    // https://github.com/thephpleague/html-to-markdown#configuration-options
+    //
+    //   'htmlConverterOptions' => [
+    //       'list_item_style' => '*',   // bullets as * instead of -
+    //       'hard_break' => true,       // <br> becomes "\n" instead of "  \n"
+    //       'use_autolinks' => false,   // always [text](url), never <url>
+    //   ],
+    'htmlConverterOptions' => [],
 
     // -----------------------------------------------------------------------
     // Response headers & discovery

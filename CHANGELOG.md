@@ -12,6 +12,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **WebMCP tools (opt-in).** With **Enable WebMCP Tools** on, site pages register read-only tools for AI agents running in the visitor's browser via the emerging [WebMCP standard](https://github.com/webmachinelearning/webmcp): `get-page-content` (the current entry's Markdown) and `get-site-overview` (the `/llms.txt` index). Both fetch existing public URLs and enforce the same visibility rules as `.md` serving, declare the WebMCP `readOnlyHint`, and are a silent no-op in browsers without the API. An **Origin Trial Token** setting injects the `<meta http-equiv="origin-trial">` tag real visitors' browsers need while the API is in trial; in `config/llm-ready.php` it accepts an array keyed by site handle for multi-site installs on different domains. Off by default. See the [WebMCP tools](DOCUMENTATION.md#webmcp-tools) documentation.
 - **`{{ craft.llmReady.webMcp() }}`** places the WebMCP bootstrap yourself — for custom routes (pass `{ entry: entry }`), templates rendered outside Craft's page pipeline, or full control over placement — with a matching **Auto-inject WebMCP** setting to turn the automatic injection off. The tag honors **Enable WebMCP Tools**, so one setting still turns the feature off everywhere.
 
+## [1.10.0] - 2026-09-19
+
+### Added
+
+- **Excluded Elements** setting. The HTML elements removed during HTML-to-Markdown conversion were a fixed list (`script, style, nav, footer, header, audio, video, iframe, form, svg`); that list is now the default of a setting, editable in the control panel and as `excludeElements` in `config/llm-ready.php`. Articles that use `<header>` for the title block or `<footer>` for a byline keep them by taking those two names out, and elements of your own (`aside`, `dialog`, a custom element) can be added. Comma-separated tag names only, like the two selector settings above it — classes and attributes stay with Exclude Selector, and the field says so when given one. Requested by [@sparkalow](https://github.com/sparkalow) ([#43](https://github.com/johnfmorton/craft-llm-ready/issues/43)).
+- **`htmlConverterOptions`** in `config/llm-ready.php` passes any other [league/html-to-markdown option](https://github.com/thephpleague/html-to-markdown#configuration-options) — `list_item_style`, `hard_break`, `use_autolinks`, and the rest — to the converter. It is merged over the plugin's own options, so a key set there wins; a `remove_nodes` key replaces the Excluded Elements list and the settings page says so. Also from [#43](https://github.com/johnfmorton/craft-llm-ready/issues/43).
+- A **FAQ** section in DOCUMENTATION.md, starting with the content-extraction questions this setting raises: `body` plus exclusions, Exclude Selector versus Excluded Elements, a missing title block, and automatic conversion versus a dedicated template. AI-INSTALL.md tells agents to compare the first `.md` response with the HTML page and fix a missing title block through Excluded Elements rather than the template.
+
+### Changed
+
+- **Exclude Selector** accepts hyphenated tag names — a custom element such as `newsletter-signup`, alone or as `newsletter-signup.compact` — which it previously skipped with a warning. Its instructions and the Excluded Elements field now both say "remove", so the two settings read as what they are: the same operation on CSS selectors and on tag names respectively.
+
+### Fixed
+
+- AI-INSTALL.md said per-section settings were stored in a plugin database table; they have been in project config (`llm-ready.sectionSettings`) since 1.0.0, and the note now says so.
+
 ## [1.9.0] - 2026-09-11
 
 ### Added
@@ -304,7 +320,11 @@ _These fixes were surfaced by an independent security review of the plugin. Than
 - Permission checks on all Markdown endpoints — logged-in users without view permission receive a 403
 - Template path traversal protection and XPath injection prevention
 
-[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.9.0...v1.10.0
+[1.9.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.8.0...v1.9.0
+[1.8.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.7.1...v1.8.0
+[1.7.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.6.1...v1.7.0
 [1.6.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.3...v1.6.0
