@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-09-19
+
 ### Added
 
 - **Excluded Elements** setting. The HTML elements removed during HTML-to-Markdown conversion were a fixed list (`script, style, nav, footer, header, audio, video, iframe, form, svg`); that list is now the default of a setting, editable in the control panel and as `excludeElements` in `config/llm-ready.php`. Articles that use `<header>` for the title block or `<footer>` for a byline keep them by taking those two names out, and elements of your own (`aside`, `dialog`, a custom element) can be added. Comma-separated tag names only, like the two selector settings above it — classes and attributes stay with Exclude Selector, and the field says so when given one. Requested by [@sparkalow](https://github.com/sparkalow) ([#43](https://github.com/johnfmorton/craft-llm-ready/issues/43)).
@@ -313,7 +315,11 @@ _These fixes were surfaced by an independent security review of the plugin. Than
 - Permission checks on all Markdown endpoints — logged-in users without view permission receive a 403
 - Template path traversal protection and XPath injection prevention
 
-[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.9.0...v1.10.0
+[1.9.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.8.0...v1.9.0
+[1.8.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.7.1...v1.8.0
+[1.7.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.6.1...v1.7.0
 [1.6.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.5.3...v1.6.0
