@@ -158,13 +158,38 @@
 
 {{ forms.textField({
     label: 'Exclude Selector',
-    instructions: 'CSS selectors for elements to strip from the HTML before Markdown conversion (comma-separated). Use this to remove decorative or non-content elements such as carousels, marquees, or anything marked with `[data-nosnippet]`.',
+    instructions: 'CSS selectors for elements to remove from the HTML before Markdown conversion (comma-separated). Use this for decorative or non-content elements such as carousels, marquees, or anything marked with `[data-nosnippet]`.',
     id: 'excludeSelector',
     name: 'excludeSelector',
     warning: 'excludeSelector' in overridden ? configWarning('excludeSelector') : null,
     disabled: 'excludeSelector' in overridden,
     value: settings.excludeSelector,
-    placeholder: '.carousel, [data-nosnippet], .decorative',
+    placeholder: '.carousel, [data-nosnippet], newsletter-signup',
+}) }}
+
+{# `htmlConverterOptions` is config-file only. Its `remove_nodes` key replaces
+   this list outright, so it disables the field the way a direct override does. #}
+{% set excludeElementsConfigKey = (configOverrides.htmlConverterOptions ?? {}).remove_nodes is defined %}
+{% set excludeElementsNotes = [] %}
+{% if 'excludeElements' in overridden %}
+    {% set excludeElementsNotes = excludeElementsNotes|merge([configWarning('excludeElements')]) %}
+{% endif %}
+{% if excludeElementsConfigKey %}
+    {% set excludeElementsNotes = excludeElementsNotes|merge(['{file} sets {setting}, which replaces this list.'|t('llm-ready', {
+        setting: '<code>htmlConverterOptions.remove_nodes</code>',
+        file: '<code>config/llm-ready.php</code>',
+    })]) %}
+{% endif %}
+{{ forms.textField({
+    label: 'Excluded Elements',
+    instructions: 'HTML elements to remove during Markdown conversion, along with everything inside them (comma-separated tag names). The default removes scripts, styles, navigation, page headers and footers, media embeds, forms and inline SVG — take `header` and `footer` out if your articles use them for the title block or byline, or add your own, such as `aside` or `newsletter-signup`. Clear the field to remove nothing. For classes, IDs and attributes, use Exclude Selector above.',
+    id: 'excludeElements',
+    name: 'excludeElements',
+    warning: excludeElementsNotes ? excludeElementsNotes|join(' ')|raw : null,
+    disabled: 'excludeElements' in overridden or excludeElementsConfigKey,
+    value: settings.excludeElements,
+    placeholder: constant('johnfmorton\\llmready\\models\\Settings::DEFAULT_EXCLUDE_ELEMENTS'),
+    errors: settings.getErrors('excludeElements'),
 }) }}
 
 <hr>

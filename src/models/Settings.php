@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace johnfmorton\llmready\models;
 
+use Craft;
 use craft\base\Model;
 
 /**
@@ -50,8 +51,37 @@ class Settings extends Model
     /** @var string CSS selectors for smart content extraction (comma-separated) */
     public string $contentSelector = 'main, article, [role="main"], .content, #content';
 
-    /** @var string CSS selectors for nodes to strip before extraction (comma-separated) */
+    /** @var string CSS selectors for elements to remove before extraction (comma-separated) */
     public string $excludeSelector = '';
+
+    /**
+     * The elements removed during Markdown conversion when nothing else is
+     * configured. A constant so the settings page can show it as the field's
+     * placeholder and the converter can fall back to it.
+     */
+    public const DEFAULT_EXCLUDE_ELEMENTS = 'script, style, nav, footer, header, audio, video, iframe, form, svg';
+
+    /**
+     * HTML elements to remove from the extracted content during Markdown
+     * conversion, together with everything inside them. Comma-separated tag
+     * names (spaces also accepted, the converter's own format); an empty
+     * string removes nothing. Passed to league/html-to-markdown as
+     * `remove_nodes`, which wants them space-separated — see getExcludeElements().
+     *
+     * @var string
+     */
+    public string $excludeElements = self::DEFAULT_EXCLUDE_ELEMENTS;
+
+    /**
+     * Extra options for league/html-to-markdown's HtmlConverter, merged over
+     * the plugin's own (`strip_tags`, `header_style`, `remove_nodes`) so a
+     * key here wins — a `remove_nodes` key replaces $excludeElements. Intended to
+     * be set in config/llm-ready.php, not the control panel.
+     *
+     * @see https://github.com/thephpleague/html-to-markdown#configuration-options
+     * @var array<string, mixed>
+     */
+    public array $htmlConverterOptions = [];
 
     /** @var string[] Additional bot user-agent strings to detect (appended to the defaults) */
     public array $additionalBotUserAgents = [];
@@ -102,10 +132,67 @@ class Settings extends Model
     {
         return [
             [['enabled', 'noindexHeader', 'autoInjectDiscoveryTag', 'autoInjectLinkHeader', 'enableContentNegotiation', 'enableUserAgentDetection', 'enableAnalytics'], 'boolean'],
-            [['contentSelector', 'excludeSelector', 'llmsTxtTitle', 'llmsTxtIntro', 'descriptionField', 'titleField', 'authorOverride'], 'string'],
+            [['contentSelector', 'excludeSelector', 'excludeElements', 'llmsTxtTitle', 'llmsTxtIntro', 'descriptionField', 'titleField', 'authorOverride'], 'string'],
+            [['excludeElements'], 'validateExcludeElements'],
+            [['htmlConverterOptions'], 'validateHtmlConverterOptions'],
             ['cacheTtl', 'integer', 'min' => 0],
             ['analyticsRetentionDays', 'integer', 'min' => 1],
             [['additionalBotUserAgents', 'botUserAgents', 'excludeBotUserAgents'], 'each', 'rule' => ['string']],
         ];
+    }
+
+    /**
+     * The Excluded Elements list as league/html-to-markdown's `remove_nodes`
+     * option expects it: lower-case tag names separated by single spaces.
+     */
+    public function getExcludeElements(): string
+    {
+        return implode(' ', self::parseTagList($this->excludeElements));
+    }
+
+    /**
+     * Split a list of tag names written with spaces and/or commas into
+     * unique lower-case tag names, in the order given.
+     *
+     * @return string[]
+     */
+    public static function parseTagList(string $list): array
+    {
+        $tags = preg_split('/[\s,]+/', strtolower(trim($list)), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        return array_values(array_unique($tags));
+    }
+
+    /**
+     * Excluded Elements holds tag names only. Anything else — a class, an ID,
+     * an attribute selector — belongs in Exclude Selector, and the message
+     * says so.
+     */
+    public function validateExcludeElements(string $attribute): void
+    {
+        $invalid = array_filter(
+            self::parseTagList($this->$attribute),
+            fn(string $tag): bool => !preg_match('/^[a-z][a-z0-9-]*$/', $tag),
+        );
+
+        if ($invalid !== []) {
+            $this->addError($attribute, Craft::t('llm-ready', 'Excluded Elements takes a comma-separated list of HTML tag names. Not a tag name: {tags}. Use Exclude Selector for classes, IDs and attributes.', [
+                'tags' => implode(', ', $invalid),
+            ]));
+        }
+    }
+
+    /**
+     * htmlConverterOptions (from config/llm-ready.php) must be keyed by
+     * option name.
+     */
+    public function validateHtmlConverterOptions(string $attribute): void
+    {
+        foreach (array_keys($this->$attribute) as $key) {
+            if (!is_string($key) || $key === '') {
+                $this->addError($attribute, Craft::t('llm-ready', 'htmlConverterOptions must be an array keyed by HtmlConverter option name.'));
+                return;
+            }
+        }
     }
 }

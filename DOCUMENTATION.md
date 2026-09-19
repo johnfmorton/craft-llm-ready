@@ -80,11 +80,42 @@ LLM Ready converts your HTML pages to Markdown in two ways:
 When no dedicated LLM template is configured for a section, LLM Ready renders the entry's normal Twig template, then:
 
 1. Extracts the main content area using configurable CSS selectors (defaults to `main, article, [role="main"], .content, #content`).
-2. Strips non-content elements: `<script>`, `<style>`, `<nav>`, `<footer>`, `<header>`, `<audio>`, `<video>`, `<iframe>`, `<form>`, `<svg>`.
+2. Removes non-content elements — by default `<script>`, `<style>`, `<nav>`, `<footer>`, `<header>`, `<audio>`, `<video>`, `<iframe>`, `<form>`, `<svg>` — as listed in the **Excluded Elements** setting (see [Choosing which elements are removed](#choosing-which-elements-are-removed)).
 3. Converts the remaining HTML to Markdown using the [league/html-to-markdown](https://github.com/thephpleague/html-to-markdown) library.
 4. Prepends YAML front matter with entry metadata.
 
 If the template fails to render (e.g., a missing template or a Twig error), LLM Ready falls back to extracting content directly from common entry field handles (`body`, `content`, `text`, `description`, `summary`).
+
+### Choosing which elements are removed
+
+Two settings decide what never reaches the Markdown, and they work at different levels:
+
+- **Exclude Selector** removes anything matching a CSS selector from the whole rendered page *before* the main content is extracted. It is empty by default and takes classes, IDs and attributes as well as tag names, custom elements included: `.carousel, [data-nosnippet], aside, newsletter-signup`.
+- **Excluded Elements** is a comma-separated list of HTML tag names removed, with everything inside them, *during* the conversion of the extracted content. It ships as `script, style, nav, footer, header, audio, video, iframe, form, svg`, which is what the plugin has always removed.
+
+Edit Excluded Elements when the default list is wrong for your markup. The usual case is an article that uses `<header>` for its title block or `<footer>` for a byline and reading list: take those two out and they convert like anything else.
+
+```
+script, style, nav, audio, video, iframe, form, svg
+```
+
+Tag names are matched case-insensitively (spaces work as separators too, since that is the converter's own format). You can add elements too (`aside`, `dialog`, a custom element such as `newsletter-signup`), and an empty field removes nothing at all. Anything that is not a plain tag name is rejected on save with a message pointing you to Exclude Selector. The same setting is `excludeElements` in `config/llm-ready.php`:
+
+```php
+'excludeElements' => 'script, style, nav, audio, video, iframe, form, svg',
+```
+
+The conversion itself is done by [league/html-to-markdown](https://github.com/thephpleague/html-to-markdown), and the rest of its options are reachable from the config file through `htmlConverterOptions`. The array is merged over the plugin's own options (`strip_tags` on, `header_style` `atx`, and `remove_nodes` from Excluded Elements), so a key you set wins — including `remove_nodes`, which then replaces the control panel list and disables that field:
+
+```php
+'htmlConverterOptions' => [
+    'list_item_style' => '*',   // bullets as * instead of -
+    'hard_break' => true,       // <br> becomes "\n" instead of "  \n"
+    'use_autolinks' => false,   // always [text](url), never <url>
+],
+```
+
+Settings saved in the control panel take effect immediately. A change to `config/llm-ready.php` is picked up on the next request, but Markdown already cached is served until it expires or the data cache is cleared (`php craft clear-caches/data`).
 
 ### Dedicated LLM templates
 
@@ -380,7 +411,8 @@ Configure LLM Ready from **Settings > Plugins > LLM Ready** in the Craft control
 | AI Bot User-Agent Detection | `false` | Serve Markdown to known AI crawlers **on the canonical URL**. Off by default because the response then varies by `User-Agent`, which shared caches don't key on. Safe to enable for origin-only sites — see [Why User-Agent detection is off by default](#why-user-agent-detection-is-off-by-default) |
 | Additional Bot User-Agents | `[]` | Custom user-agent strings to detect as AI bots |
 | Content Selector | `main, article, [role="main"], .content, #content` | CSS selectors for extracting main content from HTML |
-| Exclude Selector | `""` | CSS selectors for elements to strip before Markdown conversion (e.g. `.carousel, [data-nosnippet]`) |
+| Exclude Selector | `""` | CSS selectors for elements to remove before Markdown conversion (e.g. `.carousel, [data-nosnippet]`) |
+| Excluded Elements | `script, style, nav, footer, header, audio, video, iframe, form, svg` | HTML tag names removed, with their contents, during Markdown conversion (comma-separated; empty removes nothing). `excludeElements` in the config file, where `htmlConverterOptions` also exposes the converter's other options. See [Choosing which elements are removed](#choosing-which-elements-are-removed) |
 | X-Robots-Tag: noindex | `true` | Add `noindex` header to Markdown responses |
 | Auto-inject Discovery Tag | `true` | Inject `<link rel="alternate">` into HTML pages |
 | Auto-inject Link Header | `true` | Add an HTTP `Link` response header (RFC 8288) pointing at the Markdown alternate. Useful for crawlers that inspect headers without parsing HTML |
@@ -575,6 +607,32 @@ LLM Ready respects Craft's content access rules:
 
 LLM Ready supports Craft's multi-site feature. Each section can be independently enabled or disabled per site, and each site can have its own dedicated LLM template. The `/llms.txt` file is generated per-site, listing only entries belonging to the current site; a Site Title or Site Description sourced from a Single or global set field is per-site too.
 
+## FAQ
+
+Short answers to the questions that come up while setting the plugin up, each pointing at the fuller explanation.
+
+### Can I set Content Selector to `body` and exclude everything I don't want?
+
+Yes. `body` is what the plugin falls back to when no selector matches, so naming it just makes that the first choice. Exclude Selector then removes anything you list before extraction, and Excluded Elements removes tag names during conversion. It works, with three things to know:
+
+- **It is an opt-out model, and layouts grow.** Every cookie banner, breadcrumb trail, related-posts block or comment thread added later reaches the Markdown until someone excludes it. A wrapper around the article (`main`, `article`, `.article-body`) is opt-in and stays right as the layout changes, which is why the default list tries those first.
+- **Invisible text is still text.** The converter knows nothing about CSS, so screen-reader-only labels, "Skip to content" links and collapsed panels come through unless excluded. `.sr-only`, `[hidden]` and `[aria-hidden="true"]` are all valid Exclude Selector entries.
+- **Selectors are simple, one per comma:** a tag, `.class`, `#id`, `[attr]`, `[attr="value"]`, `tag.class` or `tag#id`. There are no descendant combinators, chained classes or `:not()`, so you exclude the sidebar, not "everything in the sidebar except links".
+
+A durable middle path is to keep `body`, mark site chrome in your templates with `data-nosnippet`, and put `[data-nosnippet]` in Exclude Selector. The decision then lives next to the element it describes, and Google honours the same attribute for search snippets.
+
+### What is the difference between Exclude Selector and Excluded Elements?
+
+Both remove content before it reaches the Markdown. Exclude Selector takes CSS selectors and runs on the whole page before the main content is extracted; it is empty by default. Excluded Elements takes plain tag names and runs on the extracted content during conversion; it ships with the list the plugin has always removed. For a bare tag name the two are interchangeable, so use whichever field reads naturally. The one practical difference: Excluded Elements also applies when template rendering fails and the plugin falls back to converting field values directly. See [Choosing which elements are removed](#choosing-which-elements-are-removed).
+
+### My article's title block or byline is missing from the Markdown. Why?
+
+The template probably wraps them in `<header>` or `<footer>`, which are on the default Excluded Elements list because on most pages they hold site chrome. Take those two names out of the list and they convert like anything else. See [Markdown output is missing an article's header or footer](#markdown-output-is-missing-an-articles-header-or-footer).
+
+### Should I use automatic conversion or a dedicated LLM template?
+
+Start with automatic conversion and tune the three Content Extraction settings; most sites need nothing more. Reach for a dedicated template when the Markdown should differ structurally from the HTML page: a different field order, content pulled from related entries, or Matrix and CKEditor blocks that need hand-written rendering. See [Dedicated LLM templates](#dedicated-llm-templates).
+
 ## Troubleshooting
 
 ### `.md` URLs return 404
@@ -586,6 +644,10 @@ LLM Ready supports Craft's multi-site feature. Each section can be independently
 ### Markdown output includes navigation or footer content
 
 Adjust the **Content Selector** in plugin settings to match your template's main content area. For example, if your content is in `<div class="article-body">`, set the selector to `.article-body`.
+
+### Markdown output is missing an article's header or footer
+
+`<header>` and `<footer>` are on the default **Excluded Elements** list because on most pages they hold site chrome. If your article template uses them for the title block or a byline, remove those two tag names from the list (the rest keeps working), and they convert like any other element. See [Choosing which elements are removed](#choosing-which-elements-are-removed).
 
 ### Markdown output includes decorative or repeated text
 

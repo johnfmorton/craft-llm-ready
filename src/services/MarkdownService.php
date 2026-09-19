@@ -12,6 +12,7 @@ use craft\models\Section;
 use craft\models\Site;
 use johnfmorton\llmready\events\DefineFrontMatterEvent;
 use johnfmorton\llmready\LlmReady;
+use johnfmorton\llmready\models\Settings;
 use League\HTMLToMarkdown\HtmlConverter;
 use yii\base\Component;
 use yii\helpers\Html;
@@ -281,14 +282,15 @@ class MarkdownService extends Component
 
     /**
      * Convert a simple CSS selector to an XPath expression
-     * Supports: tag, .class, #id, [attr], [attr="val"], tag.class, tag#id
+     * Supports: tag, .class, #id, [attr], [attr="val"], tag.class, tag#id.
+     * A tag may be a hyphenated custom element (`newsletter-signup`).
      */
     private function cssSelectorToXPath(string $selector): string
     {
         $selector = trim($selector);
 
         // ID selector: #id or tag#id — IDs are restricted to word chars and hyphens
-        if (preg_match('/^(\w+)?#([\w-]+)$/', $selector, $matches)) {
+        if (preg_match('/^([a-zA-Z](?:[\w-]*\w)?)?#([\w-]+)$/', $selector, $matches)) {
             $tag = $matches[1] ?: '*';
             $id = $this->xpathEscapeString($matches[2]);
 
@@ -296,7 +298,7 @@ class MarkdownService extends Component
         }
 
         // Class selector: .class or tag.class — classes are restricted to word chars and hyphens
-        if (preg_match('/^(\w+)?\.([\w-]+)$/', $selector, $matches)) {
+        if (preg_match('/^([a-zA-Z](?:[\w-]*\w)?)?\.([\w-]+)$/', $selector, $matches)) {
             $tag = $matches[1] ?: '*';
             $class = $this->xpathEscapeString(' ' . $matches[2] . ' ');
 
@@ -318,8 +320,9 @@ class MarkdownService extends Component
             return "//*[@{$attr}={$val}]";
         }
 
-        // Tag selector: main, article, etc. — must be a single word
-        if (preg_match('/^\w+$/', $selector)) {
+        // Tag selector: main, article, or a custom element such as newsletter-signup.
+        // Must start with a letter and end with a word character, so the XPath stays valid.
+        if (preg_match('/^[a-zA-Z](?:[\w-]*\w)?$/', $selector)) {
             return "//{$selector}";
         }
 
@@ -355,11 +358,7 @@ class MarkdownService extends Component
     private function htmlToMarkdown(string $html): string
     {
         if ($this->_converter === null) {
-            $this->_converter = new HtmlConverter([
-                'strip_tags' => true,
-                'header_style' => 'atx',
-                'remove_nodes' => 'script style nav footer header audio video iframe form svg',
-            ]);
+            $this->_converter = new HtmlConverter($this->getConverterOptions());
         }
 
         $markdown = $this->_converter->convert($html);
@@ -368,6 +367,36 @@ class MarkdownService extends Component
         $markdown = preg_replace("/\n{3,}/", "\n\n", $markdown);
 
         return trim($markdown) . "\n";
+    }
+
+    /**
+     * Options handed to league/html-to-markdown: the plugin's defaults, the
+     * Excluded Elements setting as `remove_nodes`, and whatever
+     * `htmlConverterOptions` (config/llm-ready.php) sets merged on top, so a
+     * key there wins. A `remove_nodes` written there as an array or with
+     * commas is normalised the same way the setting is.
+     *
+     * @return array<string, mixed>
+     */
+    public function getConverterOptions(): array
+    {
+        $settings = LlmReady::getInstance()->getSettings();
+
+        $options = array_merge([
+            'strip_tags' => true,
+            'header_style' => 'atx',
+            'remove_nodes' => $settings->getExcludeElements(),
+        ], $settings->htmlConverterOptions);
+
+        $excludeElementsOption = $options['remove_nodes'];
+        if (is_array($excludeElementsOption)) {
+            $excludeElementsOption = implode(' ', array_map('strval', $excludeElementsOption));
+        }
+        if (is_string($excludeElementsOption)) {
+            $options['remove_nodes'] = implode(' ', Settings::parseTagList($excludeElementsOption));
+        }
+
+        return $options;
     }
 
     /**
