@@ -190,8 +190,18 @@ return [
     // or a field on a Single:
     //   '{{ craft.entries.section("home").site(site).one().summary ?? "" }}'
     // Rich text is reduced to plain text with paragraph breaks kept, and the
-    // cached file is refreshed whenever a global set or entry is saved.
+    // cached file is rebuilt whenever a global set or entry is saved.
     'llmsTxtIntro' => '',
+
+    // How many of each section's most recent entries `/llms.txt` lists.
+    // 0 lists every entry. A higher limit makes the file slower to build; run
+    // `php craft llm-ready/indexes/regenerate` after deploys to build it
+    // ahead of visitors.
+    'llmsTxtEntryLimit' => 50,
+
+    // How many of a section's most recent entries its listing page (e.g.
+    // `/blog.md`) lists. 0 lists every entry.
+    'listingPageEntryLimit' => 100,
 
     // Field handle/path for entry descriptions in `/llms.txt` and listing pages.
     // Leave empty to auto-extract from the first text field. Beyond a plain
@@ -208,7 +218,11 @@ return [
     // Caching
     // -----------------------------------------------------------------------
 
-    // How long to cache Markdown output, in seconds. Set to 0 to disable caching.
+    // How long to cache Markdown output, in seconds. `/llms.txt` and section
+    // listing pages are rebuilt in a queue job once their copy is this old, or
+    // as soon as content changes, and the previous copy is served until the
+    // new one is ready. Set to 0 to disable caching — they are then built on
+    // every request, which on a large site can be slow enough to time out.
     'cacheTtl' => 3600,
 
     // -----------------------------------------------------------------------

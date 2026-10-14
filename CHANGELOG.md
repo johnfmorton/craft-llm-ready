@@ -12,6 +12,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **WebMCP tools (opt-in).** With **Enable WebMCP Tools** on, site pages register read-only tools for AI agents running in the visitor's browser via the emerging [WebMCP standard](https://github.com/webmachinelearning/webmcp): `get-page-content` (the current entry's Markdown) and `get-site-overview` (the `/llms.txt` index). Both fetch existing public URLs and enforce the same visibility rules as `.md` serving, declare the WebMCP `readOnlyHint`, and are a silent no-op in browsers without the API. An **Origin Trial Token** setting injects the `<meta http-equiv="origin-trial">` tag real visitors' browsers need while the API is in trial; in `config/llm-ready.php` it accepts an array keyed by site handle for multi-site installs on different domains. Off by default. See the [WebMCP tools](DOCUMENTATION.md#webmcp-tools) documentation.
 - **`{{ craft.llmReady.webMcp() }}`** places the WebMCP bootstrap yourself — for custom routes (pass `{ entry: entry }`), templates rendered outside Craft's page pipeline, or full control over placement — with a matching **Auto-inject WebMCP** setting to turn the automatic injection off. The tag honors **Enable WebMCP Tools**, so one setting still turns the feature off everywhere.
 
+## [1.11.0] - 2026-10-14
+
+### Added
+
+- **Entries per Section** setting (`llmsTxtEntryLimit`) for how many of each section's most recent entries `/llms.txt` lists — 50 by default, as before, and `0` lists every entry.
+- **Entries per Listing Page** setting (`listingPageEntryLimit`) for how many of a section's most recent entries its listing page (e.g. `/blog.md`) lists — 100 by default, as before, and `0` lists every entry.
+- `php craft llm-ready/indexes/regenerate [--site=<handle>]` builds `/llms.txt` and every section listing page ahead of visitors, for a deploy script or after clearing caches.
+
+### Fixed
+
+- `/llms.txt` could time out with a `504` on large sites, because a cache miss built the whole file inside the request, and every entry save caused a miss. Section listing pages (`/blog.md`) had the same problem on a smaller scale. Both are now built in the background. See "How /llms.txt and listing pages are cached" in DOCUMENTATION.md. Thanks to [@tomkiss](https://github.com/tomkiss) for the report ([#46](https://github.com/johnfmorton/craft-llm-ready/issues/46))
+  - The last built copy is always served. A queue job builds its replacement when content changes or the copy outlives **Cache TTL**.
+  - A burst of saves queues a single rebuild. An entry save only rebuilds `/llms.txt` and its own section's listing page; drafts and revisions don't trigger one.
+  - When there is no copy at all, one request builds it. Others wait briefly, then get a `503` with `Retry-After` rather than piling up behind it.
+  - An entry that stops being live (disabled, expired, deleted) is removed from the stored copies immediately, not at the next rebuild.
+  - A copy left stale for ten minutes (no queue runner, or the job couldn't be queued) is rebuilt by the next request instead of being served indefinitely.
+  - The job rereads the plugin's settings from the database each run, so a long-running `queue/listen` worker doesn't build with settings from before a change.
+  - With SEOmatic and `seomatic:description`, each entry's meta is resolved once rather than twice.
+- Site Title and Site Description templates now see the global sets of the site being built, so a rebuild covering several sites in one process can't hand one site another's values.
+
 ## [1.10.0] - 2026-09-19
 
 ### Added
@@ -320,7 +340,8 @@ _These fixes were surfaced by an independent security review of the plugin. Than
 - Permission checks on all Markdown endpoints — logged-in users without view permission receive a 403
 - Template path traversal protection and XPath injection prevention
 
-[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.10.0...HEAD
+[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.11.0...HEAD
+[1.11.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.7.1...v1.8.0

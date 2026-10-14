@@ -110,6 +110,12 @@ class Settings extends Model
     /** @var string Site description for llms.txt header blockquote */
     public string $llmsTxtIntro = '';
 
+    /** @var int Most recent entries listed per section in llms.txt (0 = every entry) */
+    public int $llmsTxtEntryLimit = 50;
+
+    /** @var int Most recent entries listed on a section's listing page, e.g. /blog.md (0 = every entry) */
+    public int $listingPageEntryLimit = 100;
+
     /** @var string Field handle for entry descriptions in llms.txt (empty = auto-extract) */
     public string $descriptionField = '';
 
@@ -176,7 +182,7 @@ class Settings extends Model
             [['excludeElements'], 'validateExcludeElements'],
             [['htmlConverterOptions'], 'validateHtmlConverterOptions'],
             [['webMcpOriginTrialToken'], 'validateOriginTrialToken'],
-            ['cacheTtl', 'integer', 'min' => 0],
+            [['cacheTtl', 'llmsTxtEntryLimit', 'listingPageEntryLimit'], 'integer', 'min' => 0],
             ['analyticsRetentionDays', 'integer', 'min' => 1],
             [['additionalBotUserAgents', 'botUserAgents', 'excludeBotUserAgents'], 'each', 'rule' => ['string']],
         ];

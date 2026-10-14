@@ -33,6 +33,7 @@ use johnfmorton\llmready\records\SectionSettingRecord;
 use johnfmorton\llmready\services\AnalyticsService;
 use johnfmorton\llmready\services\CacheDetectionService;
 use johnfmorton\llmready\services\DetectionService;
+use johnfmorton\llmready\services\IndexCacheService;
 use johnfmorton\llmready\services\LlmsTxtService;
 use johnfmorton\llmready\services\MarkdownService;
 use johnfmorton\llmready\services\SeoService;
@@ -52,6 +53,7 @@ use yii\base\Event;
  * @method Settings getSettings()
  * @property-read MarkdownService $markdownService
  * @property-read LlmsTxtService $llmsTxtService
+ * @property-read IndexCacheService $indexCacheService
  * @property-read DetectionService $detectionService
  * @property-read CacheDetectionService $cacheDetectionService
  * @property-read AnalyticsService $analyticsService
@@ -82,6 +84,7 @@ class LlmReady extends Plugin
             'components' => [
                 'markdownService' => MarkdownService::class,
                 'llmsTxtService' => LlmsTxtService::class,
+                'indexCacheService' => IndexCacheService::class,
                 'detectionService' => DetectionService::class,
                 'cacheDetectionService' => CacheDetectionService::class,
                 'analyticsService' => AnalyticsService::class,
@@ -238,6 +241,10 @@ class LlmReady extends Plugin
 
         // Clear the data cache so template/setting changes take effect immediately.
         Craft::$app->getCache()->flush();
+
+        // That flush took the served /llms.txt with it. Rebuild it in the
+        // background so the next visitor isn't the one waiting on it (#46).
+        $this->indexCacheService->queueRegeneration();
     }
 
     /**
@@ -903,7 +910,7 @@ class LlmReady extends Plugin
             function(Event $event) {
                 /** @var Entry $entry */
                 $entry = $event->sender;
-                $this->markdownService->invalidateEntryCache($entry);
+                $this->markdownService->invalidateEntryCache($entry, true);
             },
         );
 

@@ -64,7 +64,10 @@ class MarkdownController extends Controller
         }
 
         $site = Craft::$app->getSites()->getCurrentSite();
-        $content = $plugin->llmsTxtService->generate($site);
+        $content = $plugin->indexCacheService->get($site);
+        if ($content === null) {
+            return $this->buildingResponse();
+        }
 
         $response = Craft::$app->getResponse();
         $response->format = Response::FORMAT_RAW;
@@ -174,7 +177,10 @@ class MarkdownController extends Controller
             throw new NotFoundHttpException();
         }
 
-        $content = $markdownService->renderListingPage($section, $site);
+        $content = $plugin->indexCacheService->get($site, $section);
+        if ($content === null) {
+            return $this->buildingResponse();
+        }
 
         $response = Craft::$app->getResponse();
         $response->format = Response::FORMAT_RAW;
@@ -207,21 +213,7 @@ class MarkdownController extends Controller
         $sections = Craft::$app->getEntries()->getAllSections();
 
         foreach ($sections as $section) {
-            $siteSettings = $section->getSiteSettings();
-            if (!isset($siteSettings[$site->id])) {
-                continue;
-            }
-
-            $siteSetting = $siteSettings[$site->id];
-            if (!$siteSetting->hasUrls) {
-                continue;
-            }
-
-            // Check if the URI format base matches the path
-            // For sections with URI format like "blog/{slug}",
-            // the listing page would be "blog"
-            $uriFormat = $siteSetting->uriFormat;
-            $baseUri = $this->getBaseUriFromFormat($uriFormat);
+            $baseUri = LlmReady::getInstance()->markdownService->getListingBaseUri($section, $site);
 
             if ($baseUri !== null && $baseUri === $path) {
                 return $section;
@@ -232,18 +224,19 @@ class MarkdownController extends Controller
     }
 
     /**
-     * Extract the base URI from a URI format (e.g., "blog/{slug}" → "blog")
+     * An index file (`/llms.txt` or a listing page) that has never been built,
+     * while another request is building it. Ask the client to come back
+     * instead of holding a worker until the gateway gives up (#46).
      */
-    private function getBaseUriFromFormat(string $uriFormat): ?string
+    private function buildingResponse(): Response
     {
-        // Find the first segment before any {variable}
-        $pos = strpos($uriFormat, '{');
-        if ($pos === false) {
-            return null;
-        }
+        $response = Craft::$app->getResponse();
+        $response->format = Response::FORMAT_RAW;
+        $response->setStatusCode(503);
+        $response->getHeaders()->set('Retry-After', '30');
+        $response->getHeaders()->set('Content-Type', 'text/plain; charset=utf-8');
+        $response->data = "This file is being generated. Try again shortly.\n";
 
-        $base = rtrim(substr($uriFormat, 0, $pos), '/');
-
-        return $base !== '' ? $base : null;
+        return $response;
     }
 }

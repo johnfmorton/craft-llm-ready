@@ -6,32 +6,25 @@ namespace johnfmorton\llmready\services;
 
 use Craft;
 use craft\elements\Entry;
+use craft\elements\GlobalSet;
 use craft\helpers\Html;
 use craft\models\Site;
 use johnfmorton\llmready\LlmReady;
 use yii\base\Component;
 
 /**
- * Generates /llms.txt content
+ * Generates /llms.txt content. Caching — including serving the last copy
+ * while a queue job rebuilds it — is {@see IndexCacheService}'s job.
  */
 class LlmsTxtService extends Component
 {
     /**
-     * Generate the llms.txt content for a site
+     * Build the llms.txt content for a site. Uncached; requests go through
+     * {@see IndexCacheService::get()}.
      */
     public function generate(Site $site): string
     {
         $settings = LlmReady::getInstance()->getSettings();
-        $cacheKey = $this->getCacheKey($site);
-
-        // Check cache
-        if ($settings->cacheTtl > 0) {
-            $cached = Craft::$app->getCache()->get($cacheKey);
-            if ($cached !== false) {
-                return $cached;
-            }
-        }
-
         $markdownService = LlmReady::getInstance()->markdownService;
         $seoService = LlmReady::getInstance()->seoService;
         $lines = [];
@@ -64,17 +57,18 @@ class LlmsTxtService extends Component
                 continue;
             }
 
-            // Get entries for this section
-            $entries = Entry::find()
+            // Get entries for this section. Hydrated in batches, since a
+            // limit of 0 lists every entry and a section can hold thousands.
+            $query = Entry::find()
                 ->section($section->handle)
                 ->site($site)
                 ->status('live')
                 ->orderBy('postDate desc')
-                ->limit(50)
-                ->all();
+                ->limit($settings->llmsTxtEntryLimit ?: null);
 
             $entryLines = [];
-            foreach ($entries as $entry) {
+            foreach ($query->each() as $entry) {
+                /** @var Entry $entry */
                 if ($seoService->isNoindex($entry)) {
                     continue;
                 }
@@ -94,34 +88,18 @@ class LlmsTxtService extends Component
             }
         }
 
-        $result = implode("\n", $lines);
-
-        // Cache
-        if ($settings->cacheTtl > 0) {
-            Craft::$app->getCache()->set($cacheKey, $result, $settings->cacheTtl);
-        }
-
-        return $result;
+        return implode("\n", $lines);
     }
 
     /**
-     * Drop the cached llms.txt for every site. Called when an entry or a
-     * global set is saved, since the Site Title and Site Description
-     * templates can read either — and, through Twig, any site's content, so
-     * one site's save can't be assumed to affect only that site's file.
+     * Mark every site's llms.txt out of date and queue a rebuild. Called when
+     * a global set is saved, since the Site Title and Site Description
+     * templates can read one — and, through Twig, any site's content, so one
+     * site's save can't be assumed to affect only that site's file.
      */
     public function invalidateCache(): void
     {
-        $cache = Craft::$app->getCache();
-
-        foreach (Craft::$app->getSites()->getAllSites() as $site) {
-            $cache->delete($this->getCacheKey($site));
-        }
-    }
-
-    private function getCacheKey(Site $site): string
-    {
-        return "llmready:llmstxt:{$site->id}";
+        LlmReady::getInstance()->indexCacheService->markStale();
     }
 
     /**
@@ -180,7 +158,7 @@ class LlmsTxtService extends Component
         }
 
         try {
-            $rendered = Craft::$app->getView()->renderObjectTemplate($value, $site, ['site' => $site]);
+            $rendered = Craft::$app->getView()->renderObjectTemplate($value, $site, $this->globalSetVariables($site) + ['site' => $site]);
         } catch (\Throwable $e) {
             Craft::warning("LLM Ready: {$label} template '{$value}' failed for site {$site->id}: {$e->getMessage()}", __METHOD__);
 
@@ -188,6 +166,27 @@ class LlmsTxtService extends Component
         }
 
         return $this->htmlToText($rendered);
+    }
+
+    /**
+     * The site's global sets by handle, as site templates see them. Twig
+     * resolves its own globals once per process, for whichever site was
+     * current then — so a queue job building every site's file would hand
+     * each one the first site's global sets. Passing them as variables
+     * overrides that.
+     *
+     * @return array<string, GlobalSet>
+     */
+    private function globalSetVariables(Site $site): array
+    {
+        $variables = [];
+
+        foreach (GlobalSet::find()->siteId($site->id)->all() as $globalSet) {
+            /** @var GlobalSet $globalSet */
+            $variables[$globalSet->handle] = $globalSet;
+        }
+
+        return $variables;
     }
 
     /**
