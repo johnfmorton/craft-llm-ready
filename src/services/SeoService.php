@@ -42,6 +42,30 @@ class SeoService extends Component
     private array $_noindex = [];
 
     /**
+     * The last foreign-entry SEOmatic preview, keyed like {@see $_noindex}
+     * plus `dateUpdated`. `/llms.txt` asks for the same entry's noindex and
+     * then its `seomatic:description` back to back; reusing the preview
+     * halves the most expensive work in the file. Only the most recent
+     * preview is kept, so nothing else has run between the preview and the
+     * reuse — the same state the second caller would otherwise rebuild.
+     */
+    private ?string $_previewKey = null;
+
+    private mixed $_previewMeta = null;
+
+    /**
+     * Forget everything memoized. `/llms.txt` generation calls this first,
+     * since a queue runner can process several jobs in one process and an
+     * editor may have changed an entry's robots setting in between.
+     */
+    public function reset(): void
+    {
+        $this->_noindex = [];
+        $this->_previewKey = null;
+        $this->_previewMeta = null;
+    }
+
+    /**
      * Whether an SEO plugin marks this entry as `noindex`.
      */
     public function isNoindex(Entry $entry): bool
@@ -190,6 +214,18 @@ class SeoService extends Component
             return $this->currentRequestSeomaticMeta($seomaticClass);
         }
 
+        $previewKey = $entry->id !== null
+            ? "{$entry->id}:{$entry->siteId}:" . ($entry->dateUpdated?->getTimestamp() ?? 0)
+            : null;
+        if ($previewKey !== null && $previewKey === $this->_previewKey) {
+            return $this->_previewMeta;
+        }
+
+        // A new preview replaces SEOmatic's state, so the old one is no
+        // longer safe to hand out even if this preview throws.
+        $this->_previewKey = null;
+        $this->_previewMeta = null;
+
         $previousPreviewing = $seomaticClass::$previewingMetaContainers;
         $previousVariable = $seomaticClass::$seomaticVariable;
 
@@ -209,7 +245,10 @@ class SeoService extends Component
             );
             $plugin->metaContainers->parseGlobalVars();
 
-            return $seomaticClass::$seomaticVariable?->meta;
+            $this->_previewKey = $previewKey;
+            $this->_previewMeta = $seomaticClass::$seomaticVariable?->meta;
+
+            return $this->_previewMeta;
         } finally {
             $seomaticClass::$previewingMetaContainers = $previousPreviewing;
             $seomaticClass::$seomaticVariable = $previousVariable;

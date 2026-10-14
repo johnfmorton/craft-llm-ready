@@ -8,6 +8,7 @@ use Craft;
 use craft\base\ElementInterface;
 use craft\elements\Entry;
 use craft\fields\PlainText;
+use craft\helpers\ElementHelper;
 use craft\models\Section;
 use craft\models\Site;
 use johnfmorton\llmready\events\DefineFrontMatterEvent;
@@ -22,6 +23,12 @@ use yii\helpers\Html;
  */
 class MarkdownService extends Component
 {
+    /**
+     * @var array<string, array<string, mixed>>|null Per-section settings set by
+     * {@see useSectionSettings()}; null reads project config.
+     */
+    private ?array $_sectionSettings = null;
+
     /**
      * @event DefineFrontMatterEvent Raised while building an entry's YAML
      * front matter, after the plugin has resolved its own values and before
@@ -70,27 +77,20 @@ class MarkdownService extends Component
     }
 
     /**
-     * Render a listing page as Markdown (list of entries in a section)
+     * Build a listing page as Markdown (list of entries in a section).
+     * Uncached; requests go through {@see IndexCacheService::get()}.
      */
-    public function renderListingPage(Section $section, Site $site): string
+    public function buildListingPage(Section $section, Site $site): string
     {
-        $settings = LlmReady::getInstance()->getSettings();
-        $cacheKey = "llmready:listing:{$site->id}:{$section->id}";
-
-        if ($settings->cacheTtl > 0) {
-            $cached = Craft::$app->getCache()->get($cacheKey);
-            if ($cached !== false) {
-                return $cached;
-            }
-        }
-
+        // Hydrated in batches, since a limit of 0 lists every entry and a
+        // section can hold thousands.
         $entries = Entry::find()
             ->section($section->handle)
             ->site($site)
             ->status('live')
             ->orderBy('postDate desc')
-            ->limit(100)
-            ->all();
+            ->limit(LlmReady::getInstance()->getSettings()->listingPageEntryLimit ?: null)
+            ->each();
 
         $siteName = $site->getName();
         $lines = ["# {$section->name} — {$siteName}", ''];
@@ -108,13 +108,30 @@ class MarkdownService extends Component
             }
         }
 
-        $result = implode("\n", $lines) . "\n";
+        return implode("\n", $lines) . "\n";
+    }
 
-        if ($settings->cacheTtl > 0) {
-            Craft::$app->getCache()->set($cacheKey, $result, $settings->cacheTtl);
+    /**
+     * The URI a section's listing page answers to on a site — the part of its
+     * URI format before the first `{`, so `blog/{slug}` lists at `blog` —
+     * or null when the section has no URLs there or no such prefix.
+     */
+    public function getListingBaseUri(Section $section, Site $site): ?string
+    {
+        $siteSettings = $section->getSiteSettings()[$site->id] ?? null;
+        if ($siteSettings === null || !$siteSettings->hasUrls) {
+            return null;
         }
 
-        return $result;
+        $uriFormat = (string) $siteSettings->uriFormat;
+        $pos = strpos($uriFormat, '{');
+        if ($pos === false) {
+            return null;
+        }
+
+        $base = rtrim(substr($uriFormat, 0, $pos), '/');
+
+        return $base !== '' ? $base : null;
     }
 
     /**
@@ -626,9 +643,25 @@ class MarkdownService extends Component
             return null;
         }
 
+        if ($this->_sectionSettings !== null) {
+            return $this->_sectionSettings[$section->uid][$site->uid] ?? null;
+        }
+
         $configPath = LlmReady::PROJECT_CONFIG_PATH . ".{$section->uid}.{$site->uid}";
 
         return Craft::$app->getProjectConfig()->get($configPath);
+    }
+
+    /**
+     * Read per-section settings from the given project config subtree rather
+     * than Craft's in-memory copy, which a long-running queue worker loaded
+     * once at boot. See {@see IndexCacheService::refreshPluginConfig()}.
+     *
+     * @param array<string, array<string, mixed>> $sectionSettings Keyed by section UID, then site UID
+     */
+    public function useSectionSettings(array $sectionSettings): void
+    {
+        $this->_sectionSettings = $sectionSettings;
     }
 
     /**
@@ -922,7 +955,7 @@ class MarkdownService extends Component
     /**
      * Invalidate cache for a specific entry across all sites
      */
-    public function invalidateEntryCache(Entry $entry): void
+    public function invalidateEntryCache(Entry $entry, bool $deleted = false): void
     {
         $sites = Craft::$app->getSites()->getAllSites();
         $cache = Craft::$app->getCache();
@@ -930,13 +963,17 @@ class MarkdownService extends Component
         foreach ($sites as $site) {
             $cacheKey = $this->getCacheKey($entry, $site);
             $cache->delete($cacheKey);
-
-            // Also invalidate listing page cache for this section
-            if ($entry->sectionId) {
-                $cache->delete("llmready:listing:{$site->id}:{$entry->sectionId}");
-            }
         }
 
-        LlmReady::getInstance()->llmsTxtService->invalidateCache();
+        // /llms.txt and the entry's listing page are rebuilt in the
+        // background. Drafts and revisions appear in neither, and an
+        // autosaving draft would otherwise queue a rebuild every few seconds.
+        // An entry that is no longer live comes out of the stored copies
+        // now rather than at the rebuild.
+        if (!ElementHelper::isDraftOrRevision($entry)) {
+            $indexCacheService = LlmReady::getInstance()->indexCacheService;
+            $indexCacheService->removeEntry($entry, $deleted);
+            $indexCacheService->markStale($entry->sectionId);
+        }
     }
 }
