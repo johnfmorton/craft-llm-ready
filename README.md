@@ -17,7 +17,7 @@ For complete documentation, see the [LLM Ready Documentation](DOCUMENTATION.md) 
 * **Respects `noindex`** — entries marked `noindex` in SEOmatic or Ether SEO are excluded from `/llms.txt`, listing pages, and all Markdown output, the same way a search engine would treat them.
 * **Smart HTML-to-Markdown conversion** extracts main content and strips navigation, footers, scripts, and other non-content elements — no template tags to add, and the list of stripped elements is a setting when your markup needs a different one.
 * Optionally assign dedicated Twig templates per section that output raw Markdown for full control.
-* **Real-time rendering** — Markdown is generated on demand and cached, so content is always up to date without queue jobs or batch generation.
+* **Real-time rendering** — Markdown is generated on demand and cached, so content is always up to date without queue jobs or batch generation. `/llms.txt`, which lists a whole site, is rebuilt in the background when content changes, so even a site with thousands of entries serves it instantly.
 * Auto-generates a `/llms.txt` site index following the [llms.txt specification](https://llmstxt.org/) — and it can be switched off independently if you only want the `.md` URLs. Its title and site description can be plain text in the settings or sourced from a field on a Single or global set so content editors own them.
 * **Listing page support** — append `.md` to a section's base URL to get a Markdown index of entries.
 * **Built-in analytics** — an opt-in dashboard shows which AI bots visit your site, what they read, and how often, with per-site breakdowns, a CP widget, and configurable data retention.

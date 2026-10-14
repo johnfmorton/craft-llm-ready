@@ -257,7 +257,7 @@ The generated file includes:
 
 - **H1**: Your site name, or a custom title (configured in plugin settings, or handed to editors through a field on a Single or a global set — see [Letting editors manage the site title and description](#letting-editors-manage-the-site-title-and-description))
 - **Blockquote**: An optional site description (configured the same way)
-- **H2 sections**: One per enabled Craft section, with a list of entry links
+- **H2 sections**: One per enabled Craft section, listing its most recent live entries — 50 by default, set by **Entries per Section** (`0` lists every entry)
 
 Example output:
 
@@ -336,7 +336,7 @@ Append `.md` to a section's base URL to get a Markdown list of all entries in th
 curl https://your-site.test/blog.md
 ```
 
-This returns a Markdown document with the section name as a heading and a bulleted list of entry links pointing to their `.md` URLs.
+This returns a Markdown document with the section name as a heading and a bulleted list of links to the section's most recent entries — 100 by default, set by **Entries per Listing Page** (`0` lists every entry) — pointing to their `.md` URLs. Like `/llms.txt`, it is rebuilt in the background when the section's content changes — see [How /llms.txt and listing pages are cached](#how-llmstxt-and-listing-pages-are-cached).
 
 ## Discovery
 
@@ -386,7 +386,7 @@ Other SEO plugins have no per-entry robots concept that maps cleanly onto this, 
 
 ### Performance note
 
-For SEOmatic sites, building `/llms.txt` runs SEOmatic's meta-container resolution once per listed entry (up to 50 per section) so that inherited `noindex` is caught. Results are memoised per request, and the generated `/llms.txt` is itself cached for **Cache TTL** seconds, so this cost is paid on a cache miss rather than on every request. Ether SEO is a plain field read and costs effectively nothing.
+For SEOmatic sites, building `/llms.txt` runs SEOmatic's meta-container resolution once per listed entry (up to **Entries per Section** per section) so that inherited `noindex` is caught; with Description Field set to `seomatic:description`, the description reuses the same resolution. On a large site that build can take longer than a gateway will wait, which is why `/llms.txt` and listing pages are built in a queue job rather than by the request — see [How /llms.txt and listing pages are cached](#how-llmstxt-and-listing-pages-are-cached). Ether SEO is a plain field read and costs effectively nothing.
 
 ## Response headers
 
@@ -416,10 +416,12 @@ Configure LLM Ready from **Settings > Plugins > LLM Ready** in the Craft control
 | X-Robots-Tag: noindex | `true` | Add `noindex` header to Markdown responses |
 | Auto-inject Discovery Tag | `true` | Inject `<link rel="alternate">` into HTML pages |
 | Auto-inject Link Header | `true` | Add an HTTP `Link` response header (RFC 8288) pointing at the Markdown alternate. Useful for crawlers that inspect headers without parsing HTML |
-| Cache TTL (seconds) | `3600` | How long to cache Markdown output (`0` to disable) |
+| Cache TTL (seconds) | `3600` | How long to cache Markdown output (`0` to disable). `/llms.txt` and listing pages are rebuilt in the background once their copy is this old — see [How /llms.txt and listing pages are cached](#how-llmstxt-and-listing-pages-are-cached) |
 | Enable llms.txt | `true` | Serve `/llms.txt` and `/.well-known/llms.txt`. Turn off to 404 the route — and stop the home page advertising it — while leaving `.md` URLs, content negotiation and discovery tags working |
 | Site Title | `""` | Title used for the `/llms.txt` H1 heading. Falls back to the site's name when blank. A value containing `{` is rendered as a Craft object template with the site as `site`, so it can read a field on a Single (`{{ craft.entries.section('siteInfo').site(site).one().llmTitle ?? '' }}`) or a global set (`{{ siteInfo.llmTitle }}`) that content editors manage outside project config, and stay per site where a fixed title applies to every site. Collapsed to one line. See [Letting editors manage the site title and description](#letting-editors-manage-the-site-title-and-description). |
 | Site Description | `""` | Introduction text for the `/llms.txt` blockquote. A value containing `{` is rendered as a Craft object template with the site as `site`, so it can read a field on a Single (`{{ craft.entries.section('siteInfo').site(site).one().llmDescription ?? '' }}`) or a global set (`{{ siteInfo.llmDescription }}`) that content editors manage outside project config. See [Letting editors manage the site title and description](#letting-editors-manage-the-site-title-and-description). |
+| Entries per Section | `50` | How many of each section's most recent entries `/llms.txt` lists. `0` lists every entry. `llmsTxtEntryLimit` in the config file |
+| Entries per Listing Page | `100` | How many of a section's most recent entries its listing page (e.g. `/blog.md`) lists. `0` lists every entry. `listingPageEntryLimit` in the config file |
 | Description Field | `""` | Field handle to use for entry descriptions in `/llms.txt` and listing pages. Supports dot notation (e.g. `seo.seoDescription`), `()` method-call syntax (e.g. `metaData.getMetaDescription()`), Generated Field handles, and a native SEOmatic resolver via `seomatic:description`. See [SEO-PLUGINS.md](SEO-PLUGINS.md) for SEOmatic / Ether SEO / SEOmate / SEO Fields recipes. When set, the configured field is authoritative — no auto-extract fallback runs if it resolves to nothing. |
 | Title Field | `""` | Optional field handle for the front-matter `title:` value. Supports the same syntax as Description Field (dot notation, `()` method calls, Generated Field handles, `seomatic:title`), or a Craft object template such as `{{ entry.longTitle ?: entry.title }}`. Falls back to the entry's native title when blank or unresolved. See [Customizing the title and author](#customizing-the-title-and-author). |
 | Author Override | `""` | Author written to each entry's front matter. A fixed name (a team or company, say) replaces individual editor names on every entry. A Craft object template such as `{% if entry.section.handle == 'blog' %}{{ entry.authors\|map(a => a.fullName ?: a.username)\|join(', ') }}{% endif %}` is rendered per entry, and the `author:` line is omitted when it renders to nothing. Blank uses each entry's own authors, comma-separated on multi-author entries. See [Customizing the title and author](#customizing-the-title-and-author). |
@@ -589,6 +591,29 @@ Markdown output is cached using Craft's cache component (Redis, database, or fil
 
 The cache TTL is configurable in the plugin settings. Set to `0` to disable caching entirely.
 
+### How /llms.txt and listing pages are cached
+
+`/llms.txt` and the section listing pages (`/blog.md`) are index files: each lists many entries, and with SEOmatic every listed entry needs its meta resolved. On a large site, building one can take longer than a gateway or load balancer will wait, so requests don't build them when a copy exists:
+
+- The last built copy is served for as long as it exists. Once it is older than **Cache TTL**, or the content it lists has changed since it was built, the request still gets that copy straight away and a **Regenerating llms.txt and listing pages** queue job builds its replacement. A burst of saves queues one job, not one per save.
+- What counts as a change: saving or deleting an entry makes `/llms.txt` and that entry's section listing out of date; saving a global set makes `/llms.txt` out of date, since its Site Title and Site Description can read one. Drafts and revisions don't count.
+- With no copy at all — the first request after installing, deploying, or clearing data caches — one request builds it while any others wait up to five seconds for it, then get a `503` with `Retry-After: 30` rather than piling up behind the build.
+- The job rebuilds only copies that are out of date, and only listing pages that have been requested, so unused sections cost nothing.
+
+Three things follow:
+
+- **A queue runner is required.** Craft's default (`runQueueAutomatically`) or a `craft queue/listen` worker both work. Without one, index files keep serving their last copy.
+- **Build the files after deploys and cache clears**, so no visitor waits on a cold build:
+
+  ```bash
+  php craft llm-ready/indexes/regenerate              # every site
+  php craft llm-ready/indexes/regenerate --site=en    # one site, by handle
+  ```
+
+- **A long-running `queue/listen` worker picks up LLM Ready setting changes on its own** — the job rereads the plugin's settings and section settings from the database each time it runs. Changes to Craft itself, such as a new section, still need the worker restarted, as for any plugin.
+
+Setting **Cache TTL** to `0` turns all of this off and builds index files on every request, as before — fine on a small site, not recommended on a large one.
+
 You can also clear the cache manually via **Utilities > Clear Caches > Data caches** in the control panel or by running:
 
 ```bash
@@ -664,6 +689,12 @@ LLM Ready invalidates cache automatically on entry save. If you see stale conten
 ```bash
 ./craft clear-caches/data
 ```
+
+`/llms.txt` and listing pages are the exception: an entry save queues a rebuild, and the previous copy is served until it finishes. If one stays out of date, check that the **Regenerating llms.txt and listing pages** job is running (**Utilities > Queue Manager**), or rebuild them directly with `php craft llm-ready/indexes/regenerate`.
+
+### `/llms.txt` or a listing page returns `503` or times out
+
+A `503` with `Retry-After` means the file had no cached copy and another request was already building it; it is served as soon as that build finishes. To avoid the cold build altogether, run `php craft llm-ready/indexes/regenerate` after each deploy or cache clear — see [How /llms.txt and listing pages are cached](#how-llmstxt-and-listing-pages-are-cached). If a gateway timeout persists, check that **Cache TTL** isn't `0`, which builds the file on every request, and consider a lower **Entries per Section** or **Entries per Listing Page**.
 
 ### Every request is labeled `direct`, or the dashboard shows `Amazon CloudFront`
 

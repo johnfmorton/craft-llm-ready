@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Entries per Section** setting (`llmsTxtEntryLimit`) for how many of each section's most recent entries `/llms.txt` lists — 50 by default, as before, and `0` lists every entry.
+- **Entries per Listing Page** setting (`listingPageEntryLimit`) for how many of a section's most recent entries its listing page (e.g. `/blog.md`) lists — 100 by default, as before, and `0` lists every entry.
+- `php craft llm-ready/indexes/regenerate [--site=<handle>]` builds `/llms.txt` and every section listing page ahead of visitors, for a deploy script or after clearing caches.
+
+### Fixed
+
+- `/llms.txt` could time out with a `504` on large sites, because a cache miss built the whole file inside the request — and every entry save caused a miss. Section listing pages (`/blog.md`) had the same problem on a smaller scale. Both are now served from their last built copy while a queue job builds the replacement, both when content changes and when the copy outlives **Cache TTL**, and a burst of saves queues a single rebuild; an entry save only rebuilds `/llms.txt` and its own section's listing. When there is no copy at all, one request builds it while others wait briefly and then get a `503` with `Retry-After` rather than piling up behind it. The job rereads the plugin's settings from the database each run, so a long-running `queue/listen` worker doesn't build with settings from before a change. With SEOmatic and `seomatic:description`, each entry's meta is now resolved once rather than twice. Drafts and revisions no longer invalidate either file. See "How /llms.txt and listing pages are cached" in DOCUMENTATION.md. Thanks to [@tomkiss](https://github.com/tomkiss) for the report ([#46](https://github.com/johnfmorton/craft-llm-ready/issues/46))
+- Site Title and Site Description templates now see the global sets of the site being built, so a rebuild covering several sites in one process can't hand one site another's values.
+
 ## [1.10.0] - 2026-09-19
 
 ### Added
