@@ -697,7 +697,7 @@ class LlmReady extends Plugin
             function(Event $event) {
                 /** @var Entry $entry */
                 $entry = $event->sender;
-                $this->markdownService->invalidateEntryCache($entry);
+                $this->markdownService->invalidateEntryCache($entry, true);
             },
         );
 

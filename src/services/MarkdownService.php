@@ -955,7 +955,7 @@ class MarkdownService extends Component
     /**
      * Invalidate cache for a specific entry across all sites
      */
-    public function invalidateEntryCache(Entry $entry): void
+    public function invalidateEntryCache(Entry $entry, bool $deleted = false): void
     {
         $sites = Craft::$app->getSites()->getAllSites();
         $cache = Craft::$app->getCache();
@@ -968,8 +968,12 @@ class MarkdownService extends Component
         // /llms.txt and the entry's listing page are rebuilt in the
         // background. Drafts and revisions appear in neither, and an
         // autosaving draft would otherwise queue a rebuild every few seconds.
+        // An entry that is no longer live comes out of the stored copies
+        // now rather than at the rebuild.
         if (!ElementHelper::isDraftOrRevision($entry)) {
-            LlmReady::getInstance()->indexCacheService->markStale($entry->sectionId);
+            $indexCacheService = LlmReady::getInstance()->indexCacheService;
+            $indexCacheService->removeEntry($entry, $deleted);
+            $indexCacheService->markStale($entry->sectionId);
         }
     }
 }

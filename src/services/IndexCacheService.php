@@ -7,6 +7,7 @@ namespace johnfmorton\llmready\services;
 use Craft;
 use craft\db\Query;
 use craft\db\Table;
+use craft\elements\Entry;
 use craft\helpers\App;
 use craft\helpers\ArrayHelper;
 use craft\helpers\Json;
@@ -32,6 +33,12 @@ use yii\base\Component;
  *   long as it exists. It is stale once it is older than the cache TTL or
  *   than the last change to content it lists ({@see markStale()}); serving a
  *   stale copy queues {@see RegenerateIndexes} to replace it.
+ * - A copy stops being served once it has been stale for ten minutes
+ *   without being replaced — a failed push or a queue that isn't running —
+ *   and is rebuilt as if missing.
+ * - An entry that stops being live (disabled, expired, deleted) has its
+ *   line removed from the stored copies at once, rather than staying
+ *   listed until the rebuild ({@see removeEntry()}).
  * - With no copy at all (first request, or after clearing caches), one
  *   request builds it under a lock. Requests that arrive meanwhile wait a
  *   few seconds for that copy and otherwise get null, which the controller
@@ -49,6 +56,12 @@ class IndexCacheService extends Component
     /** Seconds the queued-job marker lives if the job never clears it. */
     private const QUEUED_TTL = 600;
 
+    /**
+     * Seconds a stale copy is served while waiting for its rebuild. Past
+     * that, the queue isn't delivering and a request rebuilds it instead.
+     */
+    private const MAX_STALE_WAIT = 600;
+
     private const QUEUED_KEY = 'llmready:index:queued';
 
     /**
@@ -61,9 +74,10 @@ class IndexCacheService extends Component
             return $this->build($site, $section);
         }
 
-        $cached = $this->readCache($site, $section);
+        $cached = $this->readServable($site, $section);
         if ($cached !== null) {
             if ($this->isStale($cached, $section)) {
+                $this->noteStaleServe($site, $section, $cached);
                 $this->queueRegeneration();
             }
 
@@ -74,12 +88,12 @@ class IndexCacheService extends Component
         $lock = $this->getLockName($site, $section);
 
         if (!$mutex->acquire($lock, self::COLD_WAIT)) {
-            return $this->readCache($site, $section)['content'] ?? null;
+            return $this->readServable($site, $section)['content'] ?? null;
         }
 
         try {
             // Whoever held the lock may have just stored a copy.
-            $cached = $this->readCache($site, $section);
+            $cached = $this->readServable($site, $section);
             if ($cached !== null) {
                 return $cached['content'];
             }
@@ -169,6 +183,45 @@ class IndexCacheService extends Component
         }
 
         return $indexes;
+    }
+
+    /**
+     * Take an entry that is no longer live — disabled, expired, or deleted —
+     * out of the stored copies straight away, on every site where it no
+     * longer is. Waiting for the rebuild would keep a pulled entry's title
+     * and description public until the queue got to it, or indefinitely if
+     * it never did. The rebuild still follows, via {@see markStale()}.
+     */
+    public function removeEntry(Entry $entry, bool $deleted = false): void
+    {
+        if ($entry->id === null) {
+            return;
+        }
+
+        foreach (Craft::$app->getSites()->getAllSites() as $site) {
+            $siteEntry = (int) $entry->siteId === (int) $site->id
+                ? $entry
+                : Entry::find()->id($entry->id)->siteId($site->id)->status(null)->trashed(null)->one();
+
+            if (!$siteEntry instanceof Entry) {
+                continue;
+            }
+            if (!$deleted && $siteEntry->getStatus() === Entry::STATUS_LIVE) {
+                continue;
+            }
+
+            $url = rtrim($siteEntry->getUrl() ?? '', '/');
+            if ($url === '') {
+                continue;
+            }
+
+            // Every listed line links the entry as `](<url>.md)`.
+            $needle = "]({$url}.md)";
+            $this->stripLines($site, null, $needle);
+            if ($siteEntry->getSection() !== null) {
+                $this->stripLines($site, $siteEntry->getSection(), $needle);
+            }
+        }
     }
 
     /**
@@ -308,6 +361,72 @@ class IndexCacheService extends Component
         }
 
         return ['content' => $cached['content'], 'generatedAt' => (float) $cached['generatedAt']];
+    }
+
+    /**
+     * The stored copy, unless it has been waiting on a rebuild for longer
+     * than {@see MAX_STALE_WAIT}.
+     *
+     * @return array{content: string, generatedAt: float}|null
+     */
+    private function readServable(Site $site, ?Section $section): ?array
+    {
+        $cached = $this->readCache($site, $section);
+        if ($cached === null) {
+            return null;
+        }
+
+        $staleSince = Craft::$app->getCache()->get($this->getCacheKey($site, $section) . ':staleSince');
+
+        // Only counts for the copy it was recorded against; a rebuild since
+        // then has a different build time.
+        if (is_array($staleSince)
+            && ($staleSince['for'] ?? null) === $cached['generatedAt']
+            && is_numeric($staleSince['at'] ?? null)
+            && (float) $staleSince['at'] + self::MAX_STALE_WAIT < microtime(true)
+        ) {
+            return null;
+        }
+
+        return $cached;
+    }
+
+    /**
+     * Record when this copy was first served stale, for {@see readServable()}.
+     *
+     * @param array{content: string, generatedAt: float} $cached
+     */
+    private function noteStaleServe(Site $site, ?Section $section, array $cached): void
+    {
+        $cache = Craft::$app->getCache();
+        $key = $this->getCacheKey($site, $section) . ':staleSince';
+        $staleSince = $cache->get($key);
+
+        if (!is_array($staleSince) || ($staleSince['for'] ?? null) !== $cached['generatedAt']) {
+            $cache->set($key, ['for' => $cached['generatedAt'], 'at' => microtime(true)], 0);
+        }
+    }
+
+    /**
+     * Remove every line containing `$needle` from a stored copy, keeping its
+     * build time so it is still rebuilt as usual.
+     */
+    private function stripLines(Site $site, ?Section $section, string $needle): void
+    {
+        $cached = $this->readCache($site, $section);
+        if ($cached === null || !str_contains($cached['content'], $needle)) {
+            return;
+        }
+
+        $lines = array_filter(
+            explode("\n", $cached['content']),
+            fn(string $line): bool => !str_contains($line, $needle),
+        );
+
+        Craft::$app->getCache()->set($this->getCacheKey($site, $section), [
+            'content' => implode("\n", $lines),
+            'generatedAt' => $cached['generatedAt'],
+        ], 0);
     }
 
     /**

@@ -597,12 +597,14 @@ The cache TTL is configurable in the plugin settings. Set to `0` to disable cach
 
 - The last built copy is served for as long as it exists. Once it is older than **Cache TTL**, or the content it lists has changed since it was built, the request still gets that copy straight away and a **Regenerating llms.txt and listing pages** queue job builds its replacement. A burst of saves queues one job, not one per save.
 - What counts as a change: saving or deleting an entry makes `/llms.txt` and that entry's section listing out of date; saving a global set makes `/llms.txt` out of date, since its Site Title and Site Description can read one. Drafts and revisions don't count.
+- An entry that stops being live — disabled, expired, or deleted — is removed from the stored copies at once, not at the rebuild, so a pulled entry's title and description aren't left listed while the queue catches up.
+- A copy that has been served stale for ten minutes without being replaced — the queue isn't running, or the job couldn't be pushed — stops being served, and the next request rebuilds it as below.
 - With no copy at all — the first request after installing, deploying, or clearing data caches — one request builds it while any others wait up to five seconds for it, then get a `503` with `Retry-After: 30` rather than piling up behind the build.
 - The job rebuilds only copies that are out of date, and only listing pages that have been requested, so unused sections cost nothing.
 
 Three things follow:
 
-- **A queue runner is required.** Craft's default (`runQueueAutomatically`) or a `craft queue/listen` worker both work. Without one, index files keep serving their last copy.
+- **A queue runner is expected.** Craft's default (`runQueueAutomatically`) or a `craft queue/listen` worker both work. Without one, content changes reach index files only through the ten-minute fallback, and a request pays for each rebuild.
 - **Build the files after deploys and cache clears**, so no visitor waits on a cold build:
 
   ```bash
