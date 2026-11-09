@@ -14,6 +14,7 @@ use craft\db\ActiveRecord;
  * @property int $siteId
  * @property bool $enabled
  * @property string|null $llmTemplate
+ * @property string|null $label
  * @property string $dateCreated
  * @property string $dateUpdated
  * @property string $uid

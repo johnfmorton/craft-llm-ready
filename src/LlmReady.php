@@ -61,7 +61,7 @@ class LlmReady extends Plugin
     public const PERMISSION_VIEW_ANALYTICS = 'llm-ready:viewAnalytics';
     public const PERMISSION_PURGE_ANALYTICS = 'llm-ready:purgeAnalytics';
 
-    public string $schemaVersion = '1.4.0';
+    public string $schemaVersion = '1.5.0';
     public bool $hasCpSettings = true;
     public bool $hasCpSection = true;
 
@@ -167,6 +167,7 @@ class LlmReady extends Plugin
                     'site' => $site,
                     'enabled' => $config['enabled'] ?? true,
                     'llmTemplate' => $config['llmTemplate'] ?? '',
+                    'label' => $config['label'] ?? '',
                 ];
             }
 
@@ -215,11 +216,22 @@ class LlmReady extends Plugin
                         continue;
                     }
 
-                    $configPath = self::PROJECT_CONFIG_PATH . ".{$section->uid}.{$site->uid}";
-                    $projectConfig->set($configPath, [
+                    // Capped to match the DB column that mirrors it.
+                    $label = mb_substr(trim((string) ($values['label'] ?? '')), 0, 255);
+
+                    $config = [
                         'enabled' => !empty($values['enabled']),
                         'llmTemplate' => !empty($values['llmTemplate']) ? $values['llmTemplate'] : null,
-                    ]);
+                    ];
+
+                    // Written only when set, so upgrading doesn't add a
+                    // `label: null` line to every section's project config.
+                    if ($label !== '') {
+                        $config['label'] = $label;
+                    }
+
+                    $configPath = self::PROJECT_CONFIG_PATH . ".{$section->uid}.{$site->uid}";
+                    $projectConfig->set($configPath, $config);
                 }
             }
         }
@@ -628,7 +640,10 @@ class LlmReady extends Plugin
 
         $record->enabled = $event->newValue['enabled'] ?? true;
         $record->llmTemplate = $event->newValue['llmTemplate'] ?? null;
+        $record->label = $event->newValue['label'] ?? null;
         $record->save();
+
+        $this->invalidateSectionOutput($section->id);
     }
 
     /**
@@ -650,6 +665,24 @@ class LlmReady extends Plugin
             'sectionId' => $section->id,
             'siteId' => $site->id,
         ]);
+
+        $this->invalidateSectionOutput($section->id);
+    }
+
+    /**
+     * Refresh everything a section setting shows up in: the section's cached
+     * entry Markdown (its label is in their front matter, its template
+     * renders them), `/llms.txt`, and the section's listing pages.
+     *
+     * Saving the settings page flushes the data cache anyway, but a change
+     * that arrives through `project-config/apply` on deploy only reaches
+     * these handlers, so without this an enabled toggle or a new label
+     * waited out the cache TTL there.
+     */
+    private function invalidateSectionOutput(int $sectionId): void
+    {
+        $this->markdownService->invalidateSectionCache($sectionId);
+        $this->indexCacheService->markStale($sectionId);
     }
 
     /**

@@ -81,7 +81,7 @@ class LlmsTxtService extends Component
 
             // Only add section heading if there are entries to list
             if (!empty($entryLines)) {
-                $lines[] = "## {$section->name}";
+                $lines[] = "## {$markdownService->getSectionLabel($section, $site)}";
                 $lines[] = '';
                 array_push($lines, ...$entryLines);
                 $lines[] = '';

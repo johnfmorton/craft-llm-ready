@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Label** column in the per-section settings table. It sets the name a section goes by in `/llms.txt` (its `##` heading), on its listing page (`# Label — Site`), and in each entry's `section:` front matter. Section names are written for content authors, so one like "User Created Pages" can now stay in the control panel without being published. Blank uses the section's name, as before. Labels are per site, like the other section settings, so a multi-site install can translate them. They are stored in project config only when set, so upgrading doesn't add a line to every section's config.
+
 ### Fixed
 
+- A section setting that arrives by `project-config/apply` on deploy, such as switching a section off, now refreshes the section's cached Markdown, `/llms.txt`, and its listing page. Before, only saving the settings page did, so a deployed change waited out **Cache TTL**.
 - Markdown converted from an entry's HTML could start with `&lt;!\[CDATA\[YII-BLOCK-BODY-BEGIN\]\]&gt;` (and end with `…BODY-END`) when the layout calls `head()`, `beginBody()` or `endBody()`, as standard Craft layouts do. Those are Yii placeholders that only a full page render replaces, and the entry was rendered as a fragment. It is now rendered as a page, so the placeholders are filled in and then removed with the rest of the `<head>` and scripts, and any left over (a `beginBody()` without a page render) are removed before conversion.
   - JS and CSS a template registers (`{% js %}`, `{% css %}`, asset bundles) are now cleared after each entry, rather than piling up on the shared view when several entries render in one process.
   - The entry's template is rendered in site mode explicitly. A console command or queue job starts in control-panel mode, where the site template isn't found, so Markdown built there fell back to the basic title-and-body output.
