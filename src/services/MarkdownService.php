@@ -11,6 +11,7 @@ use craft\fields\PlainText;
 use craft\helpers\ElementHelper;
 use craft\models\Section;
 use craft\models\Site;
+use craft\web\View;
 use johnfmorton\llmready\events\DefineFrontMatterEvent;
 use johnfmorton\llmready\LlmReady;
 use johnfmorton\llmready\models\Settings;
@@ -181,10 +182,17 @@ class MarkdownService extends Component
 
         $view = Craft::$app->getView();
 
+        // Rendered as a page, not a fragment: a layout that calls head(),
+        // beginBody() or endBody() leaves Yii placeholders such as
+        // `<![CDATA[YII-BLOCK-BODY-BEGIN]]>` that only endPage() replaces, and
+        // endPage() also clears the JS and CSS the template registered, so it
+        // can't pile up across entries rendered in one process (a queue job,
+        // a console command). Site mode is explicit because a console or
+        // queue process starts in CP mode, where the site template isn't found.
         try {
-            $html = $view->renderTemplate($template, [
+            $html = $view->renderPageTemplate($template, [
                 'entry' => $entry,
-            ]);
+            ], View::TEMPLATE_MODE_SITE);
         } catch (\Throwable $e) {
             Craft::warning("LLM Ready: Failed to render template '{$template}' for entry {$entry->id}: {$e->getMessage()}", __METHOD__);
 
@@ -228,6 +236,11 @@ class MarkdownService extends Component
     {
         $settings = LlmReady::getInstance()->getSettings();
         $selectors = array_map('trim', explode(',', $settings->contentSelector));
+
+        // A guard for placeholders the page render didn't replace, such as a
+        // beginBody() with no matching endBody(): DOMDocument reads them as
+        // text, and they would reach the Markdown escaped.
+        $html = (string) preg_replace('/<!\[CDATA\[YII-BLOCK-[A-Z-]+\]\]>/', '', $html);
 
         $dom = new \DOMDocument();
 

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Markdown converted from an entry's HTML could start with `&lt;!\[CDATA\[YII-BLOCK-BODY-BEGIN\]\]&gt;` (and end with `…BODY-END`) when the layout calls `head()`, `beginBody()` or `endBody()`, as standard Craft layouts do. Those are Yii placeholders that only a full page render replaces, and the entry was rendered as a fragment. It is now rendered as a page, so the placeholders are filled in and then removed with the rest of the `<head>` and scripts, and any left over (a `beginBody()` without a page render) are removed before conversion.
+  - JS and CSS a template registers (`{% js %}`, `{% css %}`, asset bundles) are now cleared after each entry, rather than piling up on the shared view when several entries render in one process.
+  - The entry's template is rendered in site mode explicitly. A console command or queue job starts in control-panel mode, where the site template isn't found, so Markdown built there fell back to the basic title-and-body output.
+  - Plugins that hook the end of a page render now run for the `.md` render too. SEOmatic, for example, adds its `Referrer-Policy` and `X-Powered-By` headers to the `.md` response.
+
 ## [1.11.0] - 2026-10-14
 
 ### Added
