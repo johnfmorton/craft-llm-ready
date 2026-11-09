@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Markdown converted from HTML kept HTML entities as literal text: `Planes, Trains &amp; Automobiles`, and `&quot;` in image alt text. The converter escapes `&` in text so the output can't be read as HTML. A Markdown renderer decodes it, but an LLM or any tool reading the raw Markdown saw the entity. Entities are now decoded after conversion, except `&lt;` and `&gt;`, which stay encoded so literal text such as `&lt;div&gt;` doesn't become a tag. Code spans and code blocks are left as they are.
+
 ## [1.12.0] - 2026-11-09
 
 ### Added

@@ -399,12 +399,55 @@ class MarkdownService extends Component
             $this->_converter = new HtmlConverter($this->getConverterOptions());
         }
 
-        $markdown = $this->_converter->convert($html);
+        $markdown = $this->decodeEntities($this->_converter->convert($html));
 
         // Clean up excessive whitespace
         $markdown = preg_replace("/\n{3,}/", "\n\n", $markdown);
 
         return trim($markdown) . "\n";
+    }
+
+    /**
+     * Decode the HTML entities league/html-to-markdown leaves in its output.
+     *
+     * The converter escapes `&` and `<` in text so the Markdown can't be read
+     * as HTML, and how many times depends on how deeply the text is nested,
+     * so `Trains & Automobiles` came out as `Trains &amp; Automobiles` and an
+     * image's alt text inside a `<picture>` kept `&quot;`. A Markdown renderer
+     * decodes those, but an LLM reads the raw text.
+     *
+     * Only what can't create markup is decoded: `&amp;`, quotes, `&nbsp;` (as
+     * a space) and any other entity for a printable character. `&lt;` and
+     * `&gt;` stay encoded, so literal text such as `&lt;div&gt;` doesn't turn
+     * into a tag. It's one left-to-right pass, so `&amp;lt;` (the text `&lt;`)
+     * becomes `&lt;`, never `<`. Code spans and fenced code blocks are left
+     * alone: the converter has already decoded them, and an entity written
+     * there is meant literally.
+     */
+    private function decodeEntities(string $markdown): string
+    {
+        if (!str_contains($markdown, '&')) {
+            return $markdown;
+        }
+
+        $pattern = '/(?<code>^(?<fence>`{3,}|~{3,})[^\n]*\n.*?^\k<fence>[ \t]*$|(?<tick>`+)(?:(?!\n\n).)+?(?<!`)\k<tick>(?!`))'
+            . '|(?<entity>&(?:#[0-9]+|#[xX][0-9a-fA-F]+|[A-Za-z][A-Za-z0-9]*);)/msu';
+
+        return (string) preg_replace_callback($pattern, function(array $match): string {
+            $entity = $match['entity'] ?? '';
+            if ($entity === '') {
+                return $match[0];
+            }
+
+            $decoded = html_entity_decode($entity, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+            return match (true) {
+                $decoded === $entity, $decoded === '<', $decoded === '>' => $entity,
+                $decoded === "\u{00A0}" => ' ',
+                (bool) preg_match('/^\p{Cc}$/u', $decoded) => $entity,
+                default => $decoded,
+            };
+        }, $markdown);
     }
 
     /**
