@@ -11,11 +11,13 @@ use craft\fields\PlainText;
 use craft\helpers\ElementHelper;
 use craft\models\Section;
 use craft\models\Site;
+use craft\web\View;
 use johnfmorton\llmready\events\DefineFrontMatterEvent;
 use johnfmorton\llmready\LlmReady;
 use johnfmorton\llmready\models\Settings;
 use League\HTMLToMarkdown\HtmlConverter;
 use yii\base\Component;
+use yii\caching\TagDependency;
 use yii\helpers\Html;
 
 /**
@@ -35,6 +37,9 @@ class MarkdownService extends Component
      * they are written out. Handlers may add, change or remove keys.
      */
     public const EVENT_DEFINE_FRONT_MATTER = 'defineFrontMatter';
+
+    /** Tag on every cached entry's Markdown. */
+    public const CACHE_TAG = 'llmready:markdown';
 
     private ?HtmlConverter $_converter = null;
 
@@ -68,9 +73,13 @@ class MarkdownService extends Component
         $frontMatter = $this->buildFrontMatter($entry, $site);
         $result = $frontMatter . $markdown;
 
-        // Cache the result
+        // Cache the result. Tagged by section, so a section setting that
+        // changes how its entries render (its label, its template) can drop
+        // them without waiting for each entry to be saved.
         if ($settings->cacheTtl > 0) {
-            Craft::$app->getCache()->set($cacheKey, $result, $settings->cacheTtl);
+            Craft::$app->getCache()->set($cacheKey, $result, $settings->cacheTtl, new TagDependency([
+                'tags' => [self::CACHE_TAG, $this->getSectionCacheTag($entry->sectionId)],
+            ]));
         }
 
         return $result;
@@ -93,7 +102,7 @@ class MarkdownService extends Component
             ->each();
 
         $siteName = $site->getName();
-        $lines = ["# {$section->name} — {$siteName}", ''];
+        $lines = ["# {$this->getSectionLabel($section, $site)} — {$siteName}", ''];
 
         $seoService = LlmReady::getInstance()->seoService;
 
@@ -181,10 +190,17 @@ class MarkdownService extends Component
 
         $view = Craft::$app->getView();
 
+        // Rendered as a page, not a fragment: a layout that calls head(),
+        // beginBody() or endBody() leaves Yii placeholders such as
+        // `<![CDATA[YII-BLOCK-BODY-BEGIN]]>` that only endPage() replaces, and
+        // endPage() also clears the JS and CSS the template registered, so it
+        // can't pile up across entries rendered in one process (a queue job,
+        // a console command). Site mode is explicit because a console or
+        // queue process starts in CP mode, where the site template isn't found.
         try {
-            $html = $view->renderTemplate($template, [
+            $html = $view->renderPageTemplate($template, [
                 'entry' => $entry,
-            ]);
+            ], View::TEMPLATE_MODE_SITE);
         } catch (\Throwable $e) {
             Craft::warning("LLM Ready: Failed to render template '{$template}' for entry {$entry->id}: {$e->getMessage()}", __METHOD__);
 
@@ -228,6 +244,11 @@ class MarkdownService extends Component
     {
         $settings = LlmReady::getInstance()->getSettings();
         $selectors = array_map('trim', explode(',', $settings->contentSelector));
+
+        // A guard for placeholders the page render didn't replace, such as a
+        // beginBody() with no matching endBody(): DOMDocument reads them as
+        // text, and they would reach the Markdown escaped.
+        $html = (string) preg_replace('/<!\[CDATA\[YII-BLOCK-[A-Z-]+\]\]>/', '', $html);
 
         $dom = new \DOMDocument();
 
@@ -422,13 +443,14 @@ class MarkdownService extends Component
     public function buildFrontMatter(Entry $entry, Site $site): string
     {
         $settings = LlmReady::getInstance()->getSettings();
+        $section = $entry->getSection();
 
         $frontMatter = [
             'title' => $this->resolveTitle($entry, $settings->titleField),
             'date' => $entry->postDate?->format('c'),
             'author' => $this->resolveAuthor($entry, $settings->authorOverride),
             'canonical_url' => $entry->getUrl(),
-            'section' => $entry->getSection()?->name,
+            'section' => $section !== null ? $this->getSectionLabel($section, $site) : null,
         ];
 
         if ($this->hasEventHandlers(self::EVENT_DEFINE_FRONT_MATTER)) {
@@ -626,7 +648,9 @@ class MarkdownService extends Component
     /**
      * Get section setting from project config for a section/site combination
      *
-     * @return array{enabled: bool, llmTemplate: string|null}|null
+     * The `label` key is missing from settings saved before 1.12.0.
+     *
+     * @return array{enabled: bool, llmTemplate: string|null, label?: string|null}|null
      */
     public function getSectionConfig(?int $sectionId, int $siteId): ?array
     {
@@ -650,6 +674,36 @@ class MarkdownService extends Component
         $configPath = LlmReady::PROJECT_CONFIG_PATH . ".{$section->uid}.{$site->uid}";
 
         return Craft::$app->getProjectConfig()->get($configPath);
+    }
+
+    /**
+     * The name a section goes by in `/llms.txt` and Markdown output: its
+     * Label setting for the site, or the section's own name when that is
+     * blank. Collapsed to one line, since it is used as a heading.
+     */
+    public function getSectionLabel(Section $section, Site $site): string
+    {
+        $label = $this->getSectionConfig($section->id, $site->id)['label'] ?? null;
+        $label = is_string($label) ? trim((string) preg_replace('/\s+/u', ' ', $label)) : '';
+
+        return $label !== '' ? $label : (string) $section->name;
+    }
+
+    /**
+     * Drop the cached Markdown of every entry in a section, or of every entry
+     * when given no section.
+     */
+    public function invalidateSectionCache(?int $sectionId = null): void
+    {
+        TagDependency::invalidate(
+            Craft::$app->getCache(),
+            $sectionId !== null ? $this->getSectionCacheTag($sectionId) : self::CACHE_TAG,
+        );
+    }
+
+    private function getSectionCacheTag(?int $sectionId): string
+    {
+        return self::CACHE_TAG . ':section:' . ($sectionId ?? 'none');
     }
 
     /**

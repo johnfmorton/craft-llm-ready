@@ -405,7 +405,7 @@ If the developer wants to customize the plugin beyond defaults, here are the ava
 | Title Field | (empty) | Field/path overriding the front-matter `title:` (same syntax as Description Field). Falls back to the entry title if blank |
 | Author Override | (empty) | Fixed author name written to every entry's front matter, instead of the individual editor's name |
 
-Per-section settings (enable/disable and LLM template) are configured in the table at the bottom of the settings page.
+Per-section settings (enable/disable, LLM template, and a Label that replaces the section's name in `/llms.txt` and Markdown output) are configured in the table at the bottom of the settings page.
 
 `config/llm-ready.php` accepts every setting above (as `contentSelector`, `excludeSelector`, `excludeElements`, and so on) plus one config-only option: `htmlConverterOptions`, an array of [league/html-to-markdown options](https://github.com/thephpleague/html-to-markdown#configuration-options) merged over the plugin's own, for bullet style, hard breaks, autolinks and the rest. A value in the config file overrides the control panel and disables that field there.
 

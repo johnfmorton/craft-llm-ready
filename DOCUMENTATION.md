@@ -470,6 +470,9 @@ Below the global settings, a per-section configuration table lists all sections 
 |--------|-------------|
 | Enabled | Toggle Markdown output on/off for this section. When disabled, `.md` requests return 404. |
 | LLM Template | Optional path to a Twig template that outputs raw Markdown (e.g., `_llm/blog`). Leave blank to use automatic HTML-to-Markdown conversion. |
+| Label | Optional name for the section in `/llms.txt` (its `##` heading), the section's listing page H1, and each entry's `section:` front matter. Leave blank to use the section's name. Use it when the name is written for content authors ("User Created Pages") and shouldn't be public. The control panel keeps showing the section's own name. |
+
+Section settings live in project config, so they reach other environments with `project-config/apply`. A change that arrives that way, such as a section switched off or a new label, drops the section's cached entry Markdown and queues a rebuild of `/llms.txt` and the listing page, as saving the settings page does.
 
 ## Known AI bot user-agents
 
@@ -632,7 +635,7 @@ LLM Ready respects Craft's content access rules:
 
 ## Multi-site support
 
-LLM Ready supports Craft's multi-site feature. Each section can be independently enabled or disabled per site, and each site can have its own dedicated LLM template. The `/llms.txt` file is generated per-site, listing only entries belonging to the current site; a Site Title or Site Description sourced from a Single or global set field is per-site too.
+LLM Ready supports Craft's multi-site feature. Each section can be independently enabled or disabled per site, and each site can have its own dedicated LLM template and label, so a section's public name can be translated. The `/llms.txt` file is generated per-site, listing only entries belonging to the current site; a Site Title or Site Description sourced from a Single or global set field is per-site too.
 
 ## FAQ
 

@@ -23,7 +23,7 @@ For complete documentation, see the [LLM Ready Documentation](DOCUMENTATION.md) 
 * **Built-in analytics** — an opt-in dashboard shows which AI bots visit your site, what they read, and how often, with per-site breakdowns, a CP widget, and configurable data retention.
 * YAML front matter with entry metadata (title, date, all authors, canonical URL, section) — with settings to source the title, description, and author from any field or a Twig expression (show authors in some sections only, combine several author fields), including SEOmatic's resolved meta description, plus an event for adding keys of your own.
 * **Project config support** — per-section settings are stored in Craft's project config for version control and multi-environment sync, and any setting overridden in `config/llm-ready.php` is flagged on the settings page.
-* Per-section enable/disable control from the plugin settings page.
+* Per-section enable/disable control from the plugin settings page, and an optional label per section, so a name written for content authors ("User Created Pages") doesn't show up in `/llms.txt` or Markdown output.
 * Caches Markdown output with automatic invalidation when entries are saved.
 * `X-Robots-Tag: noindex` header prevents search engines from indexing Markdown responses.
 

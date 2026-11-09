@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-11-09
+
+### Added
+
+- **Label** column in the per-section settings table. It sets the name a section goes by in `/llms.txt` (its `##` heading), on its listing page (`# Label — Site`), and in each entry's `section:` front matter. Section names are written for content authors, so one like "User Created Pages" can now stay in the control panel without being published. Blank uses the section's name, as before. Labels are per site, like the other section settings, so a multi-site install can translate them. They are stored in project config only when set, so upgrading doesn't add a line to every section's config.
+
+### Fixed
+
+- A section setting that arrives by `project-config/apply` on deploy, such as switching a section off, now refreshes the section's cached Markdown, `/llms.txt`, and its listing page. Before, only saving the settings page did, so a deployed change waited out **Cache TTL**.
+- Markdown converted from an entry's HTML could start with `&lt;!\[CDATA\[YII-BLOCK-BODY-BEGIN\]\]&gt;` (and end with `…BODY-END`) when the layout calls `head()`, `beginBody()` or `endBody()`, as standard Craft layouts do. Those are Yii placeholders that only a full page render replaces, and the entry was rendered as a fragment. It is now rendered as a page, so the placeholders are filled in and then removed with the rest of the `<head>` and scripts, and any left over (a `beginBody()` without a page render) are removed before conversion.
+  - JS and CSS a template registers (`{% js %}`, `{% css %}`, asset bundles) are now cleared after each entry, rather than piling up on the shared view when several entries render in one process.
+  - The entry's template is rendered in site mode explicitly. A console command or queue job starts in control-panel mode, where the site template isn't found, so Markdown built there fell back to the basic title-and-body output.
+  - Plugins that hook the end of a page render now run for the `.md` render too. SEOmatic, for example, adds its `Referrer-Policy` and `X-Powered-By` headers to the `.md` response.
+
 ## [1.11.0] - 2026-10-14
 
 ### Added
@@ -335,7 +349,8 @@ _These fixes were surfaced by an independent security review of the plugin. Than
 - Permission checks on all Markdown endpoints — logged-in users without view permission receive a 403
 - Template path traversal protection and XPath injection prevention
 
-[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.11.0...HEAD
+[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.12.0...HEAD
+[1.12.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.8.0...v1.9.0

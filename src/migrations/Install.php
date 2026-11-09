@@ -77,6 +77,7 @@ class Install extends Migration
                 'siteId' => $this->integer()->notNull(),
                 'enabled' => $this->boolean()->notNull()->defaultValue(true),
                 'llmTemplate' => $this->string(500)->null(),
+                'label' => $this->string(255)->null(),
                 'dateCreated' => $this->dateTime()->notNull(),
                 'dateUpdated' => $this->dateTime()->notNull(),
                 'uid' => $this->uid(),
@@ -151,6 +152,7 @@ class Install extends Migration
                     $record->siteId = $site->id;
                     $record->enabled = $values['enabled'] ?? true;
                     $record->llmTemplate = $values['llmTemplate'] ?? null;
+                    $record->label = $values['label'] ?? null;
 
                     if (!$record->save()) {
                         Craft::warning(

@@ -382,7 +382,7 @@
 <hr>
 
 <h2>Section Settings</h2>
-<p class="light">Configure which sections serve Markdown output and optionally assign dedicated LLM templates.</p>
+<p class="light">Configure which sections serve Markdown output and optionally assign dedicated LLM templates. <strong>Label</strong> is the name used in <code>/llms.txt</code> and Markdown output. Leave blank to use the section name.</p>
 
 {% for sectionInfo in sectionData %}
     <h3 style="margin-top: 24px;">{{ sectionInfo.section.name }} <span class="light">({{ sectionInfo.section.type }})</span></h3>
@@ -393,9 +393,10 @@
                separate <table>, so without them the browser would size the
                columns from the site names in that table alone. #}
             <tr>
-                <th style="width: 30%;">Site</th>
-                <th style="width: 15%;">Enabled</th>
-                <th style="width: 55%;">LLM Template</th>
+                <th style="width: 25%;">Site</th>
+                <th style="width: 10%;">Enabled</th>
+                <th style="width: 35%;">LLM Template</th>
+                <th style="width: 30%;">Label</th>
             </tr>
         </thead>
         <tbody>
@@ -418,7 +419,16 @@
                             name: templateName,
                             value: siteInfo.llmTemplate,
                             placeholder: 'e.g., _llm/blog',
-                                                }) }}
+                        }) }}
+                    </td>
+                    <td>
+                        {% set labelName = 'sectionSettings[' ~ sectionInfo.section.id ~ '][' ~ siteInfo.site.id ~ '][label]' %}
+                        {{ forms.text({
+                            name: labelName,
+                            value: siteInfo.label,
+                            placeholder: sectionInfo.section.name,
+                            maxlength: 255,
+                        }) }}
                     </td>
                 </tr>
             {% endfor %}
