@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-11-09
+
 ### Added
 
 - **Label** column in the per-section settings table. It sets the name a section goes by in `/llms.txt` (its `##` heading), on its listing page (`# Label — Site`), and in each entry's `section:` front matter. Section names are written for content authors, so one like "User Created Pages" can now stay in the control panel without being published. Blank uses the section's name, as before. Labels are per site, like the other section settings, so a multi-site install can translate them. They are stored in project config only when set, so upgrading doesn't add a line to every section's config.
@@ -347,7 +349,8 @@ _These fixes were surfaced by an independent security review of the plugin. Than
 - Permission checks on all Markdown endpoints — logged-in users without view permission receive a 403
 - Template path traversal protection and XPath injection prevention
 
-[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.11.0...HEAD
+[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.12.0...HEAD
+[1.12.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.8.0...v1.9.0
