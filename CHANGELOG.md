@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Flatten Card Links** setting (`flattenCardLinks`), on by default. Listing pages often wrap each card (image, heading, date) in one link, which converted to a multi-line Markdown link with a heading and an image inside it, sometimes with a long `data:` placeholder URI. Each such link is now one line: the heading as the link, and the card's other text, such as the date, as plain text after it. This changes the Markdown of existing sites that have such cards. Links with only inline content, and links whose only content is an image (however it's wrapped), convert as before. Turn the setting off to keep the old output. See "Links that wrap a whole card" in DOCUMENTATION.md.
+
 ### Fixed
 
 - Markdown converted from HTML kept HTML entities as literal text: `Planes, Trains &amp; Automobiles`, and `&quot;` in image alt text. The converter escapes `&` in text so the output can't be read as HTML. A Markdown renderer decodes it, but an LLM or any tool reading the raw Markdown saw the entity. Entities are now decoded after conversion, except `&lt;` and `&gt;`, which stay encoded so literal text such as `&lt;div&gt;` doesn't become a tag. Code spans and code blocks are left as they are.

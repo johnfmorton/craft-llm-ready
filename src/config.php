@@ -105,6 +105,12 @@ return [
     // included. Example: '.carousel, [data-nosnippet], newsletter-signup'
     'excludeSelector' => '',
 
+    // Rewrite links that wrap a whole card (image, heading, date) into one
+    // line: the heading as the link, the rest as plain text after it. Listing
+    // pages often wrap each card in a single <a>, which otherwise converts to
+    // a multi-line link with a heading and an image inside it.
+    'flattenCardLinks' => true,
+
     // HTML elements removed from the extracted content during conversion, with
     // everything inside them (comma-separated tag names). This is the default
     // list: take `header` and `footer` out of it if your articles use those

@@ -167,6 +167,16 @@
     placeholder: '.carousel, [data-nosnippet], newsletter-signup',
 }) }}
 
+{{ forms.lightswitchField({
+    label: 'Flatten Card Links',
+    instructions: 'Rewrite links that wrap a whole card (image, heading, date) into one line: the heading as the link, the rest as plain text after it.',
+    id: 'flattenCardLinks',
+    name: 'flattenCardLinks',
+    warning: 'flattenCardLinks' in overridden ? configWarning('flattenCardLinks') : null,
+    disabled: 'flattenCardLinks' in overridden,
+    on: settings.flattenCardLinks,
+}) }}
+
 {# `htmlConverterOptions` is config-file only. Its `remove_nodes` key replaces
    this list outright, so it disables the field the way a direct override does. #}
 {% set excludeElementsConfigKey = (configOverrides.htmlConverterOptions ?? {}).remove_nodes is defined %}
