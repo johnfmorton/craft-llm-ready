@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-11-09
+
 ### Added
 
 - **Flatten Card Links** setting (`flattenCardLinks`), on by default. Listing pages often wrap each card (image, heading, date) in one link, which converted to a multi-line Markdown link with a heading and an image inside it, sometimes with a long `data:` placeholder URI. Each such link is now one line: the heading as the link, and the card's other text, such as the date, as plain text after it. This changes the Markdown of existing sites that have such cards. Links with only inline content, and links whose only content is an image (however it's wrapped), convert as before. Turn the setting off to keep the old output. See "Links that wrap a whole card" in DOCUMENTATION.md.
@@ -357,7 +359,8 @@ _These fixes were surfaced by an independent security review of the plugin. Than
 - Permission checks on all Markdown endpoints — logged-in users without view permission receive a 403
 - Template path traversal protection and XPath injection prevention
 
-[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.12.0...HEAD
+[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.13.0...HEAD
+[1.13.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.9.0...v1.10.0
