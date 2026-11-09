@@ -394,6 +394,7 @@ If the developer wants to customize the plugin beyond defaults, here are the ava
 | Additional Bot User-Agents | (empty) | Custom user-agent strings to detect, appended to the built-in list |
 | Content Selector | `main, article, [role="main"], .content, #content` | CSS selectors for extracting main content during HTML conversion |
 | Exclude Selector | (empty) | CSS selectors for elements to remove before conversion (e.g. `.carousel, [data-nosnippet]`). Plain and custom tag names work too |
+| Flatten Card Links | On | Rewrites a link that wraps a whole card (image, heading, date) as one line: the heading as the link, the rest as plain text after it. Image-only links are left as they are |
 | Excluded Elements | `script, style, nav, footer, header, audio, video, iframe, form, svg` | HTML tag names removed, with their contents, during conversion. Remove `header` and `footer` from the list when an article template uses them for the title block or byline; add `aside`, `dialog` or a custom element as needed. Empty removes nothing |
 | X-Robots-Tag: noindex | On | Prevent search engines from indexing Markdown pages |
 | Auto-inject Discovery Tag | On | Add a `<link rel="alternate">` tag to HTML pages |

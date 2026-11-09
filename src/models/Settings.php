@@ -55,6 +55,15 @@ class Settings extends Model
     public string $excludeSelector = '';
 
     /**
+     * Rewrite a link that wraps a whole card (image, heading, date) as one
+     * line before conversion: the heading as the link text, the rest as
+     * plain text after it. Links holding only inline content are untouched.
+     *
+     * @var bool
+     */
+    public bool $flattenCardLinks = true;
+
+    /**
      * The elements removed during Markdown conversion when nothing else is
      * configured. A constant so the settings page can show it as the field's
      * placeholder and the converter can fall back to it.
@@ -137,7 +146,7 @@ class Settings extends Model
     public function rules(): array
     {
         return [
-            [['enabled', 'noindexHeader', 'autoInjectDiscoveryTag', 'autoInjectLinkHeader', 'enableContentNegotiation', 'enableUserAgentDetection', 'enableAnalytics'], 'boolean'],
+            [['enabled', 'noindexHeader', 'autoInjectDiscoveryTag', 'autoInjectLinkHeader', 'enableContentNegotiation', 'enableUserAgentDetection', 'enableAnalytics', 'flattenCardLinks'], 'boolean'],
             [['contentSelector', 'excludeSelector', 'excludeElements', 'llmsTxtTitle', 'llmsTxtIntro', 'descriptionField', 'titleField', 'authorOverride'], 'string'],
             [['excludeElements'], 'validateExcludeElements'],
             [['htmlConverterOptions'], 'validateHtmlConverterOptions'],

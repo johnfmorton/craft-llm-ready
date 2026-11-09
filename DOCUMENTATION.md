@@ -81,8 +81,9 @@ When no dedicated LLM template is configured for a section, LLM Ready renders th
 
 1. Extracts the main content area using configurable CSS selectors (defaults to `main, article, [role="main"], .content, #content`).
 2. Removes non-content elements — by default `<script>`, `<style>`, `<nav>`, `<footer>`, `<header>`, `<audio>`, `<video>`, `<iframe>`, `<form>`, `<svg>` — as listed in the **Excluded Elements** setting (see [Choosing which elements are removed](#choosing-which-elements-are-removed)).
-3. Converts the remaining HTML to Markdown using the [league/html-to-markdown](https://github.com/thephpleague/html-to-markdown) library.
-4. Prepends YAML front matter with entry metadata.
+3. Rewrites links that wrap a whole card as one line, unless **Flatten Card Links** is off (see [Links that wrap a whole card](#links-that-wrap-a-whole-card)).
+4. Converts the remaining HTML to Markdown using the [league/html-to-markdown](https://github.com/thephpleague/html-to-markdown) library, and decodes the HTML entities it leaves in text (`&amp;`, `&quot;`). `&lt;` and `&gt;` stay encoded, so literal text such as `&lt;div&gt;` doesn't become a tag, and code is left as written.
+5. Prepends YAML front matter with entry metadata.
 
 If the template fails to render (e.g., a missing template or a Twig error), LLM Ready falls back to extracting content directly from common entry field handles (`body`, `content`, `text`, `description`, `summary`).
 
@@ -113,6 +114,33 @@ The conversion itself is done by [league/html-to-markdown](https://github.com/th
     'hard_break' => true,       // <br> becomes "\n" instead of "  \n"
     'use_autolinks' => false,   // always [text](url), never <url>
 ],
+```
+
+### Links that wrap a whole card
+
+Listing pages often wrap each card (an image, a heading, a date) in a single link. Converted as it is, that becomes a multi-line Markdown link with a heading and an image inside it, which many renderers show as broken text:
+
+```markdown
+1. [![Activates 715+ Hours …](data:image/svg+xml,%3Csvg…)#### Activates 715+ Hours of Programming on Pluto TV
+
+    06.22.2026](https://example.com/news/activates-715-hours)
+```
+
+With **Flatten Card Links** on (the default), each such link becomes one line before conversion: the first heading inside it as the link text, and the card's other text, such as a date or a category, as plain text after it.
+
+```markdown
+1. [Activates 715+ Hours of Programming on Pluto TV](https://example.com/news/activates-715-hours) 06.22.2026
+```
+
+- A link counts as a card when it contains a heading, `p`, `div`, `figure`, `picture`, `ul`, `ol`, `section` or `article`.
+- Images, `picture`, `figure`, `svg` and `video` inside the card are dropped, along with any text in them, such as a placeholder label.
+- With no heading, the card's whole text becomes the link text.
+- A link with only inline content, such as a link in a sentence, converts as before. So does a link whose only content is an image, however the image is wrapped: a logo or a poster stays `[![alt](src)](href)`.
+
+Turn it off to keep the converter's own output, or set it in `config/llm-ready.php`:
+
+```php
+'flattenCardLinks' => false,
 ```
 
 Settings saved in the control panel take effect immediately. A change to `config/llm-ready.php` is picked up on the next request, but Markdown already cached is served until it expires or the data cache is cleared (`php craft clear-caches/data`).
@@ -412,6 +440,7 @@ Configure LLM Ready from **Settings > Plugins > LLM Ready** in the Craft control
 | Additional Bot User-Agents | `[]` | Custom user-agent strings to detect as AI bots |
 | Content Selector | `main, article, [role="main"], .content, #content` | CSS selectors for extracting main content from HTML |
 | Exclude Selector | `""` | CSS selectors for elements to remove before Markdown conversion (e.g. `.carousel, [data-nosnippet]`) |
+| Flatten Card Links | `true` | Rewrite links that wrap a whole card (image, heading, date) into one line: the heading as the link, the rest as plain text after it. See [Links that wrap a whole card](#links-that-wrap-a-whole-card) |
 | Excluded Elements | `script, style, nav, footer, header, audio, video, iframe, form, svg` | HTML tag names removed, with their contents, during Markdown conversion (comma-separated; empty removes nothing). `excludeElements` in the config file, where `htmlConverterOptions` also exposes the converter's other options. See [Choosing which elements are removed](#choosing-which-elements-are-removed) |
 | X-Robots-Tag: noindex | `true` | Add `noindex` header to Markdown responses |
 | Auto-inject Discovery Tag | `true` | Inject `<link rel="alternate">` into HTML pages |

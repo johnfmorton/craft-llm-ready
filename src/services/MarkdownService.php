@@ -43,6 +43,9 @@ class MarkdownService extends Component
 
     private ?HtmlConverter $_converter = null;
 
+    /** @var string[] Tags whose text {@see gatherText()} skips. */
+    private array $_hiddenTextTags = [];
+
     /**
      * Render Markdown for an entry
      */
@@ -261,6 +264,10 @@ class MarkdownService extends Component
 
         $this->stripExcludedNodes($xpath, $settings->excludeSelector);
 
+        if ($settings->flattenCardLinks) {
+            $this->flattenCardLinks($dom, $xpath);
+        }
+
         foreach ($selectors as $selector) {
             $xpathQuery = $this->cssSelectorToXPath($selector);
             $nodes = $xpath->query($xpathQuery);
@@ -316,6 +323,150 @@ class MarkdownService extends Component
                 }
             }
         }
+    }
+
+    /** Elements whose presence inside a link makes it a card. */
+    private const CARD_BLOCK_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'figure', 'picture', 'ul', 'ol', 'section', 'article'];
+
+    /** Media dropped from a card link, with any text inside them. */
+    private const CARD_MEDIA_TAGS = ['img', 'picture', 'figure', 'svg', 'video'];
+
+    /** Elements that don't break a line, so their text joins without a space. */
+    private const INLINE_TAGS = ['a', 'abbr', 'b', 'bdi', 'bdo', 'cite', 'code', 'data', 'del', 'dfn', 'em', 'i', 'ins', 'kbd', 'label', 'mark', 'q', 's', 'samp', 'small', 'span', 'strong', 'sub', 'sup', 'time', 'u', 'var'];
+
+    /**
+     * Rewrite every link that wraps a whole card — typically an image, a
+     * heading and a date on a listing page — as one line: the first heading
+     * as the link text, and the card's other text, such as the date, as plain
+     * text after the link. Converted as-is, such a link becomes a multi-line
+     * Markdown link with a heading and an image inside it, which most
+     * renderers show as broken text.
+     *
+     * Without a heading, the link's whole text becomes its text, and with an
+     * empty heading and no other text, its first image's alt. A link with no
+     * text outside its media is left alone, however the image is wrapped, as
+     * is any link holding only inline content, so an inline link or an
+     * image-only logo link converts as before. The replacement stays
+     * in the original's parent, so a card in a list item stays a list item.
+     */
+    private function flattenCardLinks(\DOMDocument $dom, \DOMXPath $xpath): void
+    {
+        $blockTest = implode(' or ', array_map(fn(string $tag) => "self::{$tag}", self::CARD_BLOCK_TAGS));
+        $links = $xpath->query("//a[@href][.//*[{$blockTest}]]");
+        if ($links === false || $links->length === 0) {
+            return;
+        }
+
+        // Collect first: replacing nodes mutates the live NodeList.
+        $cards = [];
+        foreach ($links as $link) {
+            $cards[] = $link;
+        }
+
+        $mediaTest = implode(' or ', array_map(fn(string $tag) => "self::{$tag}", self::CARD_MEDIA_TAGS));
+
+        // Text the converter would drop mustn't reach the link either.
+        $this->_hiddenTextTags = array_merge(
+            ['script', 'style', 'template', 'noscript'],
+            Settings::parseTagList((string) ($this->getConverterOptions()['remove_nodes'] ?? '')),
+        );
+
+        foreach ($cards as $link) {
+            /** @var \DOMElement $link */
+            if ($link->parentNode === null) {
+                continue;
+            }
+
+            // Worked out on a copy, so a card with nothing to use as link
+            // text can be left exactly as it was.
+            /** @var \DOMElement $card */
+            $card = $link->cloneNode(true);
+
+            $alt = '';
+            $images = $xpath->query('.//img[@alt]', $card);
+            if ($images !== false && $images->length > 0) {
+                /** @var \DOMElement $image */
+                $image = $images->item(0);
+                $alt = $this->collapseWhitespace($image->getAttribute('alt'));
+            }
+
+            $media = $xpath->query(".//*[{$mediaTest}]", $card);
+            foreach ($media !== false ? iterator_to_array($media) : [] as $node) {
+                $node->parentNode?->removeChild($node);
+            }
+
+            // Nothing but media — an image link, however the image is
+            // wrapped (`<picture>`, `<figure>`) — converts as an image link.
+            if ($this->nodeText($card) === '') {
+                continue;
+            }
+
+            $headings = $xpath->query('.//*[self::h1 or self::h2 or self::h3 or self::h4 or self::h5 or self::h6]', $card);
+            $heading = $headings !== false ? $headings->item(0) : null;
+
+            if ($heading !== null) {
+                $text = $this->nodeText($heading);
+                $heading->parentNode?->removeChild($heading);
+                $rest = $this->nodeText($card);
+            } else {
+                $text = $this->nodeText($card);
+                $rest = '';
+            }
+
+            if ($text === '') {
+                $text = $alt;
+            }
+            if ($text === '') {
+                continue;
+            }
+
+            $flat = $dom->createElement('a');
+            $flat->setAttribute('href', $link->getAttribute('href'));
+            $flat->appendChild($dom->createTextNode($text));
+
+            $parent = $link->parentNode;
+            $parent->insertBefore($flat, $link);
+            if ($rest !== '') {
+                $parent->insertBefore($dom->createTextNode(' ' . $rest), $link);
+            }
+            $parent->removeChild($link);
+        }
+    }
+
+    /**
+     * A node's text on one line, with a space wherever a block element or a
+     * `<br>` would have broken it, so a heading and a date don't run together.
+     */
+    private function nodeText(\DOMNode $node): string
+    {
+        return $this->collapseWhitespace($this->gatherText($node));
+    }
+
+    private function gatherText(\DOMNode $node): string
+    {
+        if ($node instanceof \DOMText) {
+            return $node->data;
+        }
+
+        if ($node instanceof \DOMElement && in_array(strtolower($node->tagName), $this->_hiddenTextTags, true)) {
+            return ' ';
+        }
+
+        $text = '';
+        foreach ($node->childNodes as $child) {
+            $text .= $this->gatherText($child);
+        }
+
+        if ($node instanceof \DOMElement && !in_array(strtolower($node->tagName), self::INLINE_TAGS, true)) {
+            return " {$text} ";
+        }
+
+        return $text;
+    }
+
+    private function collapseWhitespace(string $text): string
+    {
+        return trim((string) preg_replace('/[\s\x{00A0}]+/u', ' ', $text));
     }
 
     /**
@@ -399,12 +550,55 @@ class MarkdownService extends Component
             $this->_converter = new HtmlConverter($this->getConverterOptions());
         }
 
-        $markdown = $this->_converter->convert($html);
+        $markdown = $this->decodeEntities($this->_converter->convert($html));
 
         // Clean up excessive whitespace
         $markdown = preg_replace("/\n{3,}/", "\n\n", $markdown);
 
         return trim($markdown) . "\n";
+    }
+
+    /**
+     * Decode the HTML entities league/html-to-markdown leaves in its output.
+     *
+     * The converter escapes `&` and `<` in text so the Markdown can't be read
+     * as HTML, and how many times depends on how deeply the text is nested,
+     * so `Trains & Automobiles` came out as `Trains &amp; Automobiles` and an
+     * image's alt text inside a `<picture>` kept `&quot;`. A Markdown renderer
+     * decodes those, but an LLM reads the raw text.
+     *
+     * Only what can't create markup is decoded: `&amp;`, quotes, `&nbsp;` (as
+     * a space) and any other entity for a printable character. `&lt;` and
+     * `&gt;` stay encoded, so literal text such as `&lt;div&gt;` doesn't turn
+     * into a tag. It's one left-to-right pass, so `&amp;lt;` (the text `&lt;`)
+     * becomes `&lt;`, never `<`. Code spans and fenced code blocks are left
+     * alone: the converter has already decoded them, and an entity written
+     * there is meant literally.
+     */
+    private function decodeEntities(string $markdown): string
+    {
+        if (!str_contains($markdown, '&')) {
+            return $markdown;
+        }
+
+        $pattern = '/(?<code>^(?<fence>`{3,}|~{3,})[^\n]*\n.*?^\k<fence>[ \t]*$|(?<tick>`+)(?:(?!\n\n).)+?(?<!`)\k<tick>(?!`))'
+            . '|(?<entity>&(?:#[0-9]+|#[xX][0-9a-fA-F]+|[A-Za-z][A-Za-z0-9]*);)/msu';
+
+        return (string) preg_replace_callback($pattern, function(array $match): string {
+            $entity = $match['entity'] ?? '';
+            if ($entity === '') {
+                return $match[0];
+            }
+
+            $decoded = html_entity_decode($entity, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+            return match (true) {
+                $decoded === $entity, $decoded === '<', $decoded === '>' => $entity,
+                $decoded === "\u{00A0}" => ' ',
+                (bool) preg_match('/^\p{Cc}$/u', $decoded) => $entity,
+                default => $decoded,
+            };
+        }, $markdown);
     }
 
     /**
