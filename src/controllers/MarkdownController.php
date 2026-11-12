@@ -7,8 +7,8 @@ namespace johnfmorton\llmready\controllers;
 use Craft;
 use craft\elements\Entry;
 use craft\web\Controller;
+use johnfmorton\llmready\helpers\HttpErrors;
 use johnfmorton\llmready\LlmReady;
-use yii\web\NotFoundHttpException;
 use yii\web\Response;
 
 /**
@@ -28,7 +28,7 @@ class MarkdownController extends Controller
         $settings = $plugin->getSettings();
 
         if (!$settings->enabled) {
-            throw new NotFoundHttpException();
+            throw HttpErrors::notFound();
         }
 
         $site = Craft::$app->getSites()->getCurrentSite();
@@ -46,7 +46,7 @@ class MarkdownController extends Controller
             return $this->serveListingPage($section, $site);
         }
 
-        throw new NotFoundHttpException();
+        throw HttpErrors::notFound();
     }
 
     /**
@@ -60,7 +60,7 @@ class MarkdownController extends Controller
         // enableLlmsTxt is enforced here as well as by withholding the URL
         // rules, so the action stays unreachable via its `actions/…` URL.
         if (!$settings->enabled || !$settings->enableLlmsTxt) {
-            throw new NotFoundHttpException();
+            throw HttpErrors::notFound();
         }
 
         $site = Craft::$app->getSites()->getCurrentSite();
@@ -100,7 +100,7 @@ class MarkdownController extends Controller
         $settings = LlmReady::getInstance()->getSettings();
 
         if (!$settings->enabled || !$settings->enableLlmsTxt) {
-            throw new NotFoundHttpException();
+            throw HttpErrors::notFound();
         }
 
         $site = Craft::$app->getSites()->getCurrentSite();
@@ -119,21 +119,21 @@ class MarkdownController extends Controller
 
         // Check if section is enabled
         if (!$markdownService->isSectionEnabled($entry->sectionId, $site->id)) {
-            throw new NotFoundHttpException();
+            throw HttpErrors::notFound();
         }
 
         $isPreview = Craft::$app->getRequest()->getIsPreview();
 
         // Only serve live entries with URLs (allow drafts during live preview)
         if (!$isPreview && ($entry->status !== Entry::STATUS_LIVE || !$entry->getUrl())) {
-            throw new NotFoundHttpException();
+            throw HttpErrors::notFound();
         }
 
         // An SEO plugin marking the entry noindex means "don't surface this
         // URL" — so the .md representation 404s too. Previewing is exempt, so
         // authors can still check their Markdown from the control panel.
         if (!$isPreview && $plugin->seoService->isNoindex($entry)) {
-            throw new NotFoundHttpException();
+            throw HttpErrors::notFound();
         }
 
         $content = $markdownService->renderMarkdown($entry, $site);
@@ -174,7 +174,7 @@ class MarkdownController extends Controller
         $markdownService = $plugin->markdownService;
 
         if (!$markdownService->isSectionEnabled($section->id, $site->id)) {
-            throw new NotFoundHttpException();
+            throw HttpErrors::notFound();
         }
 
         $content = $plugin->indexCacheService->get($site, $section);

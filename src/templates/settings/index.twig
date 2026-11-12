@@ -1,14 +1,15 @@
 {% import '_includes/forms.twig' as forms %}
 
-{# Settings present in config/llm-ready.php override the control panel.
+{# Settings present in the plugin's config file (config/llm-ready.php, or
+   config/craft/llm-ready.php on Craft 6) override the control panel.
    Mirror Craft's own general-settings treatment: a warning line under the
    field and the input disabled, so nobody flips a switch that has no
    effect. `overridden` is the list of keys the config file sets. #}
 {% set overridden = (configOverrides ?? {})|keys %}
-{% macro configWarning(setting) -%}
+{% macro configWarning(setting, configFile) -%}
     {{ 'This is being overridden by the {setting} setting in {file}.'|t('llm-ready', {
         setting: '<code>' ~ setting ~ '</code>',
-        file: '<code>config/llm-ready.php</code>',
+        file: '<code>' ~ configFile ~ '</code>',
     })|raw }}
 {%- endmacro %}
 {% from _self import configWarning %}
@@ -18,7 +19,7 @@
     instructions: 'Whether LLM Ready is globally enabled.',
     id: 'enabled',
     name: 'enabled',
-    warning: 'enabled' in overridden ? configWarning('enabled') : null,
+    warning: 'enabled' in overridden ? configWarning('enabled', configFile) : null,
     disabled: 'enabled' in overridden,
     on: settings.enabled,
 }) }}
@@ -32,7 +33,7 @@
     instructions: 'Serve Markdown when the request includes an <code>Accept: text/markdown</code> header.',
     id: 'enableContentNegotiation',
     name: 'enableContentNegotiation',
-    warning: 'enableContentNegotiation' in overridden ? configWarning('enableContentNegotiation') : null,
+    warning: 'enableContentNegotiation' in overridden ? configWarning('enableContentNegotiation', configFile) : null,
     disabled: 'enableContentNegotiation' in overridden,
     on: settings.enableContentNegotiation,
 }) }}
@@ -58,7 +59,7 @@
         <span id="enableUserAgentDetection-label" class="llm-ready-ua-switch__label">{{ 'Serve Markdown to known AI bots'|t('llm-ready') }}</span>
     </div>
     {% if 'enableUserAgentDetection' in overridden %}
-        <p class="warning with-icon">{{ configWarning('enableUserAgentDetection') }}</p>
+        <p class="warning with-icon">{{ configWarning('enableUserAgentDetection', configFile) }}</p>
     {% endif %}
 
     {% include 'llm-ready/_partials/cache-check' with cacheCheck only %}
@@ -114,12 +115,12 @@
 
 {% set botListNotes = [] %}
 {% if 'additionalBotUserAgents' in overridden %}
-    {% set botListNotes = botListNotes|merge([configWarning('additionalBotUserAgents')]) %}
+    {% set botListNotes = botListNotes|merge([configWarning('additionalBotUserAgents', configFile)]) %}
 {% endif %}
 {% for key in ['botUserAgents', 'excludeBotUserAgents']|filter(k => k in overridden) %}
     {% set botListNotes = botListNotes|merge(['{file} also sets {setting}, which changes the effective bot list.'|t('llm-ready', {
         setting: '<code>' ~ key ~ '</code>',
-        file: '<code>config/llm-ready.php</code>',
+        file: '<code>' ~ configFile ~ '</code>',
     })]) %}
 {% endfor %}
 {{ forms.editableTableField({
@@ -150,7 +151,7 @@
     instructions: 'CSS selectors for extracting main content from HTML (comma-separated). Used when no dedicated LLM template is configured.',
     id: 'contentSelector',
     name: 'contentSelector',
-    warning: 'contentSelector' in overridden ? configWarning('contentSelector') : null,
+    warning: 'contentSelector' in overridden ? configWarning('contentSelector', configFile) : null,
     disabled: 'contentSelector' in overridden,
     value: settings.contentSelector,
     placeholder: 'main, article, [role="main"], .content, #content',
@@ -161,7 +162,7 @@
     instructions: 'CSS selectors for elements to remove from the HTML before Markdown conversion (comma-separated). Use this for decorative or non-content elements such as carousels, marquees, or anything marked with `[data-nosnippet]`.',
     id: 'excludeSelector',
     name: 'excludeSelector',
-    warning: 'excludeSelector' in overridden ? configWarning('excludeSelector') : null,
+    warning: 'excludeSelector' in overridden ? configWarning('excludeSelector', configFile) : null,
     disabled: 'excludeSelector' in overridden,
     value: settings.excludeSelector,
     placeholder: '.carousel, [data-nosnippet], newsletter-signup',
@@ -172,7 +173,7 @@
     instructions: 'Rewrite links that wrap a whole card (image, heading, date) into one line: the heading as the link, the rest as plain text after it.',
     id: 'flattenCardLinks',
     name: 'flattenCardLinks',
-    warning: 'flattenCardLinks' in overridden ? configWarning('flattenCardLinks') : null,
+    warning: 'flattenCardLinks' in overridden ? configWarning('flattenCardLinks', configFile) : null,
     disabled: 'flattenCardLinks' in overridden,
     on: settings.flattenCardLinks,
 }) }}
@@ -182,12 +183,12 @@
 {% set excludeElementsConfigKey = (configOverrides.htmlConverterOptions ?? {}).remove_nodes is defined %}
 {% set excludeElementsNotes = [] %}
 {% if 'excludeElements' in overridden %}
-    {% set excludeElementsNotes = excludeElementsNotes|merge([configWarning('excludeElements')]) %}
+    {% set excludeElementsNotes = excludeElementsNotes|merge([configWarning('excludeElements', configFile)]) %}
 {% endif %}
 {% if excludeElementsConfigKey %}
     {% set excludeElementsNotes = excludeElementsNotes|merge(['{file} sets {setting}, which replaces this list.'|t('llm-ready', {
         setting: '<code>htmlConverterOptions.remove_nodes</code>',
-        file: '<code>config/llm-ready.php</code>',
+        file: '<code>' ~ configFile ~ '</code>',
     })]) %}
 {% endif %}
 {{ forms.textField({
@@ -211,7 +212,7 @@
     instructions: 'Add a <code>noindex</code> header to Markdown responses to prevent search engines from indexing them.',
     id: 'noindexHeader',
     name: 'noindexHeader',
-    warning: 'noindexHeader' in overridden ? configWarning('noindexHeader') : null,
+    warning: 'noindexHeader' in overridden ? configWarning('noindexHeader', configFile) : null,
     disabled: 'noindexHeader' in overridden,
     on: settings.noindexHeader,
 }) }}
@@ -221,7 +222,7 @@
     instructions: 'Automatically add <code>&lt;link rel="alternate" type="text/markdown"&gt;</code> to HTML pages.',
     id: 'autoInjectDiscoveryTag',
     name: 'autoInjectDiscoveryTag',
-    warning: 'autoInjectDiscoveryTag' in overridden ? configWarning('autoInjectDiscoveryTag') : null,
+    warning: 'autoInjectDiscoveryTag' in overridden ? configWarning('autoInjectDiscoveryTag', configFile) : null,
     disabled: 'autoInjectDiscoveryTag' in overridden,
     on: settings.autoInjectDiscoveryTag,
 }) }}
@@ -231,7 +232,7 @@
     instructions: 'Add an HTTP <code>Link</code> response header (RFC 8288) pointing at the Markdown alternate. Useful for crawlers that inspect headers without parsing HTML.',
     id: 'autoInjectLinkHeader',
     name: 'autoInjectLinkHeader',
-    warning: 'autoInjectLinkHeader' in overridden ? configWarning('autoInjectLinkHeader') : null,
+    warning: 'autoInjectLinkHeader' in overridden ? configWarning('autoInjectLinkHeader', configFile) : null,
     disabled: 'autoInjectLinkHeader' in overridden,
     on: settings.autoInjectLinkHeader,
 }) }}
@@ -245,7 +246,7 @@
     instructions: 'How long to cache Markdown output. <code>/llms.txt</code> and section listing pages are rebuilt in the background once their copy is this old, or as soon as content changes, and the previous copy is served until the new one is ready. Set to <code>0</code> to disable caching — on a large site that builds them on every request, which can be slow enough to time out.',
     id: 'cacheTtl',
     name: 'cacheTtl',
-    warning: 'cacheTtl' in overridden ? configWarning('cacheTtl') : null,
+    warning: 'cacheTtl' in overridden ? configWarning('cacheTtl', configFile) : null,
     disabled: 'cacheTtl' in overridden,
     value: settings.cacheTtl,
     type: 'number',
@@ -262,7 +263,7 @@
     instructions: 'Serve <code>/llms.txt</code> and <code>/.well-known/llms.txt</code>. Turn this off to remove the route — it will return a 404, and the home page stops advertising it — while leaving <code>.md</code> URLs, content negotiation and discovery tags working.',
     id: 'enableLlmsTxt',
     name: 'enableLlmsTxt',
-    warning: 'enableLlmsTxt' in overridden ? configWarning('enableLlmsTxt') : null,
+    warning: 'enableLlmsTxt' in overridden ? configWarning('enableLlmsTxt', configFile) : null,
     disabled: 'enableLlmsTxt' in overridden,
     on: settings.enableLlmsTxt,
 }) }}
@@ -274,7 +275,7 @@
     instructions: 'The <code>/llms.txt</code> H1 heading. Leave blank to use the site\'s name, which is per site — a fixed title here applies to every site. Collapsed to one line; a template that renders to nothing falls back to the site\'s name.',
     id: 'llmsTxtTitle',
     name: 'llmsTxtTitle',
-    warning: 'llmsTxtTitle' in overridden ? configWarning('llmsTxtTitle') : null,
+    warning: 'llmsTxtTitle' in overridden ? configWarning('llmsTxtTitle', configFile) : null,
     disabled: 'llmsTxtTitle' in overridden,
     value: settings.llmsTxtTitle,
     placeholder: 'e.g., Acme Developer Docs',
@@ -285,7 +286,7 @@
     instructions: 'Introduction text for <code>/llms.txt</code>, shown as a blockquote below the heading. Rich text is reduced to plain text with paragraph breaks kept; a template that renders to nothing omits the blockquote.',
     id: 'llmsTxtIntro',
     name: 'llmsTxtIntro',
-    warning: 'llmsTxtIntro' in overridden ? configWarning('llmsTxtIntro') : null,
+    warning: 'llmsTxtIntro' in overridden ? configWarning('llmsTxtIntro', configFile) : null,
     disabled: 'llmsTxtIntro' in overridden,
     value: settings.llmsTxtIntro,
     rows: 4,
@@ -296,7 +297,7 @@
     instructions: 'How many of each section\'s most recent entries <code>/llms.txt</code> lists. Set to <code>0</code> to list every entry. A higher limit makes the file larger and slower to build — run <code>php craft llm-ready/indexes/regenerate</code> after deploys to build it ahead of visitors.',
     id: 'llmsTxtEntryLimit',
     name: 'llmsTxtEntryLimit',
-    warning: 'llmsTxtEntryLimit' in overridden ? configWarning('llmsTxtEntryLimit') : null,
+    warning: 'llmsTxtEntryLimit' in overridden ? configWarning('llmsTxtEntryLimit', configFile) : null,
     disabled: 'llmsTxtEntryLimit' in overridden,
     value: settings.llmsTxtEntryLimit,
     type: 'number',
@@ -310,7 +311,7 @@
     instructions: 'Field handle to use for entry descriptions in <code>/llms.txt</code> and listing pages (e.g., <code>summary</code>, <code>excerpt</code>). Use dot notation to traverse sub-fields and sub-objects (e.g., <code>seo.seoDescription</code> for a ContentBlock sub-field, or <code>seo.description</code> for an Ether SEO field). Append <code>()</code> to call a no-argument method (e.g., <code>myField.getResolvedValue()</code>). Generated Field handles are also supported. For SEOmatic, use the special value <code>seomatic:description</code> to invoke SEOmatic\'s full resolution chain. See <a href="https://github.com/johnfmorton/craft-llm-ready/blob/main/SEO-PLUGINS.md">SEO-PLUGINS.md</a> for SEOmatic, Ether SEO, SEOmate, and SEO Fields recipes. Leave blank to auto-extract from the first text field. When set, the configured field is authoritative — no fallback is attempted if it resolves to nothing.',
     id: 'descriptionField',
     name: 'descriptionField',
-    warning: 'descriptionField' in overridden ? configWarning('descriptionField') : null,
+    warning: 'descriptionField' in overridden ? configWarning('descriptionField', configFile) : null,
     disabled: 'descriptionField' in overridden,
     value: settings.descriptionField,
     placeholder: 'e.g., summary or seo.seoDescription',
@@ -325,7 +326,7 @@
     instructions: 'How many of a section\'s most recent entries its listing page lists — the page at the section\'s base URL plus <code>.md</code>, e.g. <code>/blog.md</code>. Set to <code>0</code> to list every entry. A higher limit makes the page larger and slower to build — run <code>php craft llm-ready/indexes/regenerate</code> after deploys to build it ahead of visitors.',
     id: 'listingPageEntryLimit',
     name: 'listingPageEntryLimit',
-    warning: 'listingPageEntryLimit' in overridden ? configWarning('listingPageEntryLimit') : null,
+    warning: 'listingPageEntryLimit' in overridden ? configWarning('listingPageEntryLimit', configFile) : null,
     disabled: 'listingPageEntryLimit' in overridden,
     value: settings.listingPageEntryLimit,
     type: 'number',
@@ -345,7 +346,7 @@
     instructions: 'Optional field handle used for the front-matter <code>title:</code> value. Supports the same syntax as Description Field (dot notation, <code>()</code> method calls, Generated Field handles, and <code>seomatic:title</code>), or a Craft object template for custom logic with the entry available as <code>entry</code> — e.g. <code>{{ entry.longTitle ?: entry.title }}</code>. Leave blank to use the entry\'s native title. If set but resolving to an empty value, falls back to the entry\'s native title — every Markdown response always has a title. See <a href="https://github.com/johnfmorton/craft-llm-ready/blob/main/DOCUMENTATION.md#customizing-the-title-and-author">Customizing the title and author</a> for examples.',
     id: 'titleField',
     name: 'titleField',
-    warning: 'titleField' in overridden ? configWarning('titleField') : null,
+    warning: 'titleField' in overridden ? configWarning('titleField', configFile) : null,
     disabled: 'titleField' in overridden,
     value: settings.titleField,
     placeholder: 'e.g., longTitle or seomatic:title',
@@ -356,7 +357,7 @@
     instructions: 'Leave blank to use each entry\'s own authors (all of them, comma-separated, on multi-author entries). Enter a fixed name, such as an editorial team, to use it on every entry instead of individual editor names. For per-entry logic, enter a Craft object template with the entry available as <code>entry</code> — e.g. <code>{% if entry.section.handle == \'blog\' %}{{ entry.authors|map(a =&gt; a.fullName ?: a.username)|join(\', \') }}{% endif %}</code> shows the authors in the blog section only. A template that renders to nothing omits the <code>author:</code> line. See <a href="https://github.com/johnfmorton/craft-llm-ready/blob/main/DOCUMENTATION.md#customizing-the-title-and-author">Customizing the title and author</a> for more examples, including combining several author fields.',
     id: 'authorOverride',
     name: 'authorOverride',
-    warning: 'authorOverride' in overridden ? configWarning('authorOverride') : null,
+    warning: 'authorOverride' in overridden ? configWarning('authorOverride', configFile) : null,
     disabled: 'authorOverride' in overridden,
     value: settings.authorOverride,
     placeholder: 'e.g., Acme Editorial Team',
@@ -371,7 +372,7 @@
     instructions: 'Log requests to <code>.md</code> pages, <code>/llms.txt</code>, and content negotiation responses for the analytics dashboard.',
     id: 'enableAnalytics',
     name: 'enableAnalytics',
-    warning: 'enableAnalytics' in overridden ? configWarning('enableAnalytics') : null,
+    warning: 'enableAnalytics' in overridden ? configWarning('enableAnalytics', configFile) : null,
     disabled: 'enableAnalytics' in overridden,
     on: settings.enableAnalytics,
 }) }}
@@ -381,7 +382,7 @@
     instructions: 'How many days of analytics data to keep. Older data can be purged via the dashboard or the <code>llm-ready/analytics/purge</code> console command.',
     id: 'analyticsRetentionDays',
     name: 'analyticsRetentionDays',
-    warning: 'analyticsRetentionDays' in overridden ? configWarning('analyticsRetentionDays') : null,
+    warning: 'analyticsRetentionDays' in overridden ? configWarning('analyticsRetentionDays', configFile) : null,
     disabled: 'analyticsRetentionDays' in overridden,
     value: settings.analyticsRetentionDays,
     type: 'number',
@@ -395,7 +396,7 @@
 <p class="light">Configure which sections serve Markdown output and optionally assign dedicated LLM templates. <strong>Label</strong> is the name used in <code>/llms.txt</code> and Markdown output. Leave blank to use the section name.</p>
 
 {% for sectionInfo in sectionData %}
-    <h3 style="margin-top: 24px;">{{ sectionInfo.section.name }} <span class="light">({{ sectionInfo.section.type }})</span></h3>
+    <h3 style="margin-top: 24px;">{{ sectionInfo.section.name }} <span class="light">({{ sectionInfo.type }})</span></h3>
 
     <table class="data fullwidth">
         <thead>

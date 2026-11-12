@@ -13,6 +13,8 @@ use craft\models\Section;
 use craft\models\Site;
 use craft\web\View;
 use johnfmorton\llmready\events\DefineFrontMatterEvent;
+use johnfmorton\llmready\helpers\FieldTypes;
+use johnfmorton\llmready\helpers\QueryIterator;
 use johnfmorton\llmready\LlmReady;
 use johnfmorton\llmready\models\Settings;
 use League\HTMLToMarkdown\HtmlConverter;
@@ -96,13 +98,12 @@ class MarkdownService extends Component
     {
         // Hydrated in batches, since a limit of 0 lists every entry and a
         // section can hold thousands.
-        $entries = Entry::find()
+        $entries = QueryIterator::each(Entry::find()
             ->section($section->handle)
             ->site($site)
             ->status('live')
             ->orderBy('postDate desc')
-            ->limit(LlmReady::getInstance()->getSettings()->listingPageEntryLimit ?: null)
-            ->each();
+            ->limit(LlmReady::getInstance()->getSettings()->listingPageEntryLimit ?: null));
 
         $siteName = $site->getName();
         $lines = ["# {$this->getSectionLabel($section, $site)} — {$siteName}", ''];
@@ -993,7 +994,7 @@ class MarkdownService extends Component
         if ($fieldLayout !== null) {
             foreach ($fieldLayout->getCustomFields() as $field) {
                 $fieldClass = get_class($field);
-                if ($field instanceof PlainText
+                if (FieldTypes::is($field, PlainText::class)
                     || $fieldClass === 'craft\\ckeditor\\Field'
                     || $fieldClass === 'craft\\redactor\\Field'
                 ) {

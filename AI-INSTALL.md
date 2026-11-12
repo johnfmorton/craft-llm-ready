@@ -29,7 +29,9 @@ Run these checks and stop if any fail. Report the failure to the developer.
 {cmd} craft version
 ```
 
-**Required:** Craft CMS 5.9.18 or later. If the version is below 5.9.18, inform the developer that LLM Ready requires Craft CMS 5.9.18+ (the minimum was raised to pull in Craft's security fixes) — a lower version will make `composer require` fail.
+**Required:** Craft CMS 5.9.18 or later, or Craft CMS 6. If the version is below 5.9.18, inform the developer that LLM Ready requires Craft CMS 5.9.18+ (the minimum was raised to pull in Craft's security fixes) — a lower version will make `composer require` fail.
+
+**Craft CMS 6:** if the project has an `artisan` file in its root, it's Craft 6. Use `php artisan craft:...` wherever this guide says `craft ...` (for example `{cmd} php artisan craft:plugin:install llm-ready`), require `craftcms/yii2-adapter` alongside the plugin unless the project already has it, and put the plugin's config file at `config/craft/llm-ready.php` instead of `config/llm-ready.php`. Craft 6 requires PHP 8.5.
 
 ### 2b. Verify PHP version
 

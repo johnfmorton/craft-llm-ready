@@ -25,6 +25,7 @@ use craft\services\UserPermissions;
 use craft\services\Utilities;
 use craft\web\UrlManager;
 use craft\web\View;
+use johnfmorton\llmready\http\MarkdownMiddleware;
 use johnfmorton\llmready\models\Settings;
 use johnfmorton\llmready\records\SectionSettingRecord;
 use johnfmorton\llmready\services\AnalyticsService;
@@ -64,6 +65,12 @@ class LlmReady extends Plugin
     public string $schemaVersion = '1.5.0';
     public bool $hasCpSettings = true;
     public bool $hasCpSection = true;
+
+    /**
+     * @var string|null The discovery `Link` header for the page being rendered,
+     * which MarkdownMiddleware adds to the response on Craft 6.
+     */
+    public ?string $pendingLinkHeader = null;
 
     public static function config(): array
     {
@@ -174,6 +181,10 @@ class LlmReady extends Plugin
             if (!empty($sectionSites)) {
                 $sectionData[] = [
                     'section' => $section,
+                    // Craft 6's section type is a backed enum, not a string
+                    // (Craft 5's types only know the string, hence the ignore).
+                    // @phpstan-ignore instanceof.alwaysFalse
+                    'type' => $section->type instanceof \BackedEnum ? (string)$section->type->value : (string)$section->type,
                     'sites' => $sectionSites,
                 ];
             }
@@ -184,6 +195,8 @@ class LlmReady extends Plugin
             'sectionData' => $sectionData,
             'cacheCheck' => $this->cacheDetectionService->getCheckData(),
             'configOverrides' => $configOverrides,
+            // Craft 6 keeps config files in config/craft/.
+            'configFile' => self::isCraft6() ? 'config/craft/llm-ready.php' : 'config/llm-ready.php',
         ]);
     }
 
@@ -353,92 +366,136 @@ class LlmReady extends Plugin
      */
     private function registerContentNegotiationHandler(): void
     {
+        if (self::isCraft6()) {
+            // Craft 6 serves entry pages from Laravel routes, which never fire
+            // Yii's EVENT_BEFORE_ACTION. The middleware makes the same decision
+            // through negotiatedMarkdown().
+            MarkdownMiddleware::register();
+            return;
+        }
+
         Event::on(
             \yii\web\Application::class,
             \yii\web\Application::EVENT_BEFORE_ACTION,
             function(ActionEvent $event) {
-                $settings = $this->getSettings();
-                if (!$settings->enabled) {
+                $markdown = $this->negotiatedMarkdown();
+                if ($markdown === null) {
                     return;
                 }
 
-                $request = Craft::$app->getRequest();
-
-                // Skip if this is already a .md request (handled by URL rules)
-                if ($this->detectionService->isMarkdownUrlRequest($request->getPathInfo())) {
-                    return;
+                $response = Craft::$app->getResponse();
+                $response->format = \yii\web\Response::FORMAT_RAW;
+                foreach ($markdown['headers'] as $name => $value) {
+                    $response->getHeaders()->set($name, $value);
                 }
-
-                // Skip if not a front-end GET request
-                if (!$request->getIsSiteRequest() || !$request->getIsGet()) {
-                    return;
-                }
-
-                // Check content negotiation and user-agent detection
-                if ($this->detectionService->shouldServeMarkdown($request)) {
-                    $path = $request->getPathInfo();
-                    $site = Craft::$app->getSites()->getCurrentSite();
-
-                    // Resolve the element for this path
-                    $element = Craft::$app->getElements()->getElementByUri(
-                        $path ?: '__home__',
-                        $site->id,
-                    );
-
-                    if ($element instanceof Entry) {
-                        if (!$this->markdownService->isSectionEnabled($element->sectionId, $site->id)) {
-                            return;
-                        }
-
-                        if ($element->status !== Entry::STATUS_LIVE || !$element->getUrl()) {
-                            return;
-                        }
-
-                        // A noindex entry falls through to the normal HTML
-                        // response rather than being negotiated into Markdown.
-                        if ($this->seoService->isNoindex($element)) {
-                            return;
-                        }
-
-                        $content = $this->markdownService->renderMarkdown($element, $site);
-
-                        $response = Craft::$app->getResponse();
-                        $response->format = \yii\web\Response::FORMAT_RAW;
-                        $response->getHeaders()->set('Content-Type', 'text/markdown; charset=utf-8');
-
-                        // Markdown on the canonical URL varies by UA/Accept;
-                        // keep it out of shared caches to avoid poisoning (#24).
-                        $response->getHeaders()->set('Cache-Control', 'private, no-store');
-                        $response->getHeaders()->set('Vary', 'User-Agent, Accept');
-
-                        if ($settings->noindexHeader) {
-                            $response->getHeaders()->set('X-Robots-Tag', 'noindex');
-                        }
-
-                        $response->getHeaders()->set('Link', "<{$element->getUrl()}>; rel=\"canonical\"");
-
-                        $response->data = $content;
-
-                        // Cache headers don't reach a page cache running
-                        // inside Craft itself, so ask it directly.
-                        $this->preventPageCaching();
-
-                        if ($settings->enableAnalytics) {
-                            $this->analyticsService->logRequest(
-                                $site->id,
-                                $element->getCanonicalId(),
-                                'negotiated',
-                                $this->analyticsService->identifyBot($request),
-                                $request->getPathInfo() ?: '__home__',
-                            );
-                        }
-
-                        $response->send();
-                        Craft::$app->end();
-                    }
-                }
+                $response->data = $markdown['content'];
+                $response->send();
+                Craft::$app->end();
             },
         );
+    }
+
+    /**
+     * The Markdown to serve on an entry's canonical URL for the current
+     * request, when content negotiation (`Accept: text/markdown`) or
+     * user-agent detection asks for it, or null to serve the normal page.
+     *
+     * Shared by the Craft 5 path (a Yii EVENT_BEFORE_ACTION handler) and the
+     * Craft 6 path (MarkdownMiddleware). Logs the analytics request and opts
+     * out of in-Craft page caching when it returns Markdown.
+     *
+     * @return array{content: string, headers: array<string, string>}|null
+     */
+    public function negotiatedMarkdown(): ?array
+    {
+        $settings = $this->getSettings();
+        if (!$settings->enabled) {
+            return null;
+        }
+
+        $request = Craft::$app->getRequest();
+
+        // Skip if this is already a .md request (handled by URL rules)
+        if ($this->detectionService->isMarkdownUrlRequest($request->getPathInfo())) {
+            return null;
+        }
+
+        // Skip if not a front-end GET request
+        if (!$request->getIsSiteRequest() || !$request->getIsGet()) {
+            return null;
+        }
+
+        // Check content negotiation and user-agent detection
+        if (!$this->detectionService->shouldServeMarkdown($request)) {
+            return null;
+        }
+
+        $path = $request->getPathInfo();
+        $site = Craft::$app->getSites()->getCurrentSite();
+
+        // Resolve the element for this path
+        $element = Craft::$app->getElements()->getElementByUri(
+            $path ?: '__home__',
+            $site->id,
+        );
+
+        if (!$element instanceof Entry) {
+            return null;
+        }
+
+        if (!$this->markdownService->isSectionEnabled($element->sectionId, $site->id)) {
+            return null;
+        }
+
+        if ($element->status !== Entry::STATUS_LIVE || !$element->getUrl()) {
+            return null;
+        }
+
+        // A noindex entry falls through to the normal HTML
+        // response rather than being negotiated into Markdown.
+        if ($this->seoService->isNoindex($element)) {
+            return null;
+        }
+
+        $content = $this->markdownService->renderMarkdown($element, $site);
+
+        $headers = [
+            'Content-Type' => 'text/markdown; charset=utf-8',
+            // Markdown on the canonical URL varies by UA/Accept;
+            // keep it out of shared caches to avoid poisoning (#24).
+            'Cache-Control' => 'private, no-store',
+            'Vary' => 'User-Agent, Accept',
+        ];
+
+        if ($settings->noindexHeader) {
+            $headers['X-Robots-Tag'] = 'noindex';
+        }
+
+        $headers['Link'] = "<{$element->getUrl()}>; rel=\"canonical\"";
+
+        // Cache headers don't reach a page cache running
+        // inside Craft itself, so ask it directly.
+        $this->preventPageCaching();
+
+        if ($settings->enableAnalytics) {
+            $this->analyticsService->logRequest(
+                $site->id,
+                $element->getCanonicalId(),
+                'negotiated',
+                $this->analyticsService->identifyBot($request),
+                $request->getPathInfo() ?: '__home__',
+            );
+        }
+
+        return ['content' => $content, 'headers' => $headers];
+    }
+
+    /**
+     * Whether Craft CMS 6 (running this plugin through the yii2 adapter) is installed.
+     */
+    public static function isCraft6(): bool
+    {
+        return class_exists('CraftCms\\Cms\\Cms');
     }
 
     /**
@@ -560,10 +617,14 @@ class LlmReady extends Plugin
                 if ($settings->autoInjectLinkHeader) {
                     // `add` (not `set`) because Link can carry multiple values
                     // — preserves anything else already on the response.
-                    Craft::$app->getResponse()->getHeaders()->add(
-                        'Link',
-                        "<{$alternateUrl}>; rel=\"alternate\"; type=\"text/markdown\"",
-                    );
+                    $link = "<{$alternateUrl}>; rel=\"alternate\"; type=\"text/markdown\"";
+                    if (self::isCraft6()) {
+                        // Craft 6 sends a Laravel response, not Yii's;
+                        // MarkdownMiddleware adds this to it.
+                        $this->pendingLinkHeader = $link;
+                    } else {
+                        Craft::$app->getResponse()->getHeaders()->add('Link', $link);
+                    }
                 }
             },
         );

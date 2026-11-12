@@ -44,6 +44,22 @@ Results are stored per `CRAFT_ENVIRONMENT` (in the database, never project confi
 
 **The check's one hard limit: absence of evidence is not absence of a cache.** An nginx `proxy_cache`, or a Varnish configured not to announce itself, is invisible to every tier. A positive detection is confident; a negative one only ever says "nothing detected". If you know a cache sits in front of your site, trust that knowledge over the check.
 
+## Craft CMS 6
+
+LLM Ready runs on Craft CMS 6 (beta) as well as Craft 5, from the same release, through Craft's [Yii2 adapter](https://craftcms.com/docs/6.x/extend/adapter.html). Everything works the same way; a few things live in different places:
+
+| | Craft 5 | Craft 6 |
+|---|---|---|
+| Requirements | Craft 5.9.18+, PHP 8.2+ | Craft 6, PHP 8.5+, `craftcms/yii2-adapter` |
+| Config file | `config/llm-ready.php` | `config/craft/llm-ready.php` |
+| Install | `./craft plugin/install llm-ready` | `php artisan craft:plugin:install llm-ready` |
+| CLI commands | `./craft llm-ready/indexes/regenerate` | `php artisan craft:llm-ready:indexes:regenerate` |
+| Clear data caches | `./craft clear-caches/data` | `php artisan craft:clear-caches:data` |
+
+Wherever this guide says `config/llm-ready.php`, use `config/craft/llm-ready.php` on Craft 6. The plugin suggests `craftcms/yii2-adapter` rather than requiring it, so Craft 5 projects are unaffected; the Plugin Store and Craft's upgrade tool add the adapter for you, and with Composer you require it yourself.
+
+On Craft 6, content negotiation and user-agent detection on canonical URLs, and the `Link` header on HTML pages, are handled by Laravel middleware, because Craft 6 serves pages from Laravel routes rather than Yii actions. The responses are the same as on Craft 5.
+
 ## Quick start
 
 After installation, test it immediately:

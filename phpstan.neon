@@ -5,3 +5,6 @@ parameters:
     level: 4
     paths:
         - src
+    excludePaths:
+        # Craft 6 only: built on Laravel classes that a Craft 5 install does not have.
+        - src/http/MarkdownMiddleware.php

@@ -22,14 +22,16 @@ For complete documentation, see the [LLM Ready Documentation](DOCUMENTATION.md) 
 * **Listing page support** — append `.md` to a section's base URL to get a Markdown index of entries.
 * **Built-in analytics** — an opt-in dashboard shows which AI bots visit your site, what they read, and how often, with per-site breakdowns, a CP widget, and configurable data retention.
 * YAML front matter with entry metadata (title, date, all authors, canonical URL, section) — with settings to source the title, description, and author from any field or a Twig expression (show authors in some sections only, combine several author fields), including SEOmatic's resolved meta description, plus an event for adding keys of your own.
-* **Project config support** — per-section settings are stored in Craft's project config for version control and multi-environment sync, and any setting overridden in `config/llm-ready.php` is flagged on the settings page.
+* **Project config support** — per-section settings are stored in Craft's project config for version control and multi-environment sync, and any setting overridden in `config/llm-ready.php` (`config/craft/llm-ready.php` on Craft 6) is flagged on the settings page.
 * Per-section enable/disable control from the plugin settings page, and an optional label per section, so a name written for content authors ("User Created Pages") doesn't show up in `/llms.txt` or Markdown output.
 * Caches Markdown output with automatic invalidation when entries are saved.
 * `X-Robots-Tag: noindex` header prevents search engines from indexing Markdown responses.
 
 ## Requirements
 
-This plugin requires Craft CMS 5.9.18 or later, and PHP 8.2 or later.
+This plugin requires Craft CMS 5.9.18 or later on PHP 8.2 or later, or Craft CMS 6 on PHP 8.5 or later.
+
+On Craft 6, LLM Ready runs through Craft's [Yii2 adapter](https://craftcms.com/docs/6.x/extend/adapter.html), which it suggests rather than requires, so the same release installs on Craft 5. The plugin's config file is `config/craft/llm-ready.php` on Craft 6, and console commands are Artisan commands (`php artisan craft:llm-ready:...`). See [Craft CMS 6](https://github.com/johnfmorton/craft-llm-ready/blob/main/DOCUMENTATION.md#craft-cms-6) in the documentation.
 
 ## Installation
 
@@ -54,4 +56,11 @@ composer require johnfmorton/craft-llm-ready
 
 # tell Craft to install the plugin
 ./craft plugin/install llm-ready
+```
+
+On Craft 6, require the adapter too if your project doesn't already have it, and install with Artisan:
+
+```bash
+composer require johnfmorton/craft-llm-ready craftcms/yii2-adapter
+php artisan craft:plugin:install llm-ready
 ```

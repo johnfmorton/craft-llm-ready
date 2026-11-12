@@ -2,7 +2,7 @@
   "name": "johnfmorton/craft-llm-ready",
   "description": "Serve Markdown versions of your Craft CMS pages to AI crawlers and LLMs via .md URLs, content negotiation, and user-agent detection.",
   "type": "craft-plugin",
-  "version": "1.13.0",
+  "version": "1.14.0",
   "license": "proprietary",
   "authors": [
     {
@@ -16,7 +16,7 @@
   },
   "require": {
     "php": ">=8.2",
-    "craftcms/cms": "^5.9.18",
+    "craftcms/cms": "^5.9.18|^6.0.0-beta.1",
     "league/html-to-markdown": "^5.0"
   },
   "require-dev": {
@@ -24,6 +24,7 @@
     "craftcms/phpstan": "dev-main"
   },
   "suggest": {
+    "craftcms/yii2-adapter": "Required to run on Craft CMS 6.",
     "nystudio107/craft-seomatic": "Pull entry descriptions directly from SEOmatic by setting Description Field to `seomatic:description`. See SEO-PLUGINS.md."
   },
   "autoload": {

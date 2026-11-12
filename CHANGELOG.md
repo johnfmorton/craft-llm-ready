@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-11-12
+
+### Added
+
+- **Craft CMS 6 support.** LLM Ready now runs on Craft 6 (beta) as well as Craft 5.9.18+, from the same release, through Craft's Yii2 adapter, which it suggests rather than requires so Craft 5 projects are unaffected. See [Craft CMS 6](https://github.com/johnfmorton/craft-llm-ready/blob/main/DOCUMENTATION.md#craft-cms-6) for where things live on Craft 6 (`config/craft/llm-ready.php`, `php artisan craft:llm-ready:...`).
+- On Craft 6, Markdown on canonical URLs (content negotiation and user-agent detection) and the `Link` header on HTML pages are served by Laravel middleware. Craft 6 serves pages from Laravel routes, which never fire the Yii event these used on Craft 5, so without it they silently stopped working.
+
+### Fixed
+
+- Craft 6: `/llms.txt`, listing pages, `indexes:regenerate` and the queued rebuild crashed, because Craft 6 element queries' `each()` takes a callback. Queries are now iterated through a helper that uses `lazy()` on Craft 6 and `each()` on Craft 5.
+- Craft 6: a missing `.md` URL returned a 500 instead of a 404, because the Yii adapter doesn't convert Yii HTTP exceptions thrown from site URL-rule routes. The plugin throws Symfony HTTP exceptions on Craft 6.
+- Craft 6: the settings page crashed on the section type, which is an enum on Craft 6; its override notices now name `config/craft/llm-ready.php`.
+- Craft 6: the description fallback ignored Plain Text fields, which aren't instances of `craft\fields\PlainText` there. Field type checks now go through a helper that works on both versions.
+
 ## [1.13.0] - 2026-11-09
 
 ### Added

@@ -9,6 +9,7 @@ use craft\elements\Entry;
 use craft\elements\GlobalSet;
 use craft\helpers\Html;
 use craft\models\Site;
+use johnfmorton\llmready\helpers\QueryIterator;
 use johnfmorton\llmready\LlmReady;
 use yii\base\Component;
 
@@ -67,7 +68,7 @@ class LlmsTxtService extends Component
                 ->limit($settings->llmsTxtEntryLimit ?: null);
 
             $entryLines = [];
-            foreach ($query->each() as $entry) {
+            foreach (QueryIterator::each($query) as $entry) {
                 /** @var Entry $entry */
                 if ($seoService->isNoindex($entry)) {
                     continue;

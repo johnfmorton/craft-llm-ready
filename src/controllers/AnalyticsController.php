@@ -6,6 +6,7 @@ namespace johnfmorton\llmready\controllers;
 
 use Craft;
 use craft\web\Controller;
+use johnfmorton\llmready\helpers\HttpErrors;
 use johnfmorton\llmready\LlmReady;
 use yii\web\ForbiddenHttpException;
 use yii\web\Response;
@@ -93,12 +94,12 @@ class AnalyticsController extends Controller
         $editableSiteIds = Craft::$app->getSites()->getEditableSiteIds();
 
         if (empty($editableSiteIds)) {
-            throw new ForbiddenHttpException('You don’t have permission to view analytics for any site.');
+            throw HttpErrors::forbidden('You don’t have permission to view analytics for any site.');
         }
 
         if ($requestedSiteId !== null) {
             if (!in_array($requestedSiteId, $editableSiteIds, true)) {
-                throw new ForbiddenHttpException('You don’t have permission to view analytics for this site.');
+                throw HttpErrors::forbidden('You don’t have permission to view analytics for this site.');
             }
 
             return $requestedSiteId;

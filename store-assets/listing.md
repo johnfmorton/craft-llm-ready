@@ -1,3 +1,33 @@
+# Plugin Store listing
+
+Copy for the LLM Ready listing in Craft Console.
+
+The Plugin Store doesn't read this file. Update it with each release, then paste the changed sections into Craft Console by hand.
+
+**Written for:** 1.14.0. **Live listing last checked:** not yet compared with this file's format; check the live page before pasting.
+
+**Changed since 1.13.0:**
+- The Project config bullet now mentions `config/craft/llm-ready.php` on Craft 6.
+- A new "Craft 5 and Craft 6" section at the end.
+
+## Short description
+
+Not recorded here yet; copy it from Craft Console.
+
+## Categories
+
+Not recorded here yet; copy them from Craft Console.
+
+## Keywords
+
+Not recorded here yet; copy them from Craft Console. Consider adding `craft 6`.
+
+## Long description
+
+Everything below the rule is the Markdown for the long description field.
+
+---
+
 _LLM Ready_ makes your Craft CMS site machine-readable by serving clean Markdown versions of your content to AI crawlers and LLMs. Append `.md` to any entry URL, and LLM Ready converts the page to Markdown with YAML front matter — no extra templates required.
 
 For complete documentation, see the [LLM Ready Documentation](https://github.com/johnfmorton/craft-llm-ready/blob/main/DOCUMENTATION.md) in the git repo.
@@ -20,7 +50,11 @@ For complete documentation, see the [LLM Ready Documentation](https://github.com
 * **Listing page support** — append `.md` to a section's base URL to get a Markdown index of entries.
 * **Built-in analytics** — an opt-in dashboard shows which AI bots visit your site, what they read, and how often, with per-site breakdowns, a CP widget, and configurable data retention.
 * YAML front matter with entry metadata (title, date, all authors, canonical URL, section) — with settings to source the title, description, and author from any field or a Twig expression (show authors in some sections only, combine several author fields), including SEOmatic's resolved meta description, plus an event for adding keys of your own.
-* **Project config support** — per-section settings are stored in Craft's project config for version control and multi-environment sync, and any setting overridden in `config/llm-ready.php` is flagged on the settings page.
+* **Project config support** — per-section settings are stored in Craft's project config for version control and multi-environment sync, and any setting overridden in `config/llm-ready.php` (`config/craft/llm-ready.php` on Craft 6) is flagged on the settings page.
 * Per-section enable/disable control from the plugin settings page.
 * Caches Markdown output with automatic invalidation when entries are saved.
 * `X-Robots-Tag: noindex` header prevents search engines from indexing Markdown responses.
+
+## Craft 5 and Craft 6
+
+One release runs on both: Craft CMS 5.9.18 or later with PHP 8.2, or Craft CMS 6 with PHP 8.5, where it works through Craft's Yii2 adapter.
