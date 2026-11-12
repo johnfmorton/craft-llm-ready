@@ -4,9 +4,9 @@ Copy for the LLM Ready listing in Craft Console.
 
 The Plugin Store doesn't read this file. Update it with each release, then paste the changed sections into Craft Console by hand.
 
-**Written for:** 1.14.0. **Live listing last checked:** not yet compared with this file's format; check the live page before pasting.
+**Written for:** 1.14.0. **Live listing last checked:** 2026-11-12 (showing 1.13.0, compatibility "Craft 5", 514 active installs). Apart from the changes below, the live long description matches this file.
 
-**Changed since 1.13.0:**
+**Changed since the live copy:**
 - The Project config bullet now mentions `config/craft/llm-ready.php` on Craft 6.
 - A new "Craft 5 and Craft 6" section at the end.
 
@@ -16,7 +16,7 @@ Not recorded here yet; copy it from Craft Console.
 
 ## Categories
 
-Not recorded here yet; copy them from Craft Console.
+SEO & Accessibility, AI, Templating
 
 ## Keywords
 
