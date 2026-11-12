@@ -542,9 +542,36 @@
         return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initDashboard);
-    } else {
+    // Craft 5 renders the dashboard markup on the server, before this script
+    // runs. Craft 6's control panel is an Inertia app: the page HTML arrives
+    // as JSON and is mounted (and can be re-mounted) after registered asset
+    // scripts have executed, so the canvas may not exist yet, and the one
+    // we drew on may be replaced. Initialize for each new canvas that appears.
+    var boundCanvas = null;
+
+    function bindIfNeeded() {
+        var canvas = document.getElementById('requestsChart');
+        if (!canvas || canvas === boundCanvas) return;
+        boundCanvas = canvas;
+        if (chart) {
+            chart.destroy();
+            chart = null;
+        }
+        currentView = 'total';
+        activeFilters = [];
+        filterType = null;
         initDashboard();
+    }
+
+    function boot() {
+        bindIfNeeded();
+        new MutationObserver(bindIfNeeded)
+            .observe(document.body, { childList: true, subtree: true });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+    } else {
+        boot();
     }
 })();

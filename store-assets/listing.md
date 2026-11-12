@@ -4,7 +4,7 @@ Copy for the LLM Ready listing in Craft Console.
 
 The Plugin Store doesn't read this file. Update it with each release, then paste the changed sections into Craft Console by hand.
 
-**Written for:** 1.14.0. **Live listing last checked:** 2026-11-12 (showing 1.13.0, compatibility "Craft 5", 514 active installs). Apart from the changes below, the live long description matches this file.
+**Written for:** 1.14.1 (no listing changes since 1.14.0). **Live listing last checked:** 2026-11-12 (showing 1.13.0, compatibility "Craft 5", 514 active installs). Apart from the changes below, the live long description matches this file.
 
 **Changed since the live copy:**
 - The Project config bullet now mentions `config/craft/llm-ready.php` on Craft 6.
@@ -12,7 +12,7 @@ The Plugin Store doesn't read this file. Update it with each release, then paste
 
 ## Short description
 
-Not recorded here yet; copy it from Craft Console.
+Serve Markdown versions of your Craft CMS pages to AI crawlers and LLMs via .md URLs, content negotiation, and user-agent detection.
 
 ## Categories
 

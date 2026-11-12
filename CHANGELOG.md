@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.1] - 2026-11-12
+
+### Fixed
+
+- Craft 6: the Requests Over Time chart on the analytics dashboard was blank. Craft 6's control panel mounts page content after asset scripts run, so the dashboard script now initializes when the chart's canvas appears (and again if it's replaced).
+
 ## [1.14.0] - 2026-11-12
 
 ### Added
@@ -373,7 +379,9 @@ _These fixes were surfaced by an independent security review of the plugin. Than
 - Permission checks on all Markdown endpoints — logged-in users without view permission receive a 403
 - Template path traversal protection and XPath injection prevention
 
-[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.13.0...HEAD
+[Unreleased]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.14.1...HEAD
+[1.14.1]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.14.0...v1.14.1
+[1.14.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.13.0...v1.14.0
 [1.13.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/johnfmorton/craft-llm-ready/compare/v1.10.0...v1.11.0
