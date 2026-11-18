@@ -463,13 +463,92 @@ Event::on(
 );
 ```
 
-On Craft 6, register the same handler in the `boot()` method of a service provider, such as `app/Providers/AppServiceProvider.php`.
+On Craft 5 the handler goes in a module's `init()`; there is a [complete example module](#example-a-module-with-a-hide-from-ai-lightswitch) below. On Craft 6, register the same handler in the `boot()` method of a service provider, such as `app/Providers/AppServiceProvider.php`.
 
 The event carries the entry and the site (`$event->site`), so a rule can differ per site. Things to know:
 
 - **Handlers can only exclude.** The event runs before the `noindex` check, which still applies to every entry a handler leaves included.
 - **Keep handlers cheap.** The event runs once per listed entry while `/llms.txt` and listing pages are built, so read a field on the entry rather than run a query. An entry a handler excludes skips the SEOmatic lookup, so excluding entries makes those builds faster, not slower.
 - **When a change shows up.** A `.md` URL follows the handler on the next request. `/llms.txt` and listing pages follow it when they're next rebuilt: saving the entry queues that rebuild, so a field on the entry takes effect within moments, while a rule that reads something else (a global set, a config value, new handler code) takes effect when **Cache TTL** expires or after `llm-ready/indexes/regenerate`. See [How /llms.txt and listing pages are cached](#how-llmstxt-and-listing-pages-are-cached).
+
+### Example: a module with a "Hide from AI" lightswitch
+
+A complete module for a Craft 5 site with no module of its own yet. It gives editors a lightswitch on the entry; turning it on and saving removes the entry's Markdown version.
+
+**1. Add the field.** Create a Lightswitch field with the handle `hideFromAi`, off by default, and add it to the field layout of each entry type editors should be able to hide. Entry types without the field are left alone.
+
+**2. Create `modules/Module.php`:**
+
+```php
+<?php
+
+namespace modules;
+
+use Craft;
+use johnfmorton\llmready\events\IncludeEntryEvent;
+use johnfmorton\llmready\services\MarkdownService;
+use yii\base\Event;
+use yii\base\Module as BaseModule;
+
+/**
+ * Site module: keeps entries whose "Hide from AI" lightswitch is on out of
+ * LLM Ready's Markdown output.
+ */
+class Module extends BaseModule
+{
+    public function init(): void
+    {
+        Craft::setAlias('@modules', __DIR__);
+
+        parent::init();
+
+        // LLM Ready 1.15.0 added the event; do nothing without it.
+        if (!class_exists(IncludeEntryEvent::class)) {
+            return;
+        }
+
+        Event::on(
+            MarkdownService::class,
+            MarkdownService::EVENT_INCLUDE_ENTRY,
+            function(IncludeEntryEvent $event) {
+                $entry = $event->entry;
+
+                // Only entry types that have the field are affected.
+                $hasField = $entry->getFieldLayout()?->getFieldByHandle('hideFromAi') !== null;
+
+                if ($hasField && $entry->hideFromAi) {
+                    $event->include = false;
+                }
+            }
+        );
+    }
+}
+```
+
+**3. Load it on every request**, in `config/app.php`:
+
+```php
+return [
+    'modules' => [
+        'site-module' => \modules\Module::class,
+    ],
+    'bootstrap' => ['site-module'],
+];
+```
+
+**4. Make the class autoloadable.** Craft's starter project already has this in `composer.json`; add it if yours doesn't, then run `composer dump-autoload`:
+
+```json
+"autoload": {
+    "psr-4": {
+        "modules\\": "modules/"
+    }
+}
+```
+
+**5. Check it.** Turn the lightswitch on for an entry and save. Its `.md` URL now returns a 404 and its HTML page no longer has the `<link rel="alternate" type="text/markdown">` tag. Its line leaves `/llms.txt` and the section's listing page once the queued rebuild has run.
+
+If the site already has a module, add the `Event::on()` call to its `init()` instead. `craft make module` (from [craftcms/generator](https://github.com/craftcms/generator)) scaffolds steps 2 to 4 for you. On Craft 6 there is no module: put the same `Event::on()` call in the `boot()` method of `app/Providers/AppServiceProvider.php`.
 
 ## Response headers
 
