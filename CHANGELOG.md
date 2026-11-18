@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.15.0] - 2026-11-18
+
+### Added
+
+- **`MarkdownService::EVENT_INCLUDE_ENTRY`**, an event a module can use to exclude individual entries by its own rules, such as a lightswitch field or a page whose `noindex` is set in a template. An excluded entry is treated like a `noindex` one: left out of `/llms.txt` and listing pages, a 404 at its `.md` URL, and no Markdown alternate advertised. See [Excluding individual entries](https://github.com/johnfmorton/craft-llm-ready/blob/main/DOCUMENTATION.md#excluding-individual-entries). ([#51](https://github.com/johnfmorton/craft-llm-ready/issues/51))
+
 ## [1.14.1] - 2026-11-12
 
 ### Fixed

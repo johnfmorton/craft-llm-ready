@@ -4,11 +4,12 @@ Copy for the LLM Ready listing in Craft Console.
 
 The Plugin Store doesn't read this file. Update it with each release, then paste the changed sections into Craft Console by hand.
 
-**Written for:** 1.14.1 (no listing changes since 1.14.0). **Live listing last checked:** 2026-11-12 (showing 1.13.0, compatibility "Craft 5", 514 active installs). Apart from the changes below, the live long description matches this file.
+**Written for:** 1.15.0. **Live listing last checked:** 2026-11-12 (showing 1.13.0, compatibility "Craft 5", 514 active installs). Apart from the changes below, the live long description matches this file.
 
 **Changed since the live copy:**
 - The Project config bullet now mentions `config/craft/llm-ready.php` on Craft 6.
 - A new "Craft 5 and Craft 6" section at the end.
+- The "Respects `noindex`" bullet now mentions excluding entries with an event (1.15.0).
 
 ## Short description
 
@@ -42,7 +43,7 @@ For complete documentation, see the [LLM Ready Documentation](https://github.com
 * **Three detection methods**: `.md` URL suffix, `Accept: text/markdown` content negotiation, and AI bot user-agent detection. The first two are on by default; user-agent detection serves Markdown on the *canonical* URL and is **off by default**, because a response that varies by `User-Agent` can be cached and replayed to real visitors by a shared cache. Safe to enable on sites served straight from their origin — see [Why User-Agent detection is off by default](https://github.com/johnfmorton/craft-llm-ready/blob/main/DOCUMENTATION.md#why-user-agent-detection-is-off-by-default).
 * **Cache and CDN safe** — Markdown served on a canonical URL is never storable, page caches like Blitz are opted out through their own API, and `.md` URLs and `/llms.txt` each keep a single representation, so everything a crawler fetches stays fully cacheable behind Cloudflare, Fastly, or Varnish.
 * **Tells you whether a shared cache is in front of your site** — the settings page reads the headers a proxying edge stamps on requests (Cloudflare in proxied mode, Fastly, Varnish, Akamai, Azure Front Door), checks Blitz's configuration, and offers a probe that requests any URL twice and inspects the cache headers, so the User-Agent detection decision is made on evidence. Results are kept per environment, so a local checkout can show what production found.
-* **Respects `noindex`** — entries marked `noindex` in SEOmatic or Ether SEO are excluded from `/llms.txt`, listing pages, and all Markdown output, the same way a search engine would treat them.
+* **Respects `noindex`** — entries marked `noindex` in SEOmatic or Ether SEO are excluded from `/llms.txt`, listing pages, and all Markdown output, the same way a search engine would treat them. A module can exclude further entries by its own rules — a lightswitch field, a section, an entry type — with an event.
 * **Smart HTML-to-Markdown conversion** extracts main content and strips navigation, footers, scripts, and other non-content elements — no template tags to add, and the list of stripped elements is a setting when your markup needs a different one.
 * Optionally assign dedicated Twig templates per section that output raw Markdown for full control.
 * **Real-time rendering** — Markdown is generated on demand and cached, so content is always up to date without queue jobs or batch generation. `/llms.txt` and section listing pages, which list many entries at once, are rebuilt in the background when content changes, so even a site with thousands of entries serves them instantly.
