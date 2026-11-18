@@ -413,7 +413,7 @@ This is controlled by the **Auto-inject Link Header** setting (on by default). I
 - its canonical URL stops serving Markdown to AI bots and to `Accept: text/markdown` requests, falling through to the normal HTML response;
 - its HTML page stops advertising a Markdown alternate, in both the `<link rel="alternate">` tag and the `Link` header — there is no point pointing crawlers at a URL that 404s.
 
-This is always on and has no setting. It is useful for redirect stubs, utility pages, and anything else you already keep out of search results.
+This is always on and has no setting. It is useful for redirect stubs, utility pages, and anything else you already keep out of search results. To exclude an entry by a rule of your own, see [Excluding individual entries](#excluding-individual-entries).
 
 Live preview is exempt, so authors can still check the Markdown version of a `noindex` entry from the control panel.
 
@@ -431,6 +431,45 @@ Other SEO plugins have no per-entry robots concept that maps cleanly onto this, 
 ### Performance note
 
 For SEOmatic sites, building `/llms.txt` runs SEOmatic's meta-container resolution once per listed entry (up to **Entries per Section** per section) so that inherited `noindex` is caught; with Description Field set to `seomatic:description`, the description reuses the same resolution. On a large site that build can take longer than a gateway will wait, which is why `/llms.txt` and listing pages are built in a queue job rather than by the request — see [How /llms.txt and listing pages are cached](#how-llmstxt-and-listing-pages-are-cached). Ether SEO is a plain field read and costs effectively nothing.
+
+## Excluding individual entries
+
+To decide per entry whether it gets a Markdown version, listen for `MarkdownService::EVENT_INCLUDE_ENTRY` in a module and set `$event->include` to `false`. An excluded entry is treated exactly like a `noindex` one, as [described above](#respecting-seo-noindex): no `/llms.txt` or listing page line, a 404 at its `.md` URL, HTML at its canonical URL, and no Markdown alternate advertised. Live preview is exempt.
+
+Two common uses are a lightswitch field that lets editors choose, and pages whose `noindex` is set in a template (`seomatic.meta.robots('noindex')`), which the plugin can't see without rendering the page:
+
+```php
+use johnfmorton\llmready\events\IncludeEntryEvent;
+use johnfmorton\llmready\services\MarkdownService;
+use yii\base\Event;
+
+Event::on(
+    MarkdownService::class,
+    MarkdownService::EVENT_INCLUDE_ENTRY,
+    function(IncludeEntryEvent $event) {
+        $entry = $event->entry;
+
+        // A page the templates mark noindex
+        if ($entry->section?->handle === 'login') {
+            $event->include = false;
+            return;
+        }
+
+        // A "Hide from AI" lightswitch field, where the entry type has one
+        if ($entry->getFieldLayout()?->getFieldByHandle('hideFromAi') && $entry->hideFromAi) {
+            $event->include = false;
+        }
+    }
+);
+```
+
+On Craft 6, register the same handler in the `boot()` method of a service provider, such as `app/Providers/AppServiceProvider.php`.
+
+The event carries the entry and the site (`$event->site`), so a rule can differ per site. Things to know:
+
+- **Handlers can only exclude.** The event runs before the `noindex` check, which still applies to every entry a handler leaves included.
+- **Keep handlers cheap.** The event runs once per listed entry while `/llms.txt` and listing pages are built, so read a field on the entry rather than run a query. An entry a handler excludes skips the SEOmatic lookup, so excluding entries makes those builds faster, not slower.
+- **When a change shows up.** A `.md` URL follows the handler on the next request. `/llms.txt` and listing pages follow it when they're next rebuilt: saving the entry queues that rebuild, so a field on the entry takes effect within moments, while a rule that reads something else (a global set, a config value, new handler code) takes effect when **Cache TTL** expires or after `llm-ready/indexes/regenerate`. See [How /llms.txt and listing pages are cached](#how-llmstxt-and-listing-pages-are-cached).
 
 ## Response headers
 

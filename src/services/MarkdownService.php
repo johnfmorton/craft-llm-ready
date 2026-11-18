@@ -13,6 +13,7 @@ use craft\models\Section;
 use craft\models\Site;
 use craft\web\View;
 use johnfmorton\llmready\events\DefineFrontMatterEvent;
+use johnfmorton\llmready\events\IncludeEntryEvent;
 use johnfmorton\llmready\helpers\FieldTypes;
 use johnfmorton\llmready\helpers\QueryIterator;
 use johnfmorton\llmready\LlmReady;
@@ -40,6 +41,13 @@ class MarkdownService extends Component
      */
     public const EVENT_DEFINE_FRONT_MATTER = 'defineFrontMatter';
 
+    /**
+     * @event IncludeEntryEvent Raised before an entry is served as Markdown,
+     * listed in `/llms.txt` or on a listing page, or advertised as a Markdown
+     * alternate. Handlers may set `$include` to false to exclude it.
+     */
+    public const EVENT_INCLUDE_ENTRY = 'includeEntry';
+
     /** Tag on every cached entry's Markdown. */
     public const CACHE_TAG = 'llmready:markdown';
 
@@ -47,6 +55,34 @@ class MarkdownService extends Component
 
     /** @var string[] Tags whose text {@see gatherText()} skips. */
     private array $_hiddenTextTags = [];
+
+    /**
+     * Whether an entry may be surfaced on a site: no
+     * {@see EVENT_INCLUDE_ENTRY} handler excludes it and no SEO plugin marks
+     * it `noindex`. Every place that serves, lists or advertises an entry's
+     * Markdown asks this, so the two can't disagree.
+     *
+     * Handlers run first: an entry they exclude skips the SEO lookup, which
+     * is the expensive part of building `/llms.txt` on a SEOmatic site. Their
+     * answer isn't memoized, so a long-running queue worker never holds a
+     * stale one.
+     */
+    public function isEntryIncluded(Entry $entry, Site $site): bool
+    {
+        if ($this->hasEventHandlers(self::EVENT_INCLUDE_ENTRY)) {
+            $event = new IncludeEntryEvent([
+                'entry' => $entry,
+                'site' => $site,
+            ]);
+            $this->trigger(self::EVENT_INCLUDE_ENTRY, $event);
+
+            if (!$event->include) {
+                return false;
+            }
+        }
+
+        return !LlmReady::getInstance()->seoService->isNoindex($entry);
+    }
 
     /**
      * Render Markdown for an entry
@@ -108,10 +144,8 @@ class MarkdownService extends Component
         $siteName = $site->getName();
         $lines = ["# {$this->getSectionLabel($section, $site)} — {$siteName}", ''];
 
-        $seoService = LlmReady::getInstance()->seoService;
-
         foreach ($entries as $entry) {
-            if ($seoService->isNoindex($entry)) {
+            if (!$this->isEntryIncluded($entry, $site)) {
                 continue;
             }
 

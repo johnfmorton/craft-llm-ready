@@ -451,9 +451,9 @@ class LlmReady extends Plugin
             return null;
         }
 
-        // A noindex entry falls through to the normal HTML
+        // A noindex or excluded entry falls through to the normal HTML
         // response rather than being negotiated into Markdown.
-        if ($this->seoService->isNoindex($element)) {
+        if (!$this->markdownService->isEntryIncluded($element, $site)) {
             return null;
         }
 
@@ -587,9 +587,9 @@ class LlmReady extends Plugin
                     return;
                 }
 
-                // Don't advertise a Markdown alternate for a noindex entry —
-                // its .md URL 404s.
-                if ($this->seoService->isNoindex($element)) {
+                // Don't advertise a Markdown alternate for a noindex or
+                // excluded entry — its .md URL 404s.
+                if (!$this->markdownService->isEntryIncluded($element, $site)) {
                     return;
                 }
 

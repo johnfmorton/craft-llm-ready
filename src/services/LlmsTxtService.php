@@ -27,7 +27,6 @@ class LlmsTxtService extends Component
     {
         $settings = LlmReady::getInstance()->getSettings();
         $markdownService = LlmReady::getInstance()->markdownService;
-        $seoService = LlmReady::getInstance()->seoService;
         $lines = [];
 
         // H1: Site Title setting, or the site's name
@@ -70,7 +69,7 @@ class LlmsTxtService extends Component
             $entryLines = [];
             foreach (QueryIterator::each($query) as $entry) {
                 /** @var Entry $entry */
-                if ($seoService->isNoindex($entry)) {
+                if (!$markdownService->isEntryIncluded($entry, $site)) {
                     continue;
                 }
 
